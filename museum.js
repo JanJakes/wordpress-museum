@@ -50,13 +50,17 @@ const hubApothem = 15.5;
 const hubCircumradius = hubApothem / Math.cos(Math.PI / 8);
 const hubSideLength = 2 * hubApothem * Math.tan(Math.PI / 8);
 const hubWallInset = 0.72;
+const entryDistanceFromCenter = 5.2;
 const shellPadding = 1.4;
 const shellHeight = 5.4;
 const hubSides = createHubSides();
 const muralSide = hubSides.find((side) => side.kind === 'mural');
 const roomSides = hubSides.filter((side) => side.era);
 const roomLayout = new Map(roomSides.map((side) => [side.era, side]));
-const atriumStartPosition = new THREE.Vector3(0, 1.65, 0);
+const atriumCenterPosition = new THREE.Vector3(0, 1.65, 0);
+const atriumStartPosition = atriumCenterPosition
+	.clone()
+	.add(muralSide.normal.clone().multiplyScalar(-entryDistanceFromCenter));
 const museumBounds = getMuseumBounds();
 const cameraBounds = {
 	minX: museumBounds.minX - 1.5,
@@ -1173,11 +1177,11 @@ function returnToMuseumCenter() {
 	}
 
 	const view = getViewAngles(
-		atriumStartPosition,
+		atriumCenterPosition,
 		getRoomLookPoint(releases[activeIndex].era)
 	);
 	guidedTarget = {
-		position: atriumStartPosition.clone(),
+		position: atriumCenterPosition.clone(),
 		yaw: view.yaw,
 		pitch: 0,
 	};
@@ -1365,14 +1369,14 @@ function startAtMuseumCenter() {
 function getMuralLookPoint() {
 	return new THREE.Vector3(
 		muralSide.midpoint.x,
-		atriumStartPosition.y,
+		atriumCenterPosition.y,
 		muralSide.midpoint.z
 	);
 }
 
 function getRoomLookPoint(era) {
 	const { doorway } = roomLayout.get(era);
-	return new THREE.Vector3(doorway.x, atriumStartPosition.y, doorway.z);
+	return new THREE.Vector3(doorway.x, atriumCenterPosition.y, doorway.z);
 }
 
 function focusRelease(index, immediate = false, options = {}) {
