@@ -56,6 +56,9 @@ let yaw = Math.PI;
 let pitch = 0;
 let dragging = false;
 let lastPointer = { x: 0, y: 0 };
+let programmaticRailScroll = false;
+let programmaticRailScrollTimer = 0;
+let railScrollFrame = 0;
 
 camera.rotation.order = 'YXZ';
 camera.position.set(0, 1.65, -1);
@@ -415,17 +418,21 @@ function bindControls() {
 	});
 	document.addEventListener('keydown', (event) => {
 		keys.add(event.code);
-		if (event.code === 'ArrowRight') {
-			focusRelease(activeIndex + 1);
-		}
-		if (event.code === 'ArrowLeft') {
-			focusRelease(activeIndex - 1);
+		if (isMovementKey(event.code)) {
+			event.preventDefault();
+			stopGuidedTour();
+			guidedTarget = null;
 		}
 		if (event.code === 'Enter') {
 			document.querySelector('#open-playground').click();
 		}
 	});
-	document.addEventListener('keyup', (event) => keys.delete(event.code));
+	document.addEventListener('keyup', (event) => {
+		if (isMovementKey(event.code)) {
+			event.preventDefault();
+		}
+		keys.delete(event.code);
+	});
 
 	canvas.addEventListener('click', (event) => {
 		if (document.pointerLockElement === canvas) {
@@ -458,10 +465,23 @@ function bindControls() {
 	window.addEventListener('pointerup', () => {
 		dragging = false;
 	});
+	document.addEventListener(
+		'wheel',
+		(event) => {
+			if (shouldIgnoreMuseumWheel(event.target)) {
+				return;
+			}
+			event.preventDefault();
+			stopGuidedTour();
+			scrollRailBy(getWheelRailDelta(event));
+		},
+		{ passive: false }
+	);
 
 	document.querySelectorAll('[data-mobile-move]').forEach((button) => {
 		const direction = button.dataset.mobileMove;
 		button.addEventListener('pointerdown', () => {
+			stopGuidedTour();
 			mobileMotion[direction] = true;
 			guidedTarget = null;
 		});
@@ -475,6 +495,7 @@ function bindControls() {
 	document.querySelectorAll('[data-mobile-turn]').forEach((button) => {
 		const direction = button.dataset.mobileTurn;
 		button.addEventListener('pointerdown', () => {
+			stopGuidedTour();
 			mobileMotion[direction] = true;
 			guidedTarget = null;
 		});
@@ -498,6 +519,67 @@ function buildRail() {
 		rail.append(button);
 		railButtons[index] = button;
 	});
+	bindRailScroll(rail);
+}
+
+function bindRailScroll(rail) {
+	rail.addEventListener(
+		'wheel',
+		(event) => {
+			if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+				return;
+			}
+			event.preventDefault();
+			scrollRailBy(event.deltaY);
+		},
+		{ passive: false }
+	);
+	rail.addEventListener('scroll', () => {
+		if (programmaticRailScroll || railScrollFrame) {
+			return;
+		}
+		railScrollFrame = requestAnimationFrame(() => {
+			railScrollFrame = 0;
+			focusNearestRailRelease();
+		});
+	});
+}
+
+function focusNearestRailRelease() {
+	const nearestIndex = getNearestRailIndex();
+	if (nearestIndex !== activeIndex) {
+		stopGuidedTour();
+		focusRelease(nearestIndex, false, { syncRail: false });
+	}
+}
+
+function shouldIgnoreMuseumWheel(target) {
+	if (!(target instanceof Element)) {
+		return false;
+	}
+	return target.closest('.release-panel') || target.closest('.release-rail');
+}
+
+function getWheelRailDelta(event) {
+	return Math.abs(event.deltaY) > Math.abs(event.deltaX)
+		? event.deltaY
+		: event.deltaX;
+}
+
+function scrollRailBy(delta) {
+	document.querySelector('#release-rail-track').scrollLeft += delta;
+}
+
+function getNearestRailIndex() {
+	const rail = document.querySelector('#release-rail-track');
+	const maxScrollLeft = rail.scrollWidth - rail.clientWidth;
+	if (maxScrollLeft <= 0) {
+		return activeIndex;
+	}
+	return Math.round(
+		THREE.MathUtils.clamp(rail.scrollLeft / maxScrollLeft, 0, 1) *
+			(releases.length - 1)
+	);
 }
 
 function animate() {
@@ -547,6 +629,12 @@ function updateCamera(delta) {
 	if (keys.has('KeyD')) {
 		side += 1;
 	}
+	if (keys.has('ArrowLeft')) {
+		turnCamera(-220 * delta, 0);
+	}
+	if (keys.has('ArrowRight')) {
+		turnCamera(220 * delta, 0);
+	}
 	if (mobileMotion.left) {
 		turnCamera(-220 * delta, 0);
 	}
@@ -554,8 +642,7 @@ function updateCamera(delta) {
 		turnCamera(220 * delta, 0);
 	}
 	if (forward || side) {
-		guidedTour = false;
-		document.querySelector('#tour-button').textContent = 'Guided tour';
+		stopGuidedTour();
 		const speed =
 			keys.has('ShiftLeft') || keys.has('ShiftRight') ? 7.5 : 4.2;
 		const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
@@ -567,6 +654,11 @@ function updateCamera(delta) {
 	}
 }
 
+function stopGuidedTour() {
+	guidedTour = false;
+	document.querySelector('#tour-button').textContent = 'Guided tour';
+}
+
 function spinArtifacts(delta) {
 	scene.traverse((object) => {
 		if (object.userData.spin) {
@@ -575,7 +667,7 @@ function spinArtifacts(delta) {
 	});
 }
 
-function focusRelease(index, immediate = false) {
+function focusRelease(index, immediate = false, options = {}) {
 	activeIndex = wrapIndex(index);
 	const release = releases[activeIndex];
 	const target = exhibitPositions[activeIndex];
@@ -596,7 +688,7 @@ function focusRelease(index, immediate = false) {
 		};
 	}
 	updatePanel(release);
-	updateRail();
+	updateRail(options.syncRail !== false);
 }
 
 function updatePanel(release) {
@@ -616,15 +708,27 @@ function updatePanel(release) {
 	document.querySelector('#open-blueprint').href = blueprintUrl.href;
 }
 
-function updateRail() {
+function updateRail(syncRail = true) {
 	railButtons.forEach((button, index) => {
 		button.classList.toggle('is-active', index === activeIndex);
 	});
+	if (!syncRail) {
+		return;
+	}
+	scrollActiveRailButton();
+}
+
+function scrollActiveRailButton() {
+	programmaticRailScroll = true;
+	window.clearTimeout(programmaticRailScrollTimer);
 	railButtons[activeIndex]?.scrollIntoView({
 		behavior: 'smooth',
 		inline: 'center',
 		block: 'nearest',
 	});
+	programmaticRailScrollTimer = window.setTimeout(() => {
+		programmaticRailScroll = false;
+	}, 450);
 }
 
 function updateNearestRelease() {
@@ -723,6 +827,19 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
 
 function wrapIndex(index) {
 	return (index + releases.length) % releases.length;
+}
+
+function isMovementKey(code) {
+	return [
+		'KeyW',
+		'KeyA',
+		'KeyS',
+		'KeyD',
+		'ArrowUp',
+		'ArrowDown',
+		'ArrowLeft',
+		'ArrowRight',
+	].includes(code);
 }
 
 function compareVersions(a, b) {
