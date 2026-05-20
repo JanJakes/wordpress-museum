@@ -53,6 +53,7 @@ const hubWallInset = 0.72;
 const shellPadding = 1.4;
 const shellHeight = 5.4;
 const hubSides = createHubSides();
+const muralSide = hubSides.find((side) => side.kind === 'mural');
 const roomSides = hubSides.filter((side) => side.era);
 const roomLayout = new Map(roomSides.map((side) => [side.era, side]));
 const atriumStartPosition = new THREE.Vector3(0, 1.65, 0);
@@ -119,7 +120,7 @@ function buildScene() {
 			color,
 			...roomSide,
 		};
-		root.add(createRoom(room, items.length));
+		root.add(createRoom(room));
 		createExhibitSlots(room, items.length).forEach((slot, slotIndex) => {
 			const { release, index } = items[slotIndex];
 			exhibitPositions[index] = {
@@ -525,7 +526,7 @@ function createWordPressMuralTexture() {
 	return texture;
 }
 
-function createRoom(room, releaseCount) {
+function createRoom(room) {
 	const group = new THREE.Group();
 	group.position.copy(room.center);
 	group.rotation.y = getRotationForNormal(room.normal);
@@ -553,7 +554,6 @@ function createRoom(room, releaseCount) {
 	group.add(createFloorTrim('right', room.color));
 	group.add(createDoorFrame(room));
 	group.add(createRoomLight(room.color));
-	group.add(createRoomLabel(room, releaseCount));
 	return group;
 }
 
@@ -659,21 +659,6 @@ function createRoomLight(color) {
 	fixture.position.set(0, 4.48, 0);
 	group.add(fixture);
 	return group;
-}
-
-function createRoomLabel(room, releaseCount) {
-	const label = new THREE.Mesh(
-		new THREE.PlaneGeometry(3.6, 0.62),
-		new THREE.MeshBasicMaterial({
-			map: createSmallLabelTexture(`${releaseCount} exhibits`),
-			transparent: true,
-			side: THREE.DoubleSide,
-		})
-	);
-	label.position.set(0, 0.95, -roomDepth / 2 - 0.18);
-	label.rotation.x = -0.2;
-	label.rotation.y = Math.PI;
-	return label;
 }
 
 function getLocalWallPosition(side, tangentOffset) {
@@ -1365,7 +1350,7 @@ function startAtMuseumCenter() {
 
 	const view = getViewAngles(
 		atriumStartPosition,
-		getRoomLookPoint(releases[activeIndex].era)
+		getMuralLookPoint()
 	);
 	yaw = view.yaw;
 	pitch = 0;
@@ -1375,6 +1360,14 @@ function startAtMuseumCenter() {
 	updatePanel(releases[activeIndex]);
 	updateRail();
 	updateActiveExhibitMarker();
+}
+
+function getMuralLookPoint() {
+	return new THREE.Vector3(
+		muralSide.midpoint.x,
+		atriumStartPosition.y,
+		muralSide.midpoint.z
+	);
 }
 
 function getRoomLookPoint(era) {
