@@ -3,6 +3,9 @@
 A standalone Three.js prototype for browsing WordPress release history as a
 museum.
 
+The museum textures are custom procedural canvas textures generated at runtime;
+the project does not depend on third-party image assets.
+
 ## Preview
 
 https://janjakes.github.io/wordpress-museum/

@@ -23,6 +23,7 @@ const renderer = new THREE.WebGLRenderer({
 	antialias: true,
 	powerPreference: 'high-performance',
 });
+const textureCanvases = new Map();
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(68, 1, 0.1, 420);
 const clock = new THREE.Clock();
@@ -148,11 +149,7 @@ function createBuildingShell() {
 
 	const floor = new THREE.Mesh(
 		new THREE.PlaneGeometry(width, depth),
-		new THREE.MeshStandardMaterial({
-			color: 0x24304a,
-			roughness: 0.76,
-			metalness: 0.04,
-		})
+		createShellFloorMaterial(width, depth)
 	);
 	floor.rotation.x = -Math.PI / 2;
 	floor.position.set(centerX, -0.015, centerZ);
@@ -166,6 +163,207 @@ function createBuildingShell() {
 	group.add(createCeiling(bounds));
 	group.add(createShellColumns(bounds));
 	return group;
+}
+
+function createShellFloorMaterial(width, depth) {
+	return createMuseumMaterial('shellFloor', {
+		repeatX: width / 5.2,
+		repeatY: depth / 5.2,
+		roughness: 0.84,
+		metalness: 0.03,
+	});
+}
+
+function createMuseumMaterial(textureName, options = {}) {
+	const texture = createMuseumTexture(
+		textureName,
+		options.repeatX ?? 1,
+		options.repeatY ?? 1
+	);
+	return new THREE.MeshStandardMaterial({
+		map: texture,
+		color: options.color ?? 0xffffff,
+		roughness: options.roughness ?? 0.82,
+		metalness: options.metalness ?? 0.04,
+	});
+}
+
+function createMuseumTexture(name, repeatX, repeatY) {
+	const texture = new THREE.CanvasTexture(getTextureCanvas(name));
+	texture.wrapS = THREE.RepeatWrapping;
+	texture.wrapT = THREE.RepeatWrapping;
+	texture.repeat.set(repeatX, repeatY);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+	return texture;
+}
+
+function getTextureCanvas(name) {
+	if (textureCanvases.has(name)) {
+		return textureCanvases.get(name);
+	}
+
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 512;
+	const ctx = canvas.getContext('2d');
+	const draw = {
+		atriumFloor: drawAtriumFloorTexture,
+		ceiling: drawCeilingTexture,
+		column: drawColumnTexture,
+		roomFloor: drawRoomFloorTexture,
+		roomWall: drawRoomWallTexture,
+		shellFloor: drawShellFloorTexture,
+		shellWall: drawShellWallTexture,
+	}[name];
+	draw(ctx, canvas.width, canvas.height);
+	textureCanvases.set(name, canvas);
+	return canvas;
+}
+
+function drawShellFloorTexture(ctx, width, height) {
+	ctx.fillStyle = '#263553';
+	ctx.fillRect(0, 0, width, height);
+	drawTileGrid(ctx, width, height, 64, '#1a253d', '#314460');
+	drawSpeckles(ctx, width, height, 280, [
+		'#586d8f',
+		'#ffd166',
+		'#6bd7d5',
+		'#141d31',
+	]);
+}
+
+function drawRoomFloorTexture(ctx, width, height) {
+	ctx.fillStyle = '#2f3f5f';
+	ctx.fillRect(0, 0, width, height);
+	drawTileGrid(ctx, width, height, 48, '#1f2b44', '#405373');
+	drawSpeckles(ctx, width, height, 220, [
+		'#7f90ad',
+		'#ffcf6a',
+		'#ed6b78',
+		'#26324d',
+	]);
+}
+
+function drawAtriumFloorTexture(ctx, width, height) {
+	const center = width / 2;
+	ctx.fillStyle = '#31415f';
+	ctx.fillRect(0, 0, width, height);
+	for (let radius = 46; radius < 350; radius += 42) {
+		ctx.beginPath();
+		ctx.arc(center, center, radius, 0, Math.PI * 2);
+		ctx.strokeStyle = radius % 84 === 0 ? '#ffd166' : '#536681';
+		ctx.lineWidth = radius % 84 === 0 ? 5 : 3;
+		ctx.stroke();
+	}
+	for (let index = 0; index < 24; index++) {
+		const angle = (Math.PI * 2 * index) / 24;
+		ctx.beginPath();
+		ctx.moveTo(center, center);
+		ctx.lineTo(
+			center + Math.cos(angle) * width,
+			center + Math.sin(angle) * height
+		);
+		ctx.strokeStyle = index % 2 === 0 ? '#435671' : '#26344f';
+		ctx.lineWidth = 2;
+		ctx.stroke();
+	}
+	drawSpeckles(ctx, width, height, 180, [
+		'#ffd166',
+		'#79e0dc',
+		'#f7e7bf',
+		'#4e6685',
+	]);
+}
+
+function drawShellWallTexture(ctx, width, height) {
+	drawPlasterTexture(ctx, width, height, '#b9c7da', '#8fa3bd', '#dce6f2');
+	drawWallPanels(ctx, width, height, 128, 96, '#7d91ad');
+}
+
+function drawRoomWallTexture(ctx, width, height) {
+	drawPlasterTexture(ctx, width, height, '#cbd7e7', '#9fb1c9', '#f3f0dd');
+	drawWallPanels(ctx, width, height, 96, 128, '#879bb7');
+}
+
+function drawCeilingTexture(ctx, width, height) {
+	ctx.fillStyle = '#d5dde8';
+	ctx.fillRect(0, 0, width, height);
+	drawTileGrid(ctx, width, height, 128, '#97a8bf', '#e7edf4');
+	drawSpeckles(ctx, width, height, 160, ['#ffffff', '#b6c2d3', '#8393aa']);
+}
+
+function drawColumnTexture(ctx, width, height) {
+	drawPlasterTexture(ctx, width, height, '#a8b6cc', '#7d8da7', '#d4deeb');
+	for (let x = 32; x < width; x += 72) {
+		ctx.fillStyle = 'rgba(255, 255, 255, 0.13)';
+		ctx.fillRect(x, 0, 8, height);
+	}
+}
+
+function drawPlasterTexture(ctx, width, height, base, lowlight, highlight) {
+	ctx.fillStyle = base;
+	ctx.fillRect(0, 0, width, height);
+	for (let y = 0; y < height; y += 8) {
+		const alpha = 0.04 + pseudoRandom(y) * 0.05;
+		ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+		ctx.fillRect(0, y, width, 4);
+	}
+	drawSpeckles(ctx, width, height, 340, [lowlight, highlight, '#f5d587']);
+}
+
+function drawWallPanels(ctx, width, height, panelWidth, panelHeight, color) {
+	ctx.strokeStyle = color;
+	ctx.lineWidth = 3;
+	ctx.globalAlpha = 0.62;
+	for (let x = 0; x <= width; x += panelWidth) {
+		ctx.beginPath();
+		ctx.moveTo(x, 0);
+		ctx.lineTo(x, height);
+		ctx.stroke();
+	}
+	for (let y = 0; y <= height; y += panelHeight) {
+		ctx.beginPath();
+		ctx.moveTo(0, y);
+		ctx.lineTo(width, y);
+		ctx.stroke();
+	}
+	ctx.globalAlpha = 1;
+}
+
+function drawTileGrid(ctx, width, height, size, grout, highlight) {
+	for (let y = 0; y < height; y += size) {
+		for (let x = 0; x < width; x += size) {
+			ctx.fillStyle =
+				(x / size + y / size) % 2 === 0
+					? 'rgba(255, 255, 255, 0.035)'
+					: 'rgba(0, 0, 0, 0.035)';
+			ctx.fillRect(x, y, size, size);
+			ctx.strokeStyle = grout;
+			ctx.lineWidth = 3;
+			ctx.strokeRect(x + 1.5, y + 1.5, size - 3, size - 3);
+			ctx.strokeStyle = highlight;
+			ctx.lineWidth = 1;
+			ctx.strokeRect(x + 5.5, y + 5.5, size - 11, size - 11);
+		}
+	}
+}
+
+function drawSpeckles(ctx, width, height, count, palette) {
+	for (let index = 0; index < count; index++) {
+		const x = pseudoRandom(index * 3 + 1) * width;
+		const y = pseudoRandom(index * 3 + 2) * height;
+		const size = 1 + Math.floor(pseudoRandom(index * 3 + 3) * 5);
+		ctx.fillStyle = palette[index % palette.length];
+		ctx.globalAlpha = 0.13 + pseudoRandom(index * 7) * 0.32;
+		ctx.fillRect(x, y, size, size);
+	}
+	ctx.globalAlpha = 1;
+}
+
+function pseudoRandom(seed) {
+	const value = Math.sin(seed * 12.9898) * 43758.5453;
+	return value - Math.floor(value);
 }
 
 function createFloorGrid(bounds) {
@@ -201,14 +399,19 @@ function createShellWall(xOrCenter, zOrCenter, length, isHorizontal) {
 			shellHeight,
 			isHorizontal ? wallThickness * 1.6 : length
 		),
-		new THREE.MeshStandardMaterial({
-			color: 0x33405d,
-			roughness: 0.84,
-			metalness: 0.03,
-		})
+		createShellWallMaterial(length)
 	);
 	wall.position.set(xOrCenter, shellHeight / 2, zOrCenter);
 	return wall;
+}
+
+function createShellWallMaterial(length) {
+	return createMuseumMaterial('shellWall', {
+		repeatX: length / 6,
+		repeatY: shellHeight / 2,
+		roughness: 0.92,
+		metalness: 0.02,
+	});
 }
 
 function createCeiling(bounds) {
@@ -219,10 +422,10 @@ function createCeiling(bounds) {
 	const centerZ = (bounds.minZ + bounds.maxZ) / 2;
 	const panel = new THREE.Mesh(
 		new THREE.PlaneGeometry(width, depth),
-		new THREE.MeshBasicMaterial({
-			color: 0x202943,
-			transparent: true,
-			opacity: 0.74,
+		new THREE.MeshStandardMaterial({
+			map: createMuseumTexture('ceiling', width / 8, depth / 8),
+			roughness: 0.9,
+			metalness: 0.02,
 			side: THREE.DoubleSide,
 		})
 	);
@@ -252,8 +455,9 @@ function createCeiling(bounds) {
 
 function createShellColumns(bounds) {
 	const group = new THREE.Group();
-	const material = new THREE.MeshStandardMaterial({
-		color: 0x51617f,
+	const material = createMuseumMaterial('column', {
+		repeatX: 1,
+		repeatY: shellHeight / 1.8,
 		roughness: 0.68,
 		metalness: 0.08,
 	});
@@ -282,8 +486,9 @@ function createAtrium() {
 	const group = new THREE.Group();
 	const floor = new THREE.Mesh(
 		new THREE.CircleGeometry(10.5, 64),
-		new THREE.MeshStandardMaterial({
-			color: 0x30405f,
+		createMuseumMaterial('atriumFloor', {
+			repeatX: 1,
+			repeatY: 1,
 			roughness: 0.78,
 			metalness: 0.08,
 		})
@@ -348,8 +553,9 @@ function createRoom(room, releaseCount) {
 
 	const floor = new THREE.Mesh(
 		new THREE.PlaneGeometry(roomWidth, roomDepth),
-		new THREE.MeshStandardMaterial({
-			color: 0x283654,
+		createMuseumMaterial('roomFloor', {
+			repeatX: roomWidth / 4,
+			repeatY: roomDepth / 4,
 			roughness: 0.82,
 			metalness: 0.08,
 		})
@@ -379,11 +585,7 @@ function createRoomWall(center, side) {
 			wallHeight,
 			isHorizontal ? wallThickness : roomDepth
 		),
-		new THREE.MeshStandardMaterial({
-			color: 0x36435e,
-			roughness: 0.9,
-			metalness: 0.04,
-		})
+		createRoomWallMaterial(isHorizontal ? roomWidth : roomDepth)
 	);
 	wall.position.set(
 		center.x + getSideOffset(side).x,
@@ -391,6 +593,15 @@ function createRoomWall(center, side) {
 		center.z + getSideOffset(side).z
 	);
 	return wall;
+}
+
+function createRoomWallMaterial(length) {
+	return createMuseumMaterial('roomWall', {
+		repeatX: length / 4.8,
+		repeatY: wallHeight / 2.2,
+		roughness: 0.94,
+		metalness: 0.02,
+	});
 }
 
 function createFloorTrim(center, side, color) {
