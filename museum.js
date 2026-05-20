@@ -1054,6 +1054,9 @@ function bindControls() {
 			: 'Guided tour';
 	});
 	document
+		.querySelector('#center-button')
+		.addEventListener('click', () => returnToMuseumCenter());
+	document
 		.querySelector('#previous-release')
 		.addEventListener('click', () => focusRelease(activeIndex - 1));
 	document
@@ -1162,6 +1165,24 @@ function bindControls() {
 			mobileMotion[direction] = false;
 		});
 	});
+}
+
+function returnToMuseumCenter() {
+	stopGuidedTour();
+	keys.clear();
+	for (const direction of Object.keys(mobileMotion)) {
+		mobileMotion[direction] = false;
+	}
+
+	const view = getViewAngles(
+		atriumStartPosition,
+		getRoomLookPoint(releases[activeIndex].era)
+	);
+	guidedTarget = {
+		position: atriumStartPosition.clone(),
+		yaw: view.yaw,
+		pitch: 0,
+	};
 }
 
 function buildRail() {
