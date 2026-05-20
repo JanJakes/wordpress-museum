@@ -1,0 +1,19 @@
+{
+	"landingPage": "/",
+	"meta": {
+		"title": "WordPress Museum: 3.7 (Basie)",
+		"description": "A time-capsule post for WordPress 3.7, released October 24, 2013.",
+		"author": "wordpress-playground",
+		"categories": ["wordpress-museum", "legacy-wordpress"]
+	},
+	"preferredVersions": {
+		"php": "5.2",
+		"wp": "3.7"
+	},
+	"steps": [
+		{
+			"step": "runPHP",
+			"code": "<?php\nif (!defined('ABSPATH')) {\n\trequire_once '/wordpress/wp-load.php';\n}\n\nglobal $wpdb;\n$wpdb->query(\"UPDATE \" . $wpdb->posts . \" SET post_status = 'draft' WHERE ID = 1\");\n\nwp_insert_post(array(\n\t'post_author' => 1,\n\t'post_title' => base64_decode('TXVzZXVtIERpc3BhdGNoOiBXb3JkUHJlc3MgMy43IChCYXNpZSk='),\n\t'post_name' => 'wordpress-museum-3-7',\n\t'post_content' => base64_decode('PGgyPldlbGNvbWUgYmFjayB0byBPY3RvYmVyIDI0LCAyMDEzLjwvaDI+CjxwPllvdSBhcmUgc3RhbmRpbmcgaW4gdGhlIFdvcmRQcmVzcyAzLjcgIkJhc2llIiBnYWxsZXJ5LCB3aGVyZSBiYWNrZ3JvdW5kIHVwZGF0ZXMgYmVnYW4gcXVpZXRseSBkb2luZyBjaG9yZXMuPC9wPgo8cD5BdXRvbWF0aWMgbWFpbnRlbmFuY2UgcmVsZWFzZXMgYW5kIHN0cm9uZ2VyIHBhc3N3b3JkIGNoZWNrcyBudWRnZWQgV29yZFByZXNzIHRvd2FyZCBzZWxmLWNhcmUuPC9wPgo8cD48c3Ryb25nPk11c2V1bSBub3RlOjwvc3Ryb25nPiBJZiB0aGUgc2l0ZSB1cGRhdGVzIGl0c2VsZiBhdCBuaWdodCwgbGVhdmUgYSBzbWFsbCB0aGFuay15b3Ugbm90ZSBuZWFyIHdwLWNvbmZpZy5waHAuPC9wPgo8cD48ZW0+VGhpcyBwb3N0IHdhcyBwbGFudGVkIGJ5IGEgQmx1ZXByaW50IHNvIHRoZSBwYXN0IGhhcyBzb21ldGhpbmcgdG8gc2F5IHdoZW4gdGhlIHNpdGUgb3BlbnMuPC9lbT48L3A+'),\n\t'post_status' => 'publish',\n\t'post_type' => 'post',\n\t'post_date' => date('Y-m-d H:i:s'),\n\t'post_date_gmt' => gmdate('Y-m-d H:i:s'),\n\t'comment_status' => 'open',\n\t'ping_status' => 'closed',\n\t'post_category' => array(1),\n));\n"
+		}
+	]
+}
