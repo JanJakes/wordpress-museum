@@ -46,25 +46,16 @@ const roomDepth = 13;
 const wallHeight = 4.45;
 const wallThickness = 0.26;
 const roomDoorHalfWidth = 2.9;
-const atriumRadius = 15;
+const hubApothem = 15.5;
+const hubCircumradius = hubApothem / Math.cos(Math.PI / 8);
+const hubSideLength = 2 * hubApothem * Math.tan(Math.PI / 8);
+const hubWallInset = 0.72;
 const shellPadding = 1.4;
 const shellHeight = 5.4;
-const roomLayout = new Map([
-	['Early Blog Engine', new THREE.Vector3(-18.5, 0, -7.25)],
-	['Dashboard Matures', new THREE.Vector3(0, 0, -21)],
-	['CMS Expansion', new THREE.Vector3(18.5, 0, -7.25)],
-	['Modern Admin', new THREE.Vector3(-18.5, 0, 7.25)],
-	['Customizer and API', new THREE.Vector3(18.5, 0, 7.25)],
-	['Block Foundations', new THREE.Vector3(-8, 0, 21)],
-	['Block Site Editing', new THREE.Vector3(8, 0, 21)],
-]);
+const hubSides = createHubSides();
+const roomSides = hubSides.filter((side) => side.era);
+const roomLayout = new Map(roomSides.map((side) => [side.era, side]));
 const atriumStartPosition = new THREE.Vector3(0, 1.65, 0);
-const atriumMovementBounds = {
-	minX: -9.8,
-	maxX: 9.8,
-	minZ: -13.8,
-	maxZ: 13.8,
-};
 const museumBounds = getMuseumBounds();
 const cameraBounds = {
 	minX: museumBounds.minX - 1.5,
@@ -72,7 +63,7 @@ const cameraBounds = {
 	minZ: museumBounds.minZ - 1.5,
 	maxZ: museumBounds.maxZ + 1.5,
 };
-const movementZones = getMovementZones();
+const movementZones = roomSides;
 let activeIndex = 0;
 let guidedTarget = null;
 let guidedTour = false;
@@ -121,13 +112,12 @@ function buildScene() {
 	activeExhibitMarker = createActiveExhibitMarker();
 	root.add(activeExhibitMarker);
 	getEraReleaseGroups().forEach(({ era, items }) => {
-		const center = roomLayout.get(era);
+		const roomSide = roomLayout.get(era);
 		const color = eraColors.get(era);
 		const room = {
 			era,
-			center,
 			color,
-			openSide: getRoomOpenSide(center),
+			...roomSide,
 		};
 		root.add(createRoom(room, items.length));
 		createExhibitSlots(room, items.length).forEach((slot, slotIndex) => {
@@ -156,30 +146,12 @@ function createBuildingShell() {
 	const centerX = (bounds.minX + bounds.maxX) / 2;
 	const centerZ = (bounds.minZ + bounds.maxZ) / 2;
 
-	const floor = new THREE.Mesh(
-		new THREE.PlaneGeometry(width, depth),
-		createShellFloorMaterial(width, depth)
-	);
-	floor.rotation.x = -Math.PI / 2;
-	floor.position.set(centerX, -0.015, centerZ);
-	group.add(floor);
-
-	group.add(createFloorGrid(bounds));
 	group.add(createShellWall(centerX, bounds.minZ, width, true));
 	group.add(createShellWall(centerX, bounds.maxZ, width, true));
 	group.add(createShellWall(bounds.minX, centerZ, depth, false));
 	group.add(createShellWall(bounds.maxX, centerZ, depth, false));
 	group.add(createCeiling(bounds));
 	return group;
-}
-
-function createShellFloorMaterial(width, depth) {
-	return createMuseumMaterial('shellFloor', {
-		repeatX: width / 5.2,
-		repeatY: depth / 5.2,
-		roughness: 0.84,
-		metalness: 0.03,
-	});
 }
 
 function createMuseumMaterial(textureName, options = {}) {
@@ -220,24 +192,11 @@ function getTextureCanvas(name) {
 		ceiling: drawCeilingTexture,
 		roomFloor: drawRoomFloorTexture,
 		roomWall: drawRoomWallTexture,
-		shellFloor: drawShellFloorTexture,
 		shellWall: drawShellWallTexture,
 	}[name];
 	draw(ctx, canvas.width, canvas.height);
 	textureCanvases.set(name, canvas);
 	return canvas;
-}
-
-function drawShellFloorTexture(ctx, width, height) {
-	ctx.fillStyle = '#263553';
-	ctx.fillRect(0, 0, width, height);
-	drawTileGrid(ctx, width, height, 64, '#1a253d', '#314460');
-	drawSpeckles(ctx, width, height, 280, [
-		'#586d8f',
-		'#ffd166',
-		'#6bd7d5',
-		'#141d31',
-	]);
 }
 
 function drawRoomFloorTexture(ctx, width, height) {
@@ -365,32 +324,6 @@ function pseudoRandom(seed) {
 	return value - Math.floor(value);
 }
 
-function createFloorGrid(bounds) {
-	const group = new THREE.Group();
-	const material = new THREE.MeshBasicMaterial({
-		color: 0x3c4a68,
-		transparent: true,
-		opacity: 0.52,
-	});
-	for (let x = Math.ceil(bounds.minX / 4) * 4; x <= bounds.maxX; x += 4) {
-		const line = new THREE.Mesh(
-			new THREE.BoxGeometry(0.035, 0.02, bounds.maxZ - bounds.minZ),
-			material
-		);
-		line.position.set(x, 0.026, (bounds.minZ + bounds.maxZ) / 2);
-		group.add(line);
-	}
-	for (let z = Math.ceil(bounds.minZ / 4) * 4; z <= bounds.maxZ; z += 4) {
-		const line = new THREE.Mesh(
-			new THREE.BoxGeometry(bounds.maxX - bounds.minX, 0.02, 0.035),
-			material
-		);
-		line.position.set((bounds.minX + bounds.maxX) / 2, 0.027, z);
-		group.add(line);
-	}
-	return group;
-}
-
 function createShellWall(xOrCenter, zOrCenter, length, isHorizontal) {
 	const wall = new THREE.Mesh(
 		new THREE.BoxGeometry(
@@ -454,8 +387,14 @@ function createCeiling(bounds) {
 
 function createAtrium() {
 	const group = new THREE.Group();
+	group.add(createHubFloor());
+	group.add(createHubWalls());
+	return group;
+}
+
+function createHubFloor() {
 	const floor = new THREE.Mesh(
-		new THREE.CircleGeometry(atriumRadius, 80),
+		new THREE.CircleGeometry(hubCircumradius, 8, Math.PI / 8),
 		createMuseumMaterial('atriumFloor', {
 			repeatX: 1,
 			repeatY: 1,
@@ -464,10 +403,19 @@ function createAtrium() {
 		})
 	);
 	floor.rotation.x = -Math.PI / 2;
-	group.add(floor);
+	return floor;
+}
 
+function createHubWalls() {
+	const group = new THREE.Group();
 	const ring = new THREE.Mesh(
-		new THREE.RingGeometry(atriumRadius, atriumRadius + 0.55, 80),
+		new THREE.RingGeometry(
+			hubCircumradius,
+			hubCircumradius + 0.45,
+			8,
+			1,
+			Math.PI / 8
+		),
 		new THREE.MeshBasicMaterial({
 			color: 0xffd166,
 			transparent: true,
@@ -478,95 +426,109 @@ function createAtrium() {
 	ring.position.y = 0.025;
 	group.add(ring);
 
-	group.add(createAtriumWalls());
-	group.add(createAtriumSign());
-	return group;
-}
-
-function createAtriumWalls() {
-	const group = new THREE.Group();
-	const { minX, maxX, minZ, maxZ } = atriumMovementBounds;
-	group.add(
-		...createAtriumWallSegments('north', minX, maxX, [
-			{ center: 0, halfWidth: roomDoorHalfWidth },
-		])
-	);
-	group.add(
-		...createAtriumWallSegments('south', minX, maxX, [
-			{ center: -8, halfWidth: roomDoorHalfWidth },
-			{ center: 8, halfWidth: roomDoorHalfWidth },
-		])
-	);
-	group.add(
-		...createAtriumWallSegments('west', minZ, maxZ, [
-			{ center: -7.25, halfWidth: roomDoorHalfWidth },
-			{ center: 7.25, halfWidth: roomDoorHalfWidth },
-		])
-	);
-	group.add(
-		...createAtriumWallSegments('east', minZ, maxZ, [
-			{ center: -7.25, halfWidth: roomDoorHalfWidth },
-			{ center: 7.25, halfWidth: roomDoorHalfWidth },
-		])
-	);
-	return group;
-}
-
-function createAtriumWallSegments(side, start, end, gaps) {
-	const segments = [];
-	let cursor = start;
-	const sortedGaps = [...gaps].sort(
-		(left, right) => left.center - right.center
-	);
-	for (const gap of sortedGaps) {
-		const gapStart = Math.max(start, gap.center - gap.halfWidth);
-		const gapEnd = Math.min(end, gap.center + gap.halfWidth);
-		if (gapStart > cursor) {
-			segments.push(createAtriumWallSegment(side, cursor, gapStart));
+	for (const side of hubSides) {
+		if (side.kind === 'mural') {
+			group.add(createHubWallSegment(side, hubSideLength, 0));
+			group.add(createWordPressMural(side));
+		} else {
+			const segmentLength = (hubSideLength - roomDoorHalfWidth * 2) / 2;
+			const segmentOffset = roomDoorHalfWidth + segmentLength / 2;
+			group.add(createHubWallSegment(side, segmentLength, -segmentOffset));
+			group.add(createHubWallSegment(side, segmentLength, segmentOffset));
 		}
-		cursor = Math.max(cursor, gapEnd);
 	}
-	if (cursor < end) {
-		segments.push(createAtriumWallSegment(side, cursor, end));
-	}
-	return segments;
+	return group;
 }
 
-function createAtriumWallSegment(side, start, end) {
-	const length = end - start;
-	const isHorizontal = side === 'north' || side === 'south';
+function createHubWallSegment(side, length, tangentOffset) {
 	const wall = new THREE.Mesh(
 		new THREE.BoxGeometry(
-			isHorizontal ? length : wallThickness,
+			length,
 			wallHeight,
-			isHorizontal ? wallThickness : length
+			wallThickness
 		),
 		createRoomWallMaterial(length)
 	);
-	const { minX, maxX, minZ, maxZ } = atriumMovementBounds;
-	wall.position.set(
-		isHorizontal ? start + length / 2 : side === 'west' ? minX : maxX,
-		wallHeight / 2,
-		isHorizontal ? (side === 'north' ? minZ : maxZ) : start + length / 2
-	);
+	wall.position
+		.copy(side.midpoint)
+		.add(side.normal.clone().multiplyScalar(-hubWallInset))
+		.add(side.tangent.clone().multiplyScalar(tangentOffset));
+	wall.position.y = wallHeight / 2;
+	wall.rotation.y = getRotationForNormal(side.normal);
 	return wall;
 }
 
-function createAtriumSign() {
-	const sign = new THREE.Mesh(
-		new THREE.PlaneGeometry(5.1, 1.05),
+function createWordPressMural(side) {
+	const mural = new THREE.Mesh(
+		new THREE.PlaneGeometry(hubSideLength * 0.72, wallHeight * 0.68),
 		new THREE.MeshBasicMaterial({
-			map: createEraTexture('WordPress Museum', '#ffd166'),
+			map: createWordPressMuralTexture(),
 			transparent: true,
 			side: THREE.DoubleSide,
 		})
 	);
-	sign.position.set(0, 3.2, 0);
-	return sign;
+	mural.position
+		.copy(side.midpoint)
+		.add(
+			side.normal
+				.clone()
+				.multiplyScalar(-hubWallInset - wallThickness / 2 - 0.08)
+		);
+	mural.position.y = 2.65;
+	mural.rotation.y = getRotationForNormal(
+		side.normal.clone().multiplyScalar(-1)
+	);
+	return mural;
+}
+
+function createWordPressMuralTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 1024;
+	canvas.height = 640;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#111827';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#ffd166';
+	ctx.fillRect(0, 0, canvas.width, 28);
+	ctx.fillRect(0, canvas.height - 28, canvas.width, 28);
+
+	ctx.strokeStyle = 'rgba(255, 245, 223, 0.18)';
+	ctx.lineWidth = 6;
+	for (let index = 0; index < 9; index++) {
+		ctx.beginPath();
+		ctx.arc(512, 320, 76 + index * 48, 0, Math.PI * 2);
+		ctx.stroke();
+	}
+
+	ctx.fillStyle = '#fff5df';
+	ctx.font = '900 122px Arial Black, Impact, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.fillText('WORDPRESS', 512, 245);
+	ctx.font = '900 116px Arial Black, Impact, sans-serif';
+	ctx.fillText('MUSEUM', 512, 370);
+
+	ctx.fillStyle = '#50d890';
+	ctx.font = '800 34px system-ui, sans-serif';
+	ctx.fillText('2004 -> BLOCKS -> PLAYGROUND', 512, 455);
+
+	ctx.fillStyle = 'rgba(255, 245, 223, 0.72)';
+	ctx.font = '700 24px system-ui, sans-serif';
+	ctx.fillText(
+		'45 releases orbiting one very persistent publishing idea',
+		512,
+		510
+	);
+
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
 }
 
 function createRoom(room, releaseCount) {
 	const group = new THREE.Group();
+	group.position.copy(room.center);
+	group.rotation.y = getRotationForNormal(room.normal);
 
 	const floor = new THREE.Mesh(
 		new THREE.PlaneGeometry(roomWidth, roomDepth),
@@ -578,63 +540,53 @@ function createRoom(room, releaseCount) {
 		})
 	);
 	floor.rotation.x = -Math.PI / 2;
-	floor.position.set(room.center.x, 0.01, room.center.z);
+	floor.position.y = 0.01;
 	group.add(floor);
 
-	for (const side of ['north', 'east', 'south', 'west']) {
-		if (side === room.openSide) {
-			group.add(createRoomEntranceWall(room.center, side));
-		} else {
-			group.add(createRoomWall(room.center, side));
-		}
-		group.add(createFloorTrim(room.center, side, room.color));
-	}
-
+	group.add(createRoomEntranceWall());
+	group.add(createRoomWall('back'));
+	group.add(createRoomWall('left'));
+	group.add(createRoomWall('right'));
+	group.add(createFloorTrim('front', room.color));
+	group.add(createFloorTrim('back', room.color));
+	group.add(createFloorTrim('left', room.color));
+	group.add(createFloorTrim('right', room.color));
 	group.add(createDoorFrame(room));
-	group.add(createRoomLight(room.center, room.color));
+	group.add(createRoomLight(room.color));
 	group.add(createRoomLabel(room, releaseCount));
 	return group;
 }
 
-function createRoomEntranceWall(center, side) {
+function createRoomEntranceWall() {
 	const group = new THREE.Group();
-	const isHorizontal = side === 'north' || side === 'south';
-	const fullLength = isHorizontal ? roomWidth : roomDepth;
-	const segmentLength = (fullLength - roomDoorHalfWidth * 2) / 2;
+	const segmentLength = (roomWidth - roomDoorHalfWidth * 2) / 2;
 	const segmentOffset = roomDoorHalfWidth + segmentLength / 2;
 
-	group.add(createRoomWallSegment(center, side, segmentLength, -segmentOffset));
-	group.add(createRoomWallSegment(center, side, segmentLength, segmentOffset));
+	group.add(createRoomWallSegment('front', segmentLength, -segmentOffset));
+	group.add(createRoomWallSegment('front', segmentLength, segmentOffset));
 	return group;
 }
 
-function createRoomWall(center, side) {
+function createRoomWall(side) {
 	return createRoomWallSegment(
-		center,
 		side,
-		side === 'north' || side === 'south' ? roomWidth : roomDepth,
+		side === 'front' || side === 'back' ? roomWidth : roomDepth,
 		0
 	);
 }
 
-function createRoomWallSegment(center, side, length, tangentOffset) {
-	const isHorizontal = side === 'north' || side === 'south';
-	const tangent = isHorizontal
-		? new THREE.Vector3(1, 0, 0)
-		: new THREE.Vector3(0, 0, 1);
+function createRoomWallSegment(side, length, tangentOffset) {
+	const isWidthWall = side === 'front' || side === 'back';
 	const wall = new THREE.Mesh(
 		new THREE.BoxGeometry(
-			isHorizontal ? length : wallThickness,
+			isWidthWall ? length : wallThickness,
 			wallHeight,
-			isHorizontal ? wallThickness : length
+			isWidthWall ? wallThickness : length
 		),
 		createRoomWallMaterial(length)
 	);
-	const position = center
-		.clone()
-		.add(getSideOffset(side))
-		.add(tangent.multiplyScalar(tangentOffset));
-	wall.position.set(position.x, wallHeight / 2, position.z);
+	wall.position.copy(getLocalWallPosition(side, tangentOffset));
+	wall.position.y = wallHeight / 2;
 	return wall;
 }
 
@@ -647,65 +599,33 @@ function createRoomWallMaterial(length) {
 	});
 }
 
-function createFloorTrim(center, side, color) {
-	const isHorizontal = side === 'north' || side === 'south';
+function createFloorTrim(side, color) {
+	const isWidthTrim = side === 'front' || side === 'back';
 	const trim = new THREE.Mesh(
 		new THREE.BoxGeometry(
-			isHorizontal ? roomWidth : 0.08,
+			isWidthTrim ? roomWidth : 0.08,
 			0.04,
-			isHorizontal ? 0.08 : roomDepth
+			isWidthTrim ? 0.08 : roomDepth
 		),
 		new THREE.MeshBasicMaterial({ color })
 	);
-	trim.position.set(
-		center.x + getSideOffset(side).x,
-		0.05,
-		center.z + getSideOffset(side).z
-	);
+	trim.position.copy(getLocalWallPosition(side, 0));
+	trim.position.y = 0.05;
 	return trim;
 }
 
 function createDoorFrame(room) {
 	const group = new THREE.Group();
-	const outward = getOutwardNormal(room.openSide);
-	const edge = getSideOffset(room.openSide);
-	const isHorizontal = room.openSide === 'north' || room.openSide === 'south';
-	const pillarGeometry = isHorizontal
-		? new THREE.BoxGeometry(0.25, wallHeight, 0.3)
-		: new THREE.BoxGeometry(0.3, wallHeight, 0.25);
-	const beamGeometry = isHorizontal
-		? new THREE.BoxGeometry(5.2, 0.25, 0.3)
-		: new THREE.BoxGeometry(0.3, 0.25, 5.2);
+	const pillarGeometry = new THREE.BoxGeometry(0.25, wallHeight, 0.3);
+	const beamGeometry = new THREE.BoxGeometry(5.2, 0.25, 0.3);
 	const material = new THREE.MeshBasicMaterial({ color: room.color });
 	const first = new THREE.Mesh(pillarGeometry, material);
 	const second = first.clone();
 	const beam = new THREE.Mesh(beamGeometry, material);
 	const gap = roomDoorHalfWidth;
-	if (isHorizontal) {
-		first.position.set(
-			room.center.x - gap,
-			wallHeight / 2,
-			room.center.z + edge.z
-		);
-		second.position.set(
-			room.center.x + gap,
-			wallHeight / 2,
-			room.center.z + edge.z
-		);
-		beam.position.set(room.center.x, 3.55, room.center.z + edge.z);
-	} else {
-		first.position.set(
-			room.center.x + edge.x,
-			wallHeight / 2,
-			room.center.z - gap
-		);
-		second.position.set(
-			room.center.x + edge.x,
-			wallHeight / 2,
-			room.center.z + gap
-		);
-		beam.position.set(room.center.x + edge.x, 3.55, room.center.z);
-	}
+	first.position.set(-gap, wallHeight / 2, -roomDepth / 2);
+	second.position.set(gap, wallHeight / 2, -roomDepth / 2);
+	beam.position.set(0, 3.55, -roomDepth / 2);
 	group.add(first, second, beam);
 
 	const sign = new THREE.Mesh(
@@ -716,20 +636,16 @@ function createDoorFrame(room) {
 			side: THREE.DoubleSide,
 		})
 	);
-	sign.position
-		.copy(room.center)
-		.add(edge)
-		.add(outward.clone().multiplyScalar(0.08));
-	sign.position.y = 3.05;
-	sign.rotation.y = getRotationForNormal(outward);
+	sign.position.set(0, 3.05, -roomDepth / 2 - 0.08);
+	sign.rotation.y = Math.PI;
 	group.add(sign);
 	return group;
 }
 
-function createRoomLight(center, color) {
+function createRoomLight(color) {
 	const group = new THREE.Group();
 	const light = new THREE.PointLight(new THREE.Color(color), 1.6, 18);
-	light.position.set(center.x, 3.35, center.z);
+	light.position.set(0, 3.35, 0);
 	group.add(light);
 
 	const fixture = new THREE.Mesh(
@@ -740,7 +656,7 @@ function createRoomLight(center, color) {
 			opacity: 0.9,
 		})
 	);
-	fixture.position.set(center.x, 4.48, center.z);
+	fixture.position.set(0, 4.48, 0);
 	group.add(fixture);
 	return group;
 }
@@ -754,10 +670,19 @@ function createRoomLabel(room, releaseCount) {
 			side: THREE.DoubleSide,
 		})
 	);
-	label.position.set(room.center.x, 0.95, room.center.z);
+	label.position.set(0, 0.95, -roomDepth / 2 - 0.18);
 	label.rotation.x = -0.2;
-	label.rotation.y = getRotationForNormal(getOutwardNormal(room.openSide));
+	label.rotation.y = Math.PI;
 	return label;
+}
+
+function getLocalWallPosition(side, tangentOffset) {
+	return {
+		front: new THREE.Vector3(tangentOffset, 0, -roomDepth / 2),
+		back: new THREE.Vector3(tangentOffset, 0, roomDepth / 2),
+		left: new THREE.Vector3(-roomWidth / 2, 0, tangentOffset),
+		right: new THREE.Vector3(roomWidth / 2, 0, tangentOffset),
+	}[side];
 }
 
 function createActiveExhibitMarker() {
@@ -883,43 +808,63 @@ function createArtifact(release, index, slot, color) {
 }
 
 function createExhibitSlots(room, releaseCount) {
-	const walls = ['north', 'east', 'south', 'west'].filter(
-		(side) => side !== room.openSide
-	);
+	const walls = ['back', 'left', 'right'];
 	const wallCounts = distributeCount(releaseCount, walls.length);
 	return walls.flatMap((side, wallIndex) =>
 		Array.from({ length: wallCounts[wallIndex] }, (_, slotIndex) =>
-			createWallSlot(room.center, side, slotIndex, wallCounts[wallIndex])
+			createWallSlot(room, side, slotIndex, wallCounts[wallIndex])
 		)
 	);
 }
 
-function createWallSlot(center, side, slotIndex, slotCount) {
-	const normal = getWallNormal(side);
-	const offset = getSlotOffset(side, slotIndex, slotCount);
-	const position = center.clone().add(getSideOffset(side)).add(offset);
+function createWallSlot(room, side, slotIndex, slotCount) {
+	const localPosition = getLocalSlotPosition(side, slotIndex, slotCount);
+	const position = roomLocalToWorld(room, localPosition);
 	position.y = 2.05;
+	const normal = getSlotNormal(room, side);
 	return {
 		position,
 		normal,
-		tangent:
-			side === 'north' || side === 'south'
-				? new THREE.Vector3(1, 0, 0)
-				: new THREE.Vector3(0, 0, 1),
+		tangent: getSlotTangent(room, side),
 		rotationY: getRotationForNormal(normal),
 	};
 }
 
-function getSlotOffset(side, slotIndex, slotCount) {
-	const spread =
-		side === 'north' || side === 'south' ? roomWidth - 5.2 : roomDepth - 5;
+function getLocalSlotPosition(side, slotIndex, slotCount) {
+	const spread = side === 'back' ? roomWidth - 5.2 : roomDepth - 5;
 	const value =
 		slotCount === 1
 			? 0
 			: -spread / 2 + (spread * slotIndex) / (slotCount - 1);
-	return side === 'north' || side === 'south'
-		? new THREE.Vector3(value, 0, 0)
-		: new THREE.Vector3(0, 0, value);
+	if (side === 'back') {
+		return new THREE.Vector3(value, 0, roomDepth / 2);
+	}
+	return new THREE.Vector3(
+		side === 'left' ? -roomWidth / 2 : roomWidth / 2,
+		0,
+		value
+	);
+}
+
+function roomLocalToWorld(room, localPosition) {
+	return room.center
+		.clone()
+		.add(room.tangent.clone().multiplyScalar(localPosition.x))
+		.add(room.normal.clone().multiplyScalar(localPosition.z))
+		.setY(localPosition.y);
+}
+
+function getSlotNormal(room, side) {
+	if (side === 'back') {
+		return room.normal.clone().multiplyScalar(-1);
+	}
+	return side === 'left'
+		? room.tangent.clone()
+		: room.tangent.clone().multiplyScalar(-1);
+}
+
+function getSlotTangent(room, side) {
+	return side === 'back' ? room.tangent.clone() : room.normal.clone();
 }
 
 function distributeCount(count, buckets) {
@@ -940,39 +885,6 @@ function getEraReleaseGroups() {
 	}));
 }
 
-function getRoomOpenSide(center) {
-	if (Math.abs(center.x) > Math.abs(center.z)) {
-		return center.x < 0 ? 'east' : 'west';
-	}
-	return center.z < 0 ? 'south' : 'north';
-}
-
-function getSideOffset(side) {
-	return {
-		north: new THREE.Vector3(0, 0, -roomDepth / 2),
-		east: new THREE.Vector3(roomWidth / 2, 0, 0),
-		south: new THREE.Vector3(0, 0, roomDepth / 2),
-		west: new THREE.Vector3(-roomWidth / 2, 0, 0),
-	}[side];
-}
-
-function getWallNormal(side) {
-	return {
-		north: new THREE.Vector3(0, 0, 1),
-		east: new THREE.Vector3(-1, 0, 0),
-		south: new THREE.Vector3(0, 0, -1),
-		west: new THREE.Vector3(1, 0, 0),
-	}[side];
-}
-
-function getOutwardNormal(side) {
-	return getWallNormal(side).multiplyScalar(-1);
-}
-
-function getRotationForNormal(normal) {
-	return Math.atan2(normal.x, normal.z);
-}
-
 function getMuseumBounds() {
 	const bounds = {
 		minX: Infinity,
@@ -980,13 +892,71 @@ function getMuseumBounds() {
 		minZ: Infinity,
 		maxZ: -Infinity,
 	};
-	for (const center of roomLayout.values()) {
-		bounds.minX = Math.min(bounds.minX, center.x - roomWidth / 2);
-		bounds.maxX = Math.max(bounds.maxX, center.x + roomWidth / 2);
-		bounds.minZ = Math.min(bounds.minZ, center.z - roomDepth / 2);
-		bounds.maxZ = Math.max(bounds.maxZ, center.z + roomDepth / 2);
+	for (const point of getMuseumFootprintPoints()) {
+		bounds.minX = Math.min(bounds.minX, point.x);
+		bounds.maxX = Math.max(bounds.maxX, point.x);
+		bounds.minZ = Math.min(bounds.minZ, point.z);
+		bounds.maxZ = Math.max(bounds.maxZ, point.z);
 	}
 	return bounds;
+}
+
+function getMuseumFootprintPoints() {
+	const points = hubSides.map((side) =>
+		side.normal.clone().multiplyScalar(hubCircumradius)
+	);
+	for (const room of roomSides) {
+		const halfWidth = roomWidth / 2;
+		const halfDepth = roomDepth / 2;
+		for (const x of [-halfWidth, halfWidth]) {
+			for (const z of [-halfDepth, halfDepth]) {
+				points.push(roomLocalToWorld(room, new THREE.Vector3(x, 0, z)));
+			}
+		}
+	}
+	return points;
+}
+
+function createHubSides() {
+	return [
+		createHubSide(0, 'Early Blog Engine'),
+		createHubSide(Math.PI / 4, 'Dashboard Matures'),
+		createHubSide(Math.PI / 2, 'CMS Expansion'),
+		createHubSide((Math.PI * 3) / 4, 'Modern Admin'),
+		createHubSide(Math.PI, undefined, 'mural'),
+		createHubSide((-Math.PI * 3) / 4, 'Customizer and API'),
+		createHubSide(-Math.PI / 2, 'Block Foundations'),
+		createHubSide(-Math.PI / 4, 'Block Site Editing'),
+	];
+}
+
+function createHubSide(angle, era, kind = 'room') {
+	const normal = getDirectionFromAngle(angle);
+	const tangent = getTangentForNormal(normal);
+	const midpoint = normal.clone().multiplyScalar(hubApothem);
+	const center = normal.clone().multiplyScalar(hubApothem + roomDepth / 2);
+	return {
+		angle,
+		center,
+		doorway: midpoint.clone(),
+		era,
+		kind,
+		midpoint,
+		normal,
+		tangent,
+	};
+}
+
+function getDirectionFromAngle(angle) {
+	return new THREE.Vector3(Math.sin(angle), 0, -Math.cos(angle));
+}
+
+function getTangentForNormal(normal) {
+	return new THREE.Vector3(normal.z, 0, -normal.x);
+}
+
+function getRotationForNormal(normal) {
+	return Math.atan2(normal.x, normal.z);
 }
 
 function getShellBounds() {
@@ -1408,9 +1378,7 @@ function startAtMuseumCenter() {
 }
 
 function getRoomLookPoint(era) {
-	const center = roomLayout.get(era);
-	const openSide = getRoomOpenSide(center);
-	const doorway = center.clone().add(getSideOffset(openSide));
+	const { doorway } = roomLayout.get(era);
 	return new THREE.Vector3(doorway.x, atriumStartPosition.y, doorway.z);
 }
 
@@ -1557,70 +1525,52 @@ function clampCamera(previousPosition) {
 }
 
 function isPointInsideClosedMuseum(position) {
-	return movementZones.some((bounds) => isPointInBounds(position, bounds));
-}
-
-function getMovementZones() {
-	const zones = [atriumMovementBounds];
-	for (const center of roomLayout.values()) {
-		const openSide = getRoomOpenSide(center);
-		zones.push(getRoomMovementBounds(center));
-		zones.push(getDoorwayMovementBounds(center, openSide));
-	}
-	return zones;
-}
-
-function getRoomMovementBounds(center) {
-	const wallPadding = 0.65;
-	return {
-		minX: center.x - roomWidth / 2 + wallPadding,
-		maxX: center.x + roomWidth / 2 - wallPadding,
-		minZ: center.z - roomDepth / 2 + wallPadding,
-		maxZ: center.z + roomDepth / 2 - wallPadding,
-	};
-}
-
-function getDoorwayMovementBounds(center, openSide) {
-	const roomBounds = getRoomMovementBounds(center);
-	if (openSide === 'north') {
-		return {
-			minX: center.x - roomDoorHalfWidth,
-			maxX: center.x + roomDoorHalfWidth,
-			minZ: Math.min(atriumMovementBounds.maxZ, roomBounds.minZ),
-			maxZ: Math.max(atriumMovementBounds.maxZ, roomBounds.minZ),
-		};
-	}
-	if (openSide === 'south') {
-		return {
-			minX: center.x - roomDoorHalfWidth,
-			maxX: center.x + roomDoorHalfWidth,
-			minZ: Math.min(atriumMovementBounds.minZ, roomBounds.maxZ),
-			maxZ: Math.max(atriumMovementBounds.minZ, roomBounds.maxZ),
-		};
-	}
-	if (openSide === 'east') {
-		return {
-			minX: Math.min(atriumMovementBounds.minX, roomBounds.maxX),
-			maxX: Math.max(atriumMovementBounds.minX, roomBounds.maxX),
-			minZ: center.z - roomDoorHalfWidth,
-			maxZ: center.z + roomDoorHalfWidth,
-		};
-	}
-	return {
-		minX: Math.min(atriumMovementBounds.maxX, roomBounds.minX),
-		maxX: Math.max(atriumMovementBounds.maxX, roomBounds.minX),
-		minZ: center.z - roomDoorHalfWidth,
-		maxZ: center.z + roomDoorHalfWidth,
-	};
-}
-
-function isPointInBounds(position, bounds) {
 	return (
-		position.x >= bounds.minX &&
-		position.x <= bounds.maxX &&
-		position.z >= bounds.minZ &&
-		position.z <= bounds.maxZ
+		isPointInsideHub(position) ||
+		movementZones.some(
+			(room) =>
+				isPointInsideRoom(position, room) ||
+				isPointInsideDoorway(position, room)
+		)
 	);
+}
+
+function isPointInsideHub(position) {
+	const wallPadding = 0.64;
+	return hubSides.every(
+		(side) => getPlanarDot(position, side.normal) <= hubApothem - wallPadding
+	);
+}
+
+function isPointInsideRoom(position, room) {
+	const local = getRoomLocalPoint(position, room);
+	const wallPadding = 0.62;
+	return (
+		Math.abs(local.x) <= roomWidth / 2 - wallPadding &&
+		Math.abs(local.z) <= roomDepth / 2 - wallPadding
+	);
+}
+
+function isPointInsideDoorway(position, room) {
+	const local = getRoomLocalPoint(position, room);
+	const doorDepth = 1.4;
+	return (
+		Math.abs(local.x) <= roomDoorHalfWidth &&
+		local.z >= -roomDepth / 2 - doorDepth &&
+		local.z <= -roomDepth / 2 + doorDepth
+	);
+}
+
+function getRoomLocalPoint(position, room) {
+	const relative = position.clone().sub(room.center);
+	return {
+		x: getPlanarDot(relative, room.tangent),
+		z: getPlanarDot(relative, room.normal),
+	};
+}
+
+function getPlanarDot(left, right) {
+	return left.x * right.x + left.z * right.z;
 }
 
 function resizeRenderer() {
