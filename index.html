@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>WordPress Museum - Three.js Gallery</title>
+		<link rel="stylesheet" href="./style.css" />
+	</head>
+	<body>
+		<div class="museum-stage">
+			<canvas
+				id="museum-canvas"
+				aria-label="Interactive 3D WordPress Museum"
+			></canvas>
+			<div class="reticle" aria-hidden="true"></div>
+		</div>
+
+		<header class="hud top-hud">
+			<div>
+				<p class="kicker">Plain Three.js prototype</p>
+				<h1>WordPress Museum</h1>
+			</div>
+			<div class="hud-actions">
+				<button type="button" id="walk-button">Walk</button>
+				<button type="button" id="tour-button">Guided tour</button>
+			</div>
+		</header>
+
+		<aside class="release-panel" aria-live="polite">
+			<p class="panel-kicker" id="release-era">Early Blog Engine</p>
+			<h2 id="release-title">WordPress 1.0 Miles</h2>
+			<p id="release-date">January 3, 2004</p>
+			<p id="release-known-for">Permalinks and moderation</p>
+			<p id="release-detail"></p>
+			<div class="panel-links">
+				<a id="open-playground" href="#">Open in Playground</a>
+				<a id="open-blueprint" href="#">Blueprint JSON</a>
+			</div>
+		</aside>
+
+		<nav class="tour-controls" aria-label="Release tour controls">
+			<button type="button" id="previous-release">Previous</button>
+			<strong id="release-counter">1 / 45</strong>
+			<button type="button" id="next-release">Next</button>
+		</nav>
+
+		<nav class="release-rail" aria-label="WordPress releases">
+			<div id="release-rail-track"></div>
+		</nav>
+
+		<div class="mobile-pad" aria-label="Movement controls">
+			<button type="button" data-mobile-move="forward">Forward</button>
+			<div>
+				<button type="button" data-mobile-turn="left">Left</button>
+				<button type="button" data-mobile-turn="right">Right</button>
+			</div>
+			<button type="button" data-mobile-move="back">Back</button>
+		</div>
+
+		<div class="help-card">
+			<strong>Controls</strong>
+			<span
+				>WASD to walk, mouse to look, click exhibits or use the
+				rail.</span
+			>
+		</div>
+
+		<script src="../museum-data.js"></script>
+		<script type="module" src="./museum.js"></script>
+	</body>
+</html>
