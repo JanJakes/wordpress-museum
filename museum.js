@@ -31,6 +31,7 @@ const pointer = new THREE.Vector2();
 const pickables = [];
 const exhibitPositions = [];
 const railButtons = [];
+let activeExhibitMarker = null;
 const keys = new Set();
 const mobileMotion = {
 	forward: false,
@@ -102,6 +103,8 @@ function buildScene() {
 	scene.add(root);
 
 	root.add(createAtrium());
+	activeExhibitMarker = createActiveExhibitMarker();
+	root.add(activeExhibitMarker);
 	getEraReleaseGroups().forEach(({ era, items }) => {
 		const center = roomLayout.get(era);
 		const color = eraColors.get(era);
@@ -119,6 +122,9 @@ function buildScene() {
 				stand: slot.position
 					.clone()
 					.add(slot.normal.clone().multiplyScalar(5.6)),
+				color,
+				normal: slot.normal.clone(),
+				rotationY: slot.rotationY,
 			};
 			exhibitPositions[index].stand.y = 1.65;
 			root.add(createExhibit(release, index, slot, color));
@@ -342,6 +348,37 @@ function createRoomLabel(room, releaseCount) {
 	return label;
 }
 
+function createActiveExhibitMarker() {
+	const group = new THREE.Group();
+	const wallGlow = new THREE.Mesh(
+		new THREE.PlaneGeometry(3.7, 2.8),
+		new THREE.MeshBasicMaterial({
+			color: 0xffffff,
+			transparent: true,
+			opacity: 0.18,
+			depthWrite: false,
+			side: THREE.DoubleSide,
+		})
+	);
+	wallGlow.name = 'activeWallGlow';
+	group.add(wallGlow);
+
+	const floorRing = new THREE.Mesh(
+		new THREE.RingGeometry(0.72, 0.94, 48),
+		new THREE.MeshBasicMaterial({
+			color: 0xffffff,
+			transparent: true,
+			opacity: 0.85,
+			depthWrite: false,
+			side: THREE.DoubleSide,
+		})
+	);
+	floorRing.name = 'activeFloorRing';
+	floorRing.rotation.x = -Math.PI / 2;
+	group.add(floorRing);
+	return group;
+}
+
 function createExhibit(release, index, slot, color) {
 	const group = new THREE.Group();
 	const frame = new THREE.Mesh(
@@ -354,7 +391,7 @@ function createExhibit(release, index, slot, color) {
 	);
 	frame.position
 		.copy(slot.position)
-		.add(slot.normal.clone().multiplyScalar(0.04));
+		.add(slot.normal.clone().multiplyScalar(0.24));
 	frame.rotation.y = slot.rotationY;
 	group.add(frame);
 
@@ -367,8 +404,9 @@ function createExhibit(release, index, slot, color) {
 	);
 	plaque.position
 		.copy(slot.position)
-		.add(slot.normal.clone().multiplyScalar(0.13));
+		.add(slot.normal.clone().multiplyScalar(0.36));
 	plaque.rotation.y = slot.rotationY;
+	plaque.renderOrder = 2;
 	plaque.userData.releaseIndex = index;
 	group.add(plaque);
 	pickables.push(plaque);
@@ -755,6 +793,7 @@ function buildRail() {
 		button.type = 'button';
 		button.textContent = release.version;
 		button.title = `${release.version} ${release.name}: ${release.knownFor}`;
+		button.style.setProperty('--release-color', eraColors.get(release.era));
 		button.addEventListener('click', () => focusRelease(index));
 		rail.append(button);
 		railButtons[index] = button;
@@ -929,6 +968,7 @@ function focusRelease(index, immediate = false, options = {}) {
 	}
 	updatePanel(release);
 	updateRail(options.syncRail !== false);
+	updateActiveExhibitMarker();
 }
 
 function updatePanel(release) {
@@ -971,6 +1011,24 @@ function scrollActiveRailButton() {
 	}, 450);
 }
 
+function updateActiveExhibitMarker() {
+	const marker = activeExhibitMarker;
+	const position = exhibitPositions[activeIndex];
+	if (!marker || !position) {
+		return;
+	}
+	const wallGlow = marker.getObjectByName('activeWallGlow');
+	const floorRing = marker.getObjectByName('activeFloorRing');
+	wallGlow.position
+		.copy(position.card)
+		.add(position.normal.clone().multiplyScalar(0.5));
+	wallGlow.rotation.y = position.rotationY;
+	wallGlow.material.color.set(position.color);
+
+	floorRing.position.set(position.stand.x, 0.08, position.stand.z);
+	floorRing.material.color.set(position.color);
+}
+
 function updateNearestRelease() {
 	let nearest = activeIndex;
 	let nearestDistance = Infinity;
@@ -987,6 +1045,7 @@ function updateNearestRelease() {
 		activeIndex = nearest;
 		updatePanel(releases[activeIndex]);
 		updateRail();
+		updateActiveExhibitMarker();
 	}
 }
 
