@@ -46,6 +46,9 @@ const roomDepth = 13;
 const wallHeight = 4.45;
 const wallThickness = 0.26;
 const roomDoorHalfWidth = 2.9;
+const exhibitFrameDepth = 0.16;
+const exhibitFrameOffset = wallThickness / 2 + exhibitFrameDepth / 2 + 0.1;
+const exhibitPlaqueOffset = exhibitFrameOffset + exhibitFrameDepth / 2 + 0.04;
 const hubApothem = 15.5;
 const hubCircumradius = hubApothem / Math.cos(Math.PI / 8);
 const hubSideLength = 2 * hubApothem * Math.tan(Math.PI / 8);
@@ -708,7 +711,7 @@ function createActiveExhibitMarker() {
 function createExhibit(release, index, slot, color) {
 	const group = new THREE.Group();
 	const frame = new THREE.Mesh(
-		new THREE.BoxGeometry(3.38, 2.48, 0.16),
+		new THREE.BoxGeometry(3.38, 2.48, exhibitFrameDepth),
 		new THREE.MeshStandardMaterial({
 			color: new THREE.Color(color),
 			roughness: 0.36,
@@ -717,7 +720,7 @@ function createExhibit(release, index, slot, color) {
 	);
 	frame.position
 		.copy(slot.position)
-		.add(slot.normal.clone().multiplyScalar(0.24));
+		.add(slot.normal.clone().multiplyScalar(exhibitFrameOffset));
 	frame.rotation.y = slot.rotationY;
 	group.add(frame);
 
@@ -730,7 +733,7 @@ function createExhibit(release, index, slot, color) {
 	);
 	plaque.position
 		.copy(slot.position)
-		.add(slot.normal.clone().multiplyScalar(0.36));
+		.add(slot.normal.clone().multiplyScalar(exhibitPlaqueOffset));
 	plaque.rotation.y = slot.rotationY;
 	plaque.renderOrder = 2;
 	plaque.userData.releaseIndex = index;
