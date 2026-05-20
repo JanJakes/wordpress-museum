@@ -48,6 +48,8 @@ const wallThickness = 0.26;
 const roomDoorHalfWidth = 2.9;
 const exhibitFrameOffset = wallThickness / 2 + 0.06;
 const exhibitPlaqueOffset = exhibitFrameOffset + 0.015;
+const sideExhibitMinZ = -roomDepth / 2 + 5.2;
+const sideExhibitMaxZ = roomDepth / 2 - 2.1;
 const hubApothem = 15.5;
 const hubCircumradius = hubApothem / Math.cos(Math.PI / 8);
 const hubSideLength = 2 * hubApothem * Math.tan(Math.PI / 8);
@@ -130,6 +132,7 @@ function buildScene() {
 			const { release, index } = items[slotIndex];
 			exhibitPositions[index] = {
 				card: slot.position.clone(),
+				era,
 				stand: slot.position
 					.clone()
 					.add(slot.normal.clone().multiplyScalar(5.6)),
@@ -822,19 +825,33 @@ function createWallSlot(room, side, slotIndex, slotCount) {
 }
 
 function getLocalSlotPosition(side, slotIndex, slotCount) {
-	const spread = side === 'back' ? roomWidth - 5.2 : roomDepth - 5;
-	const value =
-		slotCount === 1
-			? 0
-			: -spread / 2 + (spread * slotIndex) / (slotCount - 1);
 	if (side === 'back') {
+		const spread = roomWidth - 5.2;
+		const value = getSlotAxisValue(
+			slotIndex,
+			slotCount,
+			-spread / 2,
+			spread / 2
+		);
 		return new THREE.Vector3(value, 0, roomDepth / 2);
 	}
+	const value = getSlotAxisValue(
+		slotIndex,
+		slotCount,
+		sideExhibitMinZ,
+		sideExhibitMaxZ
+	);
 	return new THREE.Vector3(
 		side === 'left' ? -roomWidth / 2 : roomWidth / 2,
 		0,
 		value
 	);
+}
+
+function getSlotAxisValue(slotIndex, slotCount, min, max) {
+	return slotCount === 1
+		? (min + max) / 2
+		: min + ((max - min) * slotIndex) / (slotCount - 1);
 }
 
 function roomLocalToWorld(room, localPosition) {
@@ -1217,7 +1234,11 @@ function bindRailScroll(rail) {
 		{ passive: false }
 	);
 	rail.addEventListener('scroll', () => {
-		if (programmaticRailScroll || railScrollFrame) {
+		if (programmaticRailScroll) {
+			scheduleProgrammaticRailScrollEnd();
+			return;
+		}
+		if (railScrollFrame) {
 			return;
 		}
 		railScrollFrame = requestAnimationFrame(() => {
@@ -1325,16 +1346,56 @@ function updateCamera(delta) {
 	}
 	if (forward || side) {
 		stopGuidedTour();
-		const previousPosition = camera.position.clone();
 		const speed =
 			keys.has('ShiftLeft') || keys.has('ShiftRight') ? 10 : 5.8;
 		const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
 		const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
-		camera.position.addScaledVector(fwd, forward * speed * delta);
-		camera.position.addScaledVector(right, side * speed * delta);
-		clampCamera(previousPosition);
+		const movement = fwd
+			.multiplyScalar(forward * speed * delta)
+			.add(right.multiplyScalar(side * speed * delta));
+		moveCamera(movement);
 		updateNearestRelease();
 	}
+}
+
+function moveCamera(movement) {
+	const start = camera.position.clone();
+	const direct = getBoundedCameraPoint(start.clone().add(movement));
+	if (canStandAt(direct)) {
+		camera.position.copy(direct);
+		return;
+	}
+
+	const xOnly = getBoundedCameraPoint(start.clone().setX(start.x + movement.x));
+	if (canStandAt(xOnly)) {
+		camera.position.copy(xOnly);
+	}
+
+	const zOnly = getBoundedCameraPoint(
+		camera.position.clone().setZ(camera.position.z + movement.z)
+	);
+	if (canStandAt(zOnly)) {
+		camera.position.copy(zOnly);
+	}
+}
+
+function getBoundedCameraPoint(position) {
+	position.x = THREE.MathUtils.clamp(
+		position.x,
+		cameraBounds.minX,
+		cameraBounds.maxX
+	);
+	position.y = 1.65;
+	position.z = THREE.MathUtils.clamp(
+		position.z,
+		cameraBounds.minZ,
+		cameraBounds.maxZ
+	);
+	return position;
+}
+
+function canStandAt(position) {
+	return isPointInsideClosedMuseum(position);
 }
 
 function stopGuidedTour() {
@@ -1435,15 +1496,19 @@ function updateRail(syncRail = true) {
 
 function scrollActiveRailButton() {
 	programmaticRailScroll = true;
-	window.clearTimeout(programmaticRailScrollTimer);
+	scheduleProgrammaticRailScrollEnd();
 	railButtons[activeIndex]?.scrollIntoView({
 		behavior: 'smooth',
 		inline: 'center',
 		block: 'nearest',
 	});
+}
+
+function scheduleProgrammaticRailScrollEnd() {
+	window.clearTimeout(programmaticRailScrollTimer);
 	programmaticRailScrollTimer = window.setTimeout(() => {
 		programmaticRailScroll = false;
-	}, 450);
+	}, 900);
 }
 
 function updateActiveExhibitMarker() {
@@ -1469,7 +1534,14 @@ function updateNearestRelease() {
 	let nearestDistance = Infinity;
 	const cameraPoint = camera.position.clone();
 	cameraPoint.y = 1.65;
+	const activeRoomEra = getCameraRoomEra(cameraPoint);
+	if (!activeRoomEra) {
+		return;
+	}
 	exhibitPositions.forEach((position, index) => {
+		if (position.era !== activeRoomEra) {
+			return;
+		}
 		const distance = cameraPoint.distanceTo(position.stand);
 		if (distance < nearestDistance) {
 			nearestDistance = distance;
@@ -1482,6 +1554,14 @@ function updateNearestRelease() {
 		updateRail();
 		updateActiveExhibitMarker();
 	}
+}
+
+function getCameraRoomEra(position) {
+	return movementZones.find(
+		(room) =>
+			isPointInsideRoom(position, room) ||
+			isPointInsideDoorway(position, room)
+	)?.era;
 }
 
 function pickFromScreen(x, y) {
@@ -1503,24 +1583,6 @@ function turnCamera(deltaX, deltaY) {
 function setCameraRotation() {
 	camera.rotation.y = yaw;
 	camera.rotation.x = pitch;
-}
-
-function clampCamera(previousPosition) {
-	camera.position.x = THREE.MathUtils.clamp(
-		camera.position.x,
-		cameraBounds.minX,
-		cameraBounds.maxX
-	);
-	camera.position.y = 1.65;
-	camera.position.z = THREE.MathUtils.clamp(
-		camera.position.z,
-		cameraBounds.minZ,
-		cameraBounds.maxZ
-	);
-	if (!isPointInsideClosedMuseum(camera.position)) {
-		camera.position.copy(previousPosition);
-		camera.position.y = 1.65;
-	}
 }
 
 function isPointInsideClosedMuseum(position) {
