@@ -2,8 +2,8 @@
 	color-scheme: dark;
 	--paper: #fff5df;
 	--muted: rgba(255, 245, 223, 0.68);
-	--line: rgba(255, 245, 223, 0.18);
-	--ink: #070a12;
+	--line: rgba(255, 245, 223, 0.24);
+	--ink: #111827;
 	--accent: #ffd166;
 	--danger: #ff4f64;
 	font-family:
@@ -14,7 +14,7 @@
 		BlinkMacSystemFont,
 		'Segoe UI',
 		sans-serif;
-	background: #070a12;
+	background: #151a2a;
 	color: var(--paper);
 }
 
@@ -58,7 +58,7 @@ a:hover {
 
 #museum-canvas {
 	display: block;
-	background: #070a12;
+	background: #151a2a;
 }
 
 .museum-stage::after {
@@ -69,9 +69,9 @@ a:hover {
 		radial-gradient(
 			circle at 50% 25%,
 			transparent 0 34%,
-			rgba(0, 0, 0, 0.28) 72%
+			rgba(0, 0, 0, 0.16) 72%
 		),
-		linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.58));
+		linear-gradient(180deg, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.28));
 	content: '';
 }
 
@@ -189,8 +189,8 @@ h1 {
 	padding: 18px;
 	border: 1px solid var(--line);
 	border-radius: 8px;
-	background: rgba(7, 10, 18, 0.78);
-	box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+	background: rgba(17, 24, 39, 0.74);
+	box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
 	backdrop-filter: blur(18px);
 }
 
@@ -247,7 +247,7 @@ h1 {
 	padding: 10px;
 	border: 1px solid var(--line);
 	border-radius: 999px;
-	background: rgba(7, 10, 18, 0.72);
+	background: rgba(17, 24, 39, 0.72);
 	backdrop-filter: blur(16px);
 	transform: translateX(-50%);
 }
@@ -263,7 +263,7 @@ h1 {
 	bottom: 0;
 	padding: 12px 16px 16px;
 	border-top: 1px solid var(--line);
-	background: rgba(7, 10, 18, 0.78);
+	background: rgba(17, 24, 39, 0.78);
 	backdrop-filter: blur(18px);
 }
 
@@ -326,7 +326,7 @@ h1 {
 	padding: 12px 14px;
 	border: 1px solid var(--line);
 	border-radius: 8px;
-	background: rgba(7, 10, 18, 0.68);
+	background: rgba(17, 24, 39, 0.68);
 	color: var(--muted);
 	backdrop-filter: blur(14px);
 }

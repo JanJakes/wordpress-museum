@@ -44,6 +44,8 @@ const roomWidth = 16;
 const roomDepth = 13;
 const wallHeight = 4.45;
 const wallThickness = 0.26;
+const shellPadding = 7;
+const shellHeight = 5.4;
 const roomLayout = new Map([
 	['Early Blog Engine', new THREE.Vector3(-18, 0, -13)],
 	['Dashboard Matures', new THREE.Vector3(0, 0, -18)],
@@ -86,11 +88,12 @@ animate();
 function initRenderer() {
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
 	renderer.outputColorSpace = THREE.SRGBColorSpace;
-	scene.background = new THREE.Color(0x070a12);
-	scene.fog = new THREE.Fog(0x070a12, 30, 78);
+	scene.background = new THREE.Color(0x151a2a);
+	scene.fog = new THREE.Fog(0x151a2a, 42, 95);
 
-	scene.add(new THREE.HemisphereLight(0xfff0d0, 0x111827, 2.2));
-	const keyLight = new THREE.DirectionalLight(0xffe2b0, 2.3);
+	scene.add(new THREE.HemisphereLight(0xfff7df, 0x2d3a58, 3.1));
+	scene.add(new THREE.AmbientLight(0xe8edff, 0.9));
+	const keyLight = new THREE.DirectionalLight(0xffe2b0, 2.8);
 	keyLight.position.set(2, 8, -6);
 	scene.add(keyLight);
 
@@ -102,6 +105,7 @@ function buildScene() {
 	const root = new THREE.Group();
 	scene.add(root);
 
+	root.add(createBuildingShell());
 	root.add(createAtrium());
 	activeExhibitMarker = createActiveExhibitMarker();
 	root.add(activeExhibitMarker);
@@ -133,12 +137,152 @@ function buildScene() {
 	});
 }
 
+function createBuildingShell() {
+	const group = new THREE.Group();
+	const bounds = getShellBounds();
+	const width = bounds.maxX - bounds.minX;
+	const depth = bounds.maxZ - bounds.minZ;
+	const centerX = (bounds.minX + bounds.maxX) / 2;
+	const centerZ = (bounds.minZ + bounds.maxZ) / 2;
+
+	const floor = new THREE.Mesh(
+		new THREE.PlaneGeometry(width, depth),
+		new THREE.MeshStandardMaterial({
+			color: 0x24304a,
+			roughness: 0.76,
+			metalness: 0.04,
+		})
+	);
+	floor.rotation.x = -Math.PI / 2;
+	floor.position.set(centerX, -0.015, centerZ);
+	group.add(floor);
+
+	group.add(createFloorGrid(bounds));
+	group.add(createShellWall(centerX, bounds.minZ, width, true));
+	group.add(createShellWall(centerX, bounds.maxZ, width, true));
+	group.add(createShellWall(bounds.minX, centerZ, depth, false));
+	group.add(createShellWall(bounds.maxX, centerZ, depth, false));
+	group.add(createCeiling(bounds));
+	group.add(createShellColumns(bounds));
+	return group;
+}
+
+function createFloorGrid(bounds) {
+	const group = new THREE.Group();
+	const material = new THREE.MeshBasicMaterial({
+		color: 0x3c4a68,
+		transparent: true,
+		opacity: 0.52,
+	});
+	for (let x = Math.ceil(bounds.minX / 4) * 4; x <= bounds.maxX; x += 4) {
+		const line = new THREE.Mesh(
+			new THREE.BoxGeometry(0.035, 0.02, bounds.maxZ - bounds.minZ),
+			material
+		);
+		line.position.set(x, 0.026, (bounds.minZ + bounds.maxZ) / 2);
+		group.add(line);
+	}
+	for (let z = Math.ceil(bounds.minZ / 4) * 4; z <= bounds.maxZ; z += 4) {
+		const line = new THREE.Mesh(
+			new THREE.BoxGeometry(bounds.maxX - bounds.minX, 0.02, 0.035),
+			material
+		);
+		line.position.set((bounds.minX + bounds.maxX) / 2, 0.027, z);
+		group.add(line);
+	}
+	return group;
+}
+
+function createShellWall(xOrCenter, zOrCenter, length, isHorizontal) {
+	const wall = new THREE.Mesh(
+		new THREE.BoxGeometry(
+			isHorizontal ? length : wallThickness * 1.6,
+			shellHeight,
+			isHorizontal ? wallThickness * 1.6 : length
+		),
+		new THREE.MeshStandardMaterial({
+			color: 0x33405d,
+			roughness: 0.84,
+			metalness: 0.03,
+		})
+	);
+	wall.position.set(xOrCenter, shellHeight / 2, zOrCenter);
+	return wall;
+}
+
+function createCeiling(bounds) {
+	const group = new THREE.Group();
+	const width = bounds.maxX - bounds.minX;
+	const depth = bounds.maxZ - bounds.minZ;
+	const centerX = (bounds.minX + bounds.maxX) / 2;
+	const centerZ = (bounds.minZ + bounds.maxZ) / 2;
+	const panel = new THREE.Mesh(
+		new THREE.PlaneGeometry(width, depth),
+		new THREE.MeshBasicMaterial({
+			color: 0x202943,
+			transparent: true,
+			opacity: 0.74,
+			side: THREE.DoubleSide,
+		})
+	);
+	panel.rotation.x = Math.PI / 2;
+	panel.position.set(centerX, shellHeight, centerZ);
+	group.add(panel);
+
+	const beamMaterial = new THREE.MeshBasicMaterial({ color: 0x4f6181 });
+	for (let z = Math.ceil(bounds.minZ / 8) * 8; z <= bounds.maxZ; z += 8) {
+		const beam = new THREE.Mesh(
+			new THREE.BoxGeometry(width, 0.16, 0.2),
+			beamMaterial
+		);
+		beam.position.set(centerX, shellHeight - 0.18, z);
+		group.add(beam);
+	}
+	for (let x = Math.ceil(bounds.minX / 10) * 10; x <= bounds.maxX; x += 10) {
+		const beam = new THREE.Mesh(
+			new THREE.BoxGeometry(0.2, 0.14, depth),
+			beamMaterial
+		);
+		beam.position.set(x, shellHeight - 0.22, centerZ);
+		group.add(beam);
+	}
+	return group;
+}
+
+function createShellColumns(bounds) {
+	const group = new THREE.Group();
+	const material = new THREE.MeshStandardMaterial({
+		color: 0x51617f,
+		roughness: 0.68,
+		metalness: 0.08,
+	});
+	const points = [
+		[bounds.minX + 1.5, bounds.minZ + 1.5],
+		[bounds.maxX - 1.5, bounds.minZ + 1.5],
+		[bounds.minX + 1.5, bounds.maxZ - 1.5],
+		[bounds.maxX - 1.5, bounds.maxZ - 1.5],
+		[-8, -8],
+		[8, -8],
+		[-8, 8],
+		[8, 8],
+	];
+	for (const [x, z] of points) {
+		const column = new THREE.Mesh(
+			new THREE.BoxGeometry(0.42, shellHeight, 0.42),
+			material
+		);
+		column.position.set(x, shellHeight / 2, z);
+		group.add(column);
+	}
+	return group;
+}
+
 function createAtrium() {
 	const group = new THREE.Group();
 	const floor = new THREE.Mesh(
 		new THREE.CircleGeometry(10.5, 64),
 		new THREE.MeshStandardMaterial({
-			color: 0x151c2d,
+			color: 0x30405f,
 			roughness: 0.78,
 			metalness: 0.08,
 		})
@@ -170,9 +314,9 @@ function createMuseumPath(center) {
 	const path = new THREE.Mesh(
 		new THREE.BoxGeometry(1.35, 0.035, length),
 		new THREE.MeshBasicMaterial({
-			color: 0x263550,
+			color: 0x586884,
 			transparent: true,
-			opacity: 0.82,
+			opacity: 0.86,
 		})
 	);
 	const direction = new THREE.Vector3(center.x, 0, center.z).normalize();
@@ -204,7 +348,7 @@ function createRoom(room, releaseCount) {
 	const floor = new THREE.Mesh(
 		new THREE.PlaneGeometry(roomWidth, roomDepth),
 		new THREE.MeshStandardMaterial({
-			color: 0x111827,
+			color: 0x283654,
 			roughness: 0.82,
 			metalness: 0.08,
 		})
@@ -235,7 +379,7 @@ function createRoomWall(center, side) {
 			isHorizontal ? wallThickness : roomDepth
 		),
 		new THREE.MeshStandardMaterial({
-			color: 0x11141f,
+			color: 0x36435e,
 			roughness: 0.9,
 			metalness: 0.04,
 		})
@@ -328,9 +472,22 @@ function createDoorFrame(room) {
 }
 
 function createRoomLight(center, color) {
-	const light = new THREE.PointLight(new THREE.Color(color), 1.15, 16);
-	light.position.set(center.x, 3.25, center.z);
-	return light;
+	const group = new THREE.Group();
+	const light = new THREE.PointLight(new THREE.Color(color), 1.6, 18);
+	light.position.set(center.x, 3.35, center.z);
+	group.add(light);
+
+	const fixture = new THREE.Mesh(
+		new THREE.BoxGeometry(3.4, 0.08, 0.32),
+		new THREE.MeshBasicMaterial({
+			color,
+			transparent: true,
+			opacity: 0.9,
+		})
+	);
+	fixture.position.set(center.x, 4.48, center.z);
+	group.add(fixture);
+	return group;
 }
 
 function createRoomLabel(room, releaseCount) {
@@ -385,8 +542,8 @@ function createExhibit(release, index, slot, color) {
 		new THREE.BoxGeometry(3.38, 2.48, 0.16),
 		new THREE.MeshStandardMaterial({
 			color: new THREE.Color(color),
-			roughness: 0.42,
-			metalness: 0.35,
+			roughness: 0.36,
+			metalness: 0.28,
 		})
 	);
 	frame.position
@@ -575,6 +732,15 @@ function getMuseumBounds() {
 		bounds.maxZ = Math.max(bounds.maxZ, center.z + roomDepth / 2);
 	}
 	return bounds;
+}
+
+function getShellBounds() {
+	return {
+		minX: museumBounds.minX - shellPadding,
+		maxX: museumBounds.maxX + shellPadding,
+		minZ: museumBounds.minZ - shellPadding,
+		maxZ: museumBounds.maxZ + shellPadding,
+	};
 }
 
 function createPlaqueTexture(release, index, color) {
