@@ -39,14 +39,25 @@ const mobileMotion = {
 	right: false,
 };
 
-const spacing = 5.6;
-const startZ = 7;
-const corridorLength = startZ + (releases.length - 1) * spacing + 14;
+const roomWidth = 16;
+const roomDepth = 13;
+const wallHeight = 4.45;
+const wallThickness = 0.26;
+const roomLayout = new Map([
+	['Early Blog Engine', new THREE.Vector3(-18, 0, -13)],
+	['Dashboard Matures', new THREE.Vector3(0, 0, -18)],
+	['CMS Expansion', new THREE.Vector3(18, 0, -13)],
+	['Modern Admin', new THREE.Vector3(-20, 0, 4)],
+	['Customizer and API', new THREE.Vector3(20, 0, 4)],
+	['Block Foundations', new THREE.Vector3(-10, 0, 19)],
+	['Block Site Editing', new THREE.Vector3(10, 0, 19)],
+]);
+const museumBounds = getMuseumBounds();
 const cameraBounds = {
-	minX: -4.25,
-	maxX: 4.25,
-	minZ: -2,
-	maxZ: corridorLength - 4,
+	minX: museumBounds.minX - 1.5,
+	maxX: museumBounds.maxX + 1.5,
+	minZ: museumBounds.minZ - 1.5,
+	maxZ: museumBounds.maxZ + 1.5,
 };
 let activeIndex = 0;
 let guidedTarget = null;
@@ -75,7 +86,7 @@ function initRenderer() {
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
 	renderer.outputColorSpace = THREE.SRGBColorSpace;
 	scene.background = new THREE.Color(0x070a12);
-	scene.fog = new THREE.Fog(0x070a12, 36, 190);
+	scene.fog = new THREE.Fog(0x070a12, 30, 78);
 
 	scene.add(new THREE.HemisphereLight(0xfff0d0, 0x111827, 2.2));
 	const keyLight = new THREE.DirectionalLight(0xffe2b0, 2.3);
@@ -90,36 +101,102 @@ function buildScene() {
 	const root = new THREE.Group();
 	scene.add(root);
 
-	root.add(createFloor());
-	root.add(createWall(-5.9));
-	root.add(createWall(5.9));
-	root.add(createCeilingBeams());
-
-	let lastEra = '';
-	releases.forEach((release, index) => {
-		const z = startZ + index * spacing;
-		const side = index % 2 === 0 ? -1 : 1;
-		const color = eraColors.get(release.era);
-		const position = new THREE.Vector3(side * 5.68, 2.05, z);
-		exhibitPositions[index] = {
-			card: position,
-			stand: new THREE.Vector3(-side * 1.25, 1.65, z - 1.3),
-			side,
+	root.add(createAtrium());
+	getEraReleaseGroups().forEach(({ era, items }) => {
+		const center = roomLayout.get(era);
+		const color = eraColors.get(era);
+		const room = {
+			era,
+			center,
+			color,
+			openSide: getRoomOpenSide(center),
 		};
-		root.add(createExhibit(release, index, position, side, color));
-		root.add(createArtifact(release, index, side, z, color));
-
-		if (release.era !== lastEra) {
-			root.add(createEraGateway(release.era, z - 2.7, color));
-			lastEra = release.era;
-		}
+		root.add(createRoom(room, items.length));
+		createExhibitSlots(room, items.length).forEach((slot, slotIndex) => {
+			const { release, index } = items[slotIndex];
+			exhibitPositions[index] = {
+				card: slot.position.clone(),
+				stand: slot.position
+					.clone()
+					.add(slot.normal.clone().multiplyScalar(5.6)),
+			};
+			exhibitPositions[index].stand.y = 1.65;
+			root.add(createExhibit(release, index, slot, color));
+			root.add(createArtifact(release, index, slot, color));
+		});
 	});
 }
 
-function createFloor() {
+function createAtrium() {
 	const group = new THREE.Group();
 	const floor = new THREE.Mesh(
-		new THREE.PlaneGeometry(11.8, corridorLength),
+		new THREE.CircleGeometry(10.5, 64),
+		new THREE.MeshStandardMaterial({
+			color: 0x151c2d,
+			roughness: 0.78,
+			metalness: 0.08,
+		})
+	);
+	floor.rotation.x = -Math.PI / 2;
+	group.add(floor);
+
+	const ring = new THREE.Mesh(
+		new THREE.RingGeometry(10.5, 11.05, 64),
+		new THREE.MeshBasicMaterial({
+			color: 0xffd166,
+			transparent: true,
+			opacity: 0.84,
+		})
+	);
+	ring.rotation.x = -Math.PI / 2;
+	ring.position.y = 0.025;
+	group.add(ring);
+
+	for (const center of roomLayout.values()) {
+		group.add(createMuseumPath(center));
+	}
+	group.add(createAtriumSign());
+	return group;
+}
+
+function createMuseumPath(center) {
+	const length = Math.max(0, Math.hypot(center.x, center.z) - 5.2);
+	const path = new THREE.Mesh(
+		new THREE.BoxGeometry(1.35, 0.035, length),
+		new THREE.MeshBasicMaterial({
+			color: 0x263550,
+			transparent: true,
+			opacity: 0.82,
+		})
+	);
+	const direction = new THREE.Vector3(center.x, 0, center.z).normalize();
+	path.position.set(
+		direction.x * (5.2 + length / 2),
+		0.035,
+		direction.z * (5.2 + length / 2)
+	);
+	path.rotation.y = Math.atan2(direction.x, direction.z);
+	return path;
+}
+
+function createAtriumSign() {
+	const sign = new THREE.Mesh(
+		new THREE.PlaneGeometry(5.1, 1.05),
+		new THREE.MeshBasicMaterial({
+			map: createEraTexture('WordPress Museum', '#ffd166'),
+			transparent: true,
+			side: THREE.DoubleSide,
+		})
+	);
+	sign.position.set(0, 3.2, 0);
+	return sign;
+}
+
+function createRoom(room, releaseCount) {
+	const group = new THREE.Group();
+
+	const floor = new THREE.Mesh(
+		new THREE.PlaneGeometry(roomWidth, roomDepth),
 		new THREE.MeshStandardMaterial({
 			color: 0x111827,
 			roughness: 0.82,
@@ -127,70 +204,145 @@ function createFloor() {
 		})
 	);
 	floor.rotation.x = -Math.PI / 2;
-	floor.position.z = corridorLength / 2 - 1;
+	floor.position.set(room.center.x, 0.01, room.center.z);
 	group.add(floor);
 
-	for (let z = 1; z < corridorLength; z += spacing) {
-		const stripe = new THREE.Mesh(
-			new THREE.BoxGeometry(9.7, 0.035, 0.05),
-			new THREE.MeshBasicMaterial({ color: 0x28364f })
-		);
-		stripe.position.set(0, 0.025, z);
-		group.add(stripe);
+	for (const side of ['north', 'east', 'south', 'west']) {
+		if (side !== room.openSide) {
+			group.add(createRoomWall(room.center, side));
+		}
+		group.add(createFloorTrim(room.center, side, room.color));
 	}
 
-	const runner = new THREE.Mesh(
-		new THREE.PlaneGeometry(2.15, corridorLength),
-		new THREE.MeshBasicMaterial({
-			color: 0x172033,
-			transparent: true,
-			opacity: 0.82,
-		})
-	);
-	runner.rotation.x = -Math.PI / 2;
-	runner.position.set(0, 0.028, corridorLength / 2 - 1);
-	group.add(runner);
+	group.add(createDoorFrame(room));
+	group.add(createRoomLight(room.center, room.color));
+	group.add(createRoomLabel(room, releaseCount));
 	return group;
 }
 
-function createWall(x) {
-	const group = new THREE.Group();
+function createRoomWall(center, side) {
+	const isHorizontal = side === 'north' || side === 'south';
 	const wall = new THREE.Mesh(
-		new THREE.BoxGeometry(0.26, 4.6, corridorLength),
+		new THREE.BoxGeometry(
+			isHorizontal ? roomWidth : wallThickness,
+			wallHeight,
+			isHorizontal ? wallThickness : roomDepth
+		),
 		new THREE.MeshStandardMaterial({
 			color: 0x11141f,
 			roughness: 0.9,
 			metalness: 0.04,
 		})
 	);
-	wall.position.set(x, 2.2, corridorLength / 2 - 1);
-	group.add(wall);
-
-	for (let z = 1; z < corridorLength; z += 11.2) {
-		const pilaster = new THREE.Mesh(
-			new THREE.BoxGeometry(0.42, 4.7, 0.18),
-			new THREE.MeshBasicMaterial({ color: 0x222c42 })
-		);
-		pilaster.position.set(x * 0.995, 2.25, z);
-		group.add(pilaster);
-	}
-	return group;
+	wall.position.set(
+		center.x + getSideOffset(side).x,
+		wallHeight / 2,
+		center.z + getSideOffset(side).z
+	);
+	return wall;
 }
 
-function createCeilingBeams() {
+function createFloorTrim(center, side, color) {
+	const isHorizontal = side === 'north' || side === 'south';
+	const trim = new THREE.Mesh(
+		new THREE.BoxGeometry(
+			isHorizontal ? roomWidth : 0.08,
+			0.04,
+			isHorizontal ? 0.08 : roomDepth
+		),
+		new THREE.MeshBasicMaterial({ color })
+	);
+	trim.position.set(
+		center.x + getSideOffset(side).x,
+		0.05,
+		center.z + getSideOffset(side).z
+	);
+	return trim;
+}
+
+function createDoorFrame(room) {
 	const group = new THREE.Group();
-	for (let z = 2; z < corridorLength; z += spacing * 2) {
-		const beam = new THREE.Mesh(
-			new THREE.BoxGeometry(11.6, 0.12, 0.22),
-			new THREE.MeshBasicMaterial({ color: 0x2b3651 })
+	const outward = getOutwardNormal(room.openSide);
+	const edge = getSideOffset(room.openSide);
+	const isHorizontal = room.openSide === 'north' || room.openSide === 'south';
+	const pillarGeometry = isHorizontal
+		? new THREE.BoxGeometry(0.25, wallHeight, 0.3)
+		: new THREE.BoxGeometry(0.3, wallHeight, 0.25);
+	const beamGeometry = isHorizontal
+		? new THREE.BoxGeometry(5.2, 0.25, 0.3)
+		: new THREE.BoxGeometry(0.3, 0.25, 5.2);
+	const material = new THREE.MeshBasicMaterial({ color: room.color });
+	const first = new THREE.Mesh(pillarGeometry, material);
+	const second = first.clone();
+	const beam = new THREE.Mesh(beamGeometry, material);
+	const gap = 2.9;
+	if (isHorizontal) {
+		first.position.set(
+			room.center.x - gap,
+			wallHeight / 2,
+			room.center.z + edge.z
 		);
-		beam.position.set(0, 4.45, z);
-		group.add(beam);
+		second.position.set(
+			room.center.x + gap,
+			wallHeight / 2,
+			room.center.z + edge.z
+		);
+		beam.position.set(room.center.x, 3.55, room.center.z + edge.z);
+	} else {
+		first.position.set(
+			room.center.x + edge.x,
+			wallHeight / 2,
+			room.center.z - gap
+		);
+		second.position.set(
+			room.center.x + edge.x,
+			wallHeight / 2,
+			room.center.z + gap
+		);
+		beam.position.set(room.center.x + edge.x, 3.55, room.center.z);
 	}
+	group.add(first, second, beam);
+
+	const sign = new THREE.Mesh(
+		new THREE.PlaneGeometry(5.6, 0.7),
+		new THREE.MeshBasicMaterial({
+			map: createEraTexture(room.era, room.color),
+			transparent: true,
+			side: THREE.DoubleSide,
+		})
+	);
+	sign.position
+		.copy(room.center)
+		.add(edge)
+		.add(outward.clone().multiplyScalar(0.08));
+	sign.position.y = 3.05;
+	sign.rotation.y = getRotationForNormal(outward);
+	group.add(sign);
 	return group;
 }
 
-function createExhibit(release, index, position, side, color) {
+function createRoomLight(center, color) {
+	const light = new THREE.PointLight(new THREE.Color(color), 1.15, 16);
+	light.position.set(center.x, 3.25, center.z);
+	return light;
+}
+
+function createRoomLabel(room, releaseCount) {
+	const label = new THREE.Mesh(
+		new THREE.PlaneGeometry(3.6, 0.62),
+		new THREE.MeshBasicMaterial({
+			map: createSmallLabelTexture(`${releaseCount} exhibits`),
+			transparent: true,
+			side: THREE.DoubleSide,
+		})
+	);
+	label.position.set(room.center.x, 0.95, room.center.z);
+	label.rotation.x = -0.2;
+	label.rotation.y = getRotationForNormal(getOutwardNormal(room.openSide));
+	return label;
+}
+
+function createExhibit(release, index, slot, color) {
 	const group = new THREE.Group();
 	const frame = new THREE.Mesh(
 		new THREE.BoxGeometry(3.38, 2.48, 0.16),
@@ -200,8 +352,10 @@ function createExhibit(release, index, position, side, color) {
 			metalness: 0.35,
 		})
 	);
-	frame.position.copy(position);
-	frame.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+	frame.position
+		.copy(slot.position)
+		.add(slot.normal.clone().multiplyScalar(0.04));
+	frame.rotation.y = slot.rotationY;
 	group.add(frame);
 
 	const plaque = new THREE.Mesh(
@@ -211,21 +365,29 @@ function createExhibit(release, index, position, side, color) {
 			side: THREE.DoubleSide,
 		})
 	);
-	plaque.position.copy(position);
-	plaque.position.x -= side * 0.09;
-	plaque.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+	plaque.position
+		.copy(slot.position)
+		.add(slot.normal.clone().multiplyScalar(0.13));
+	plaque.rotation.y = slot.rotationY;
 	plaque.userData.releaseIndex = index;
 	group.add(plaque);
 	pickables.push(plaque);
 
 	const glow = new THREE.PointLight(new THREE.Color(color), 0.8, 8);
-	glow.position.set(side * 4.4, 2.8, position.z);
+	glow.position
+		.copy(slot.position)
+		.add(slot.normal.clone().multiplyScalar(1.2));
+	glow.position.y = 2.8;
 	group.add(glow);
 	return group;
 }
 
-function createArtifact(release, index, side, z, color) {
+function createArtifact(release, index, slot, color) {
 	const group = new THREE.Group();
+	const base = slot.position
+		.clone()
+		.add(slot.normal.clone().multiplyScalar(1.35))
+		.add(slot.tangent.clone().multiplyScalar(index % 2 === 0 ? -1.6 : 1.6));
 	const plinth = new THREE.Mesh(
 		new THREE.BoxGeometry(1.2, 0.82, 1.2),
 		new THREE.MeshStandardMaterial({
@@ -234,7 +396,7 @@ function createArtifact(release, index, side, z, color) {
 			metalness: 0.12,
 		})
 	);
-	plinth.position.set(side * 3.75, 0.41, z + 1.15);
+	plinth.position.set(base.x, 0.41, base.z);
 	group.add(plinth);
 
 	const artifact = new THREE.Mesh(
@@ -251,7 +413,7 @@ function createArtifact(release, index, side, z, color) {
 			emissiveIntensity: 0.12,
 		})
 	);
-	artifact.position.set(side * 3.75, 1.08, z + 1.15);
+	artifact.position.set(base.x, 1.08, base.z);
 	artifact.rotation.set(0.35, index * 0.31, 0.18);
 	artifact.userData.spin = 0.18 + (index % 5) * 0.035;
 	group.add(artifact);
@@ -264,39 +426,117 @@ function createArtifact(release, index, side, z, color) {
 			side: THREE.DoubleSide,
 		})
 	);
-	label.position.set(side * 3.75, 1.62, z + 1.15);
-	label.rotation.y = side > 0 ? -0.45 : 0.45;
+	label.position.set(base.x, 1.62, base.z);
+	label.rotation.y = slot.rotationY;
 	group.add(label);
 	return group;
 }
 
-function createEraGateway(era, z, color) {
-	const group = new THREE.Group();
-	const left = new THREE.Mesh(
-		new THREE.BoxGeometry(0.28, 4.1, 0.28),
-		new THREE.MeshBasicMaterial({ color })
+function createExhibitSlots(room, releaseCount) {
+	const walls = ['north', 'east', 'south', 'west'].filter(
+		(side) => side !== room.openSide
 	);
-	const right = left.clone();
-	const top = new THREE.Mesh(
-		new THREE.BoxGeometry(10.8, 0.24, 0.28),
-		new THREE.MeshBasicMaterial({ color })
+	const wallCounts = distributeCount(releaseCount, walls.length);
+	return walls.flatMap((side, wallIndex) =>
+		Array.from({ length: wallCounts[wallIndex] }, (_, slotIndex) =>
+			createWallSlot(room.center, side, slotIndex, wallCounts[wallIndex])
+		)
 	);
-	left.position.set(-5.25, 2.05, z);
-	right.position.set(5.25, 2.05, z);
-	top.position.set(0, 4.12, z);
-	group.add(left, right, top);
+}
 
-	const sign = new THREE.Mesh(
-		new THREE.PlaneGeometry(5.6, 0.74),
-		new THREE.MeshBasicMaterial({
-			map: createEraTexture(era, color),
-			transparent: true,
-			side: THREE.DoubleSide,
-		})
-	);
-	sign.position.set(0, 3.55, z - 0.04);
-	group.add(sign);
-	return group;
+function createWallSlot(center, side, slotIndex, slotCount) {
+	const normal = getWallNormal(side);
+	const offset = getSlotOffset(side, slotIndex, slotCount);
+	const position = center.clone().add(getSideOffset(side)).add(offset);
+	position.y = 2.05;
+	return {
+		position,
+		normal,
+		tangent:
+			side === 'north' || side === 'south'
+				? new THREE.Vector3(1, 0, 0)
+				: new THREE.Vector3(0, 0, 1),
+		rotationY: getRotationForNormal(normal),
+	};
+}
+
+function getSlotOffset(side, slotIndex, slotCount) {
+	const spread =
+		side === 'north' || side === 'south' ? roomWidth - 5.2 : roomDepth - 5;
+	const value =
+		slotCount === 1
+			? 0
+			: -spread / 2 + (spread * slotIndex) / (slotCount - 1);
+	return side === 'north' || side === 'south'
+		? new THREE.Vector3(value, 0, 0)
+		: new THREE.Vector3(0, 0, value);
+}
+
+function distributeCount(count, buckets) {
+	return Array.from({ length: buckets }, (_, index) => {
+		const base = Math.floor(count / buckets);
+		return base + (index < count % buckets ? 1 : 0);
+	});
+}
+
+function getEraReleaseGroups() {
+	const groups = new Map(eras.map((era) => [era, []]));
+	releases.forEach((release, index) => {
+		groups.get(release.era)?.push({ release, index });
+	});
+	return eras.map((era) => ({
+		era,
+		items: groups.get(era) || [],
+	}));
+}
+
+function getRoomOpenSide(center) {
+	if (Math.abs(center.x) > Math.abs(center.z)) {
+		return center.x < 0 ? 'east' : 'west';
+	}
+	return center.z < 0 ? 'south' : 'north';
+}
+
+function getSideOffset(side) {
+	return {
+		north: new THREE.Vector3(0, 0, -roomDepth / 2),
+		east: new THREE.Vector3(roomWidth / 2, 0, 0),
+		south: new THREE.Vector3(0, 0, roomDepth / 2),
+		west: new THREE.Vector3(-roomWidth / 2, 0, 0),
+	}[side];
+}
+
+function getWallNormal(side) {
+	return {
+		north: new THREE.Vector3(0, 0, 1),
+		east: new THREE.Vector3(-1, 0, 0),
+		south: new THREE.Vector3(0, 0, -1),
+		west: new THREE.Vector3(1, 0, 0),
+	}[side];
+}
+
+function getOutwardNormal(side) {
+	return getWallNormal(side).multiplyScalar(-1);
+}
+
+function getRotationForNormal(normal) {
+	return Math.atan2(normal.x, normal.z);
+}
+
+function getMuseumBounds() {
+	const bounds = {
+		minX: Infinity,
+		maxX: -Infinity,
+		minZ: Infinity,
+		maxZ: -Infinity,
+	};
+	for (const center of roomLayout.values()) {
+		bounds.minX = Math.min(bounds.minX, center.x - roomWidth / 2);
+		bounds.maxX = Math.max(bounds.maxX, center.x + roomWidth / 2);
+		bounds.minZ = Math.min(bounds.minZ, center.z - roomDepth / 2);
+		bounds.maxZ = Math.max(bounds.maxZ, center.z + roomDepth / 2);
+	}
+	return bounds;
 }
 
 function createPlaqueTexture(release, index, color) {
@@ -734,14 +974,16 @@ function scrollActiveRailButton() {
 function updateNearestRelease() {
 	let nearest = activeIndex;
 	let nearestDistance = Infinity;
+	const cameraPoint = camera.position.clone();
+	cameraPoint.y = 1.65;
 	exhibitPositions.forEach((position, index) => {
-		const distance = Math.abs(camera.position.z - position.card.z);
+		const distance = cameraPoint.distanceTo(position.stand);
 		if (distance < nearestDistance) {
 			nearestDistance = distance;
 			nearest = index;
 		}
 	});
-	if (nearest !== activeIndex && nearestDistance < spacing * 0.52) {
+	if (nearest !== activeIndex && nearestDistance < 5.2) {
 		activeIndex = nearest;
 		updatePanel(releases[activeIndex]);
 		updateRail();
