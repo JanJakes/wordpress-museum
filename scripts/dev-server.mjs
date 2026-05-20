@@ -1,10 +1,10 @@
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import { extname, join, normalize, relative, sep } from 'node:path';
+import { dirname, extname, join, normalize, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = normalize(join(fileURLToPath(import.meta.url), '..', '..'));
+const root = normalize(join(dirname(fileURLToPath(import.meta.url)), '..'));
 const port = Number.parseInt(process.env.PORT ?? '4173', 10);
 
 const contentTypes = new Map([

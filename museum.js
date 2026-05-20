@@ -1148,7 +1148,7 @@ function updatePanel(release) {
 		`${activeIndex + 1} / ${releases.length}`;
 
 	const blueprintUrl = new URL(release.blueprint, window.location.href);
-	const playgroundUrl = new URL('../../', window.location.href);
+	const playgroundUrl = new URL('https://playground.wordpress.net/');
 	playgroundUrl.searchParams.set('blueprint-url', blueprintUrl.href);
 	document.querySelector('#open-playground').href = playgroundUrl.href;
 	document.querySelector('#open-blueprint').href = blueprintUrl.href;
