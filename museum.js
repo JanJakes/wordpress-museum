@@ -46,13 +46,11 @@ const roomDepth = 13;
 const wallHeight = 4.45;
 const wallThickness = 0.26;
 const roomDoorHalfWidth = 2.9;
-const exhibitFrameDepth = 0.16;
-const exhibitFrameOffset = wallThickness / 2 + exhibitFrameDepth / 2 + 0.1;
-const exhibitPlaqueOffset = exhibitFrameOffset + exhibitFrameDepth / 2 + 0.04;
+const exhibitFrameOffset = wallThickness / 2 + 0.06;
+const exhibitPlaqueOffset = exhibitFrameOffset + 0.015;
 const hubApothem = 15.5;
 const hubCircumradius = hubApothem / Math.cos(Math.PI / 8);
 const hubSideLength = 2 * hubApothem * Math.tan(Math.PI / 8);
-const hubWallInset = 0.72;
 const entryDistanceFromCenter = 5.2;
 const shellPadding = 1.4;
 const shellHeight = 5.4;
@@ -439,7 +437,7 @@ function createHubWalls() {
 			group.add(createHubWallSegment(side, hubSideLength, 0));
 			group.add(createWordPressMural(side));
 		} else {
-			const segmentLength = (hubSideLength - roomDoorHalfWidth * 2) / 2;
+			const segmentLength = (roomWidth - roomDoorHalfWidth * 2) / 2;
 			const segmentOffset = roomDoorHalfWidth + segmentLength / 2;
 			group.add(createHubWallSegment(side, segmentLength, -segmentOffset));
 			group.add(createHubWallSegment(side, segmentLength, segmentOffset));
@@ -459,7 +457,6 @@ function createHubWallSegment(side, length, tangentOffset) {
 	);
 	wall.position
 		.copy(side.midpoint)
-		.add(side.normal.clone().multiplyScalar(-hubWallInset))
 		.add(side.tangent.clone().multiplyScalar(tangentOffset));
 	wall.position.y = wallHeight / 2;
 	wall.rotation.y = getRotationForNormal(side.normal);
@@ -477,11 +474,7 @@ function createWordPressMural(side) {
 	);
 	mural.position
 		.copy(side.midpoint)
-		.add(
-			side.normal
-				.clone()
-				.multiplyScalar(-hubWallInset - wallThickness / 2 - 0.08)
-		);
+		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.08));
 	mural.position.y = 2.65;
 	mural.rotation.y = getRotationForNormal(
 		side.normal.clone().multiplyScalar(-1)
@@ -551,7 +544,6 @@ function createRoom(room) {
 	floor.position.y = 0.01;
 	group.add(floor);
 
-	group.add(createRoomEntranceWall());
 	group.add(createRoomWall('back'));
 	group.add(createRoomWall('left'));
 	group.add(createRoomWall('right'));
@@ -561,16 +553,6 @@ function createRoom(room) {
 	group.add(createFloorTrim('right', room.color));
 	group.add(createDoorFrame(room));
 	group.add(createRoomLight(room.color));
-	return group;
-}
-
-function createRoomEntranceWall() {
-	const group = new THREE.Group();
-	const segmentLength = (roomWidth - roomDoorHalfWidth * 2) / 2;
-	const segmentOffset = roomDoorHalfWidth + segmentLength / 2;
-
-	group.add(createRoomWallSegment('front', segmentLength, -segmentOffset));
-	group.add(createRoomWallSegment('front', segmentLength, segmentOffset));
 	return group;
 }
 
@@ -710,14 +692,7 @@ function createActiveExhibitMarker() {
 
 function createExhibit(release, index, slot, color) {
 	const group = new THREE.Group();
-	const frame = new THREE.Mesh(
-		new THREE.BoxGeometry(3.38, 2.48, exhibitFrameDepth),
-		new THREE.MeshStandardMaterial({
-			color: new THREE.Color(color),
-			roughness: 0.36,
-			metalness: 0.28,
-		})
-	);
+	const frame = createExhibitFrame(color);
 	frame.position
 		.copy(slot.position)
 		.add(slot.normal.clone().multiplyScalar(exhibitFrameOffset));
@@ -746,6 +721,30 @@ function createExhibit(release, index, slot, color) {
 		.add(slot.normal.clone().multiplyScalar(1.2));
 	glow.position.y = 2.8;
 	group.add(glow);
+	return group;
+}
+
+function createExhibitFrame(color) {
+	const group = new THREE.Group();
+	const material = new THREE.MeshBasicMaterial({
+		color,
+		side: THREE.DoubleSide,
+	});
+	const outerWidth = 3.38;
+	const outerHeight = 2.48;
+	const rail = 0.16;
+	const horizontalBar = new THREE.PlaneGeometry(outerWidth, rail);
+	const verticalBar = new THREE.PlaneGeometry(rail, outerHeight);
+	const top = new THREE.Mesh(horizontalBar, material);
+	const bottom = top.clone();
+	const left = new THREE.Mesh(verticalBar, material);
+	const right = left.clone();
+
+	top.position.y = outerHeight / 2 - rail / 2;
+	bottom.position.y = -top.position.y;
+	left.position.x = -outerWidth / 2 + rail / 2;
+	right.position.x = -left.position.x;
+	group.add(top, bottom, left, right);
 	return group;
 }
 
@@ -1313,10 +1312,10 @@ function updateCamera(delta) {
 		side += 1;
 	}
 	if (keys.has('ArrowLeft')) {
-		turnCamera(-220 * delta, 0);
+		turnCamera(-300 * delta, 0);
 	}
 	if (keys.has('ArrowRight')) {
-		turnCamera(220 * delta, 0);
+		turnCamera(300 * delta, 0);
 	}
 	if (mobileMotion.left) {
 		turnCamera(-220 * delta, 0);
@@ -1328,7 +1327,7 @@ function updateCamera(delta) {
 		stopGuidedTour();
 		const previousPosition = camera.position.clone();
 		const speed =
-			keys.has('ShiftLeft') || keys.has('ShiftRight') ? 7.5 : 4.2;
+			keys.has('ShiftLeft') || keys.has('ShiftRight') ? 10 : 5.8;
 		const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
 		const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
 		camera.position.addScaledVector(fwd, forward * speed * delta);
