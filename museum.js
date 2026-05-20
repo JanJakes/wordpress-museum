@@ -55,6 +55,7 @@ const roomLayout = new Map([
 	['Block Foundations', new THREE.Vector3(-10, 0, 19)],
 	['Block Site Editing', new THREE.Vector3(10, 0, 19)],
 ]);
+const atriumStartPosition = new THREE.Vector3(0, 1.65, 0);
 const museumBounds = getMuseumBounds();
 const cameraBounds = {
 	minX: museumBounds.minX - 1.5,
@@ -75,14 +76,14 @@ let programmaticRailScrollTimer = 0;
 let railScrollFrame = 0;
 
 camera.rotation.order = 'YXZ';
-camera.position.set(0, 1.65, -1);
+camera.position.copy(atriumStartPosition);
 setCameraRotation();
 
 initRenderer();
 buildScene();
 buildRail();
 bindControls();
-focusRelease(0, true);
+startAtMuseumCenter();
 animate();
 
 function initRenderer() {
@@ -1110,6 +1111,29 @@ function spinArtifacts(delta) {
 			object.rotation.y += object.userData.spin * delta;
 		}
 	});
+}
+
+function startAtMuseumCenter() {
+	activeIndex = 0;
+	camera.position.copy(atriumStartPosition);
+
+	const view = getViewAngles(
+		atriumStartPosition,
+		getRoomLookPoint(releases[activeIndex].era)
+	);
+	yaw = view.yaw;
+	pitch = 0;
+	setCameraRotation();
+	guidedTarget = null;
+
+	updatePanel(releases[activeIndex]);
+	updateRail();
+	updateActiveExhibitMarker();
+}
+
+function getRoomLookPoint(era) {
+	const center = roomLayout.get(era);
+	return new THREE.Vector3(center.x, atriumStartPosition.y, center.z);
 }
 
 function focusRelease(index, immediate = false, options = {}) {
