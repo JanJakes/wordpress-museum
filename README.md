@@ -3,6 +3,10 @@
 A standalone Three.js prototype for browsing WordPress release history as a
 museum.
 
+## Preview
+
+https://janjakes.github.io/wordpress-museum/
+
 ## Run
 
 ```bash
