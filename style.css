@@ -69,9 +69,9 @@ a:hover {
 		radial-gradient(
 			circle at 50% 25%,
 			transparent 0 34%,
-			rgba(0, 0, 0, 0.16) 72%
+			rgba(0, 0, 0, 0.1) 72%
 		),
-		linear-gradient(180deg, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.28));
+		linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.18));
 	content: '';
 }
 

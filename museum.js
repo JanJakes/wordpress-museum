@@ -31,6 +31,7 @@ const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const pickables = [];
 const exhibitPositions = [];
+const spinningArtifacts = [];
 const railButtons = [];
 let activeExhibitMarker = null;
 const keys = new Set();
@@ -43,7 +44,7 @@ const mobileMotion = {
 
 const roomWidth = 16;
 const roomDepth = 13;
-const wallHeight = 4.45;
+const wallHeight = 5.2;
 const wallThickness = 0.26;
 const roomDoorHalfWidth = 2.9;
 const exhibitFrameOffset = wallThickness / 2 + 0.06;
@@ -55,7 +56,12 @@ const hubCircumradius = hubApothem / Math.cos(Math.PI / 8);
 const hubSideLength = 2 * hubApothem * Math.tan(Math.PI / 8);
 const entryDistanceFromCenter = 5.2;
 const shellPadding = 1.4;
-const shellHeight = 5.4;
+const shellHeight = 5.45;
+const walkSpeed = 7.2;
+const sprintSpeed = 12;
+const maxMovementStep = 0.16;
+const activeFrameInterval = 1000 / 60;
+const idleFrameInterval = 1000 / 30;
 const hubSides = createHubSides();
 const muralSide = hubSides.find((side) => side.kind === 'mural');
 const roomSides = hubSides.filter((side) => side.era);
@@ -83,6 +89,7 @@ let lastPointer = { x: 0, y: 0 };
 let programmaticRailScroll = false;
 let programmaticRailScrollTimer = 0;
 let railScrollFrame = 0;
+let lastFrameTime = 0;
 
 camera.rotation.order = 'YXZ';
 camera.position.copy(atriumStartPosition);
@@ -96,7 +103,7 @@ startAtMuseumCenter();
 animate();
 
 function initRenderer() {
-	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
+	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.35));
 	renderer.outputColorSpace = THREE.SRGBColorSpace;
 	scene.background = new THREE.Color(0x151a2a);
 	scene.fog = new THREE.Fog(0x151a2a, 42, 95);
@@ -183,7 +190,7 @@ function createMuseumTexture(name, repeatX, repeatY) {
 	texture.wrapT = THREE.RepeatWrapping;
 	texture.repeat.set(repeatX, repeatY);
 	texture.colorSpace = THREE.SRGBColorSpace;
-	texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+	texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
 	return texture;
 }
 
@@ -373,24 +380,6 @@ function createCeiling(bounds) {
 	panel.rotation.x = Math.PI / 2;
 	panel.position.set(centerX, shellHeight, centerZ);
 	group.add(panel);
-
-	const beamMaterial = new THREE.MeshBasicMaterial({ color: 0x4f6181 });
-	for (let z = Math.ceil(bounds.minZ / 8) * 8; z <= bounds.maxZ; z += 8) {
-		const beam = new THREE.Mesh(
-			new THREE.BoxGeometry(width, 0.16, 0.2),
-			beamMaterial
-		);
-		beam.position.set(centerX, shellHeight - 0.18, z);
-		group.add(beam);
-	}
-	for (let x = Math.ceil(bounds.minX / 10) * 10; x <= bounds.maxX; x += 10) {
-		const beam = new THREE.Mesh(
-			new THREE.BoxGeometry(0.2, 0.14, depth),
-			beamMaterial
-		);
-		beam.position.set(x, shellHeight - 0.22, centerZ);
-		group.add(beam);
-	}
 	return group;
 }
 
@@ -518,7 +507,7 @@ function createWordPressMuralTexture() {
 	ctx.fillStyle = 'rgba(255, 245, 223, 0.72)';
 	ctx.font = '700 24px system-ui, sans-serif';
 	ctx.fillText(
-		'45 releases orbiting one very persistent publishing idea',
+		'Every publishing era, lovingly over-indexed',
 		512,
 		510
 	);
@@ -546,6 +535,7 @@ function createRoom(room) {
 	floor.rotation.x = -Math.PI / 2;
 	floor.position.y = 0.01;
 	group.add(floor);
+	group.add(createRoomCeiling());
 
 	group.add(createRoomWall('back'));
 	group.add(createRoomWall('left'));
@@ -559,10 +549,25 @@ function createRoom(room) {
 	return group;
 }
 
+function createRoomCeiling() {
+	const ceiling = new THREE.Mesh(
+		new THREE.PlaneGeometry(roomWidth, roomDepth),
+		new THREE.MeshBasicMaterial({
+			map: createMuseumTexture('ceiling', roomWidth / 7, roomDepth / 7),
+			side: THREE.DoubleSide,
+		})
+	);
+	ceiling.rotation.x = Math.PI / 2;
+	ceiling.position.y = wallHeight - 0.04;
+	return ceiling;
+}
+
 function createRoomWall(side) {
 	return createRoomWallSegment(
 		side,
-		side === 'front' || side === 'back' ? roomWidth : roomDepth,
+		side === 'front' || side === 'back'
+			? roomWidth
+			: roomDepth + wallThickness * 2,
 		0
 	);
 }
@@ -619,19 +624,23 @@ function createDoorFrame(room) {
 	second.position.set(gap, wallHeight / 2, -roomDepth / 2);
 	beam.position.set(0, 3.55, -roomDepth / 2);
 	group.add(first, second, beam);
+	const signMaterial = new THREE.MeshBasicMaterial({
+		map: createEraTexture(room.era, room.color),
+		transparent: true,
+	});
+	group.add(createDoorSign(signMaterial, -roomDepth / 2 - 0.08, Math.PI));
+	group.add(createDoorSign(signMaterial, -roomDepth / 2 + 0.08, 0));
+	return group;
+}
 
+function createDoorSign(material, z, rotationY) {
 	const sign = new THREE.Mesh(
 		new THREE.PlaneGeometry(5.6, 0.7),
-		new THREE.MeshBasicMaterial({
-			map: createEraTexture(room.era, room.color),
-			transparent: true,
-			side: THREE.DoubleSide,
-		})
+		material
 	);
-	sign.position.set(0, 3.05, -roomDepth / 2 - 0.08);
-	sign.rotation.y = Math.PI;
-	group.add(sign);
-	return group;
+	sign.position.set(0, 3.05, z);
+	sign.rotation.y = rotationY;
+	return sign;
 }
 
 function createRoomLight(color) {
@@ -718,37 +727,36 @@ function createExhibit(release, index, slot, color) {
 	group.add(plaque);
 	pickables.push(plaque);
 
-	const glow = new THREE.PointLight(new THREE.Color(color), 0.8, 8);
-	glow.position
-		.copy(slot.position)
-		.add(slot.normal.clone().multiplyScalar(1.2));
-	glow.position.y = 2.8;
-	group.add(glow);
 	return group;
 }
 
 function createExhibitFrame(color) {
-	const group = new THREE.Group();
+	const outerWidth = 3.38;
+	const outerHeight = 2.48;
+	const rail = 0.16;
+	const innerWidth = outerWidth - rail * 2;
+	const innerHeight = outerHeight - rail * 2;
+	const shape = new THREE.Shape();
+	shape.moveTo(-outerWidth / 2, -outerHeight / 2);
+	shape.lineTo(outerWidth / 2, -outerHeight / 2);
+	shape.lineTo(outerWidth / 2, outerHeight / 2);
+	shape.lineTo(-outerWidth / 2, outerHeight / 2);
+	shape.lineTo(-outerWidth / 2, -outerHeight / 2);
+
+	const hole = new THREE.Path();
+	hole.moveTo(-innerWidth / 2, -innerHeight / 2);
+	hole.lineTo(-innerWidth / 2, innerHeight / 2);
+	hole.lineTo(innerWidth / 2, innerHeight / 2);
+	hole.lineTo(innerWidth / 2, -innerHeight / 2);
+	hole.lineTo(-innerWidth / 2, -innerHeight / 2);
+	shape.holes.push(hole);
+
+	const geometry = new THREE.ShapeGeometry(shape);
 	const material = new THREE.MeshBasicMaterial({
 		color,
 		side: THREE.DoubleSide,
 	});
-	const outerWidth = 3.38;
-	const outerHeight = 2.48;
-	const rail = 0.16;
-	const horizontalBar = new THREE.PlaneGeometry(outerWidth, rail);
-	const verticalBar = new THREE.PlaneGeometry(rail, outerHeight);
-	const top = new THREE.Mesh(horizontalBar, material);
-	const bottom = top.clone();
-	const left = new THREE.Mesh(verticalBar, material);
-	const right = left.clone();
-
-	top.position.y = outerHeight / 2 - rail / 2;
-	bottom.position.y = -top.position.y;
-	left.position.x = -outerWidth / 2 + rail / 2;
-	right.position.x = -left.position.x;
-	group.add(top, bottom, left, right);
-	return group;
+	return new THREE.Mesh(geometry, material);
 }
 
 function createArtifact(release, index, slot, color) {
@@ -786,18 +794,7 @@ function createArtifact(release, index, slot, color) {
 	artifact.rotation.set(0.35, index * 0.31, 0.18);
 	artifact.userData.spin = 0.18 + (index % 5) * 0.035;
 	group.add(artifact);
-
-	const label = new THREE.Mesh(
-		new THREE.PlaneGeometry(1.08, 0.34),
-		new THREE.MeshBasicMaterial({
-			map: createSmallLabelTexture(release.version),
-			transparent: true,
-			side: THREE.DoubleSide,
-		})
-	);
-	label.position.set(base.x, 1.62, base.z);
-	label.rotation.y = slot.rotationY;
-	group.add(label);
+	spinningArtifacts.push(artifact);
 	return group;
 }
 
@@ -1011,36 +1008,11 @@ function createPlaqueTexture(release, index, color) {
 
 	ctx.fillStyle = 'rgba(255, 245, 223, 0.52)';
 	ctx.font = '700 22px system-ui, sans-serif';
-	ctx.fillText(
-		`Exhibit ${String(index + 1).padStart(2, '0')} / ${releases.length}`,
-		70,
-		672
-	);
-	ctx.fillText(release.artifact, 630, 672);
+	ctx.fillText(release.artifact, 70, 672);
 
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
-	return texture;
-}
-
-function createSmallLabelTexture(text) {
-	const canvas = document.createElement('canvas');
-	canvas.width = 512;
-	canvas.height = 160;
-	const ctx = canvas.getContext('2d');
-	ctx.fillStyle = 'rgba(7, 10, 18, 0.78)';
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	ctx.strokeStyle = '#fff5df';
-	ctx.lineWidth = 8;
-	ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
-	ctx.fillStyle = '#fff5df';
-	ctx.font = '900 84px Arial Black, Impact, sans-serif';
-	ctx.textAlign = 'center';
-	ctx.textBaseline = 'middle';
-	ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 4);
-	const texture = new THREE.CanvasTexture(canvas);
-	texture.colorSpace = THREE.SRGBColorSpace;
 	return texture;
 }
 
@@ -1285,12 +1257,37 @@ function getNearestRailIndex() {
 	);
 }
 
-function animate() {
+function animate(timestamp = 0) {
+	requestAnimationFrame(animate);
+	if (lastFrameTime && timestamp - lastFrameTime < getFrameInterval()) {
+		return;
+	}
+	lastFrameTime = timestamp;
+
 	const delta = Math.min(clock.getDelta(), 0.05);
 	updateCamera(delta);
 	spinArtifacts(delta);
 	renderer.render(scene, camera);
-	requestAnimationFrame(animate);
+}
+
+function getFrameInterval() {
+	return guidedTarget || guidedTour || dragging || hasActiveMovementInput()
+		? activeFrameInterval
+		: idleFrameInterval;
+}
+
+function hasActiveMovementInput() {
+	for (const code of keys) {
+		if (isMovementKey(code)) {
+			return true;
+		}
+	}
+	return (
+		mobileMotion.forward ||
+		mobileMotion.back ||
+		mobileMotion.left ||
+		mobileMotion.right
+	);
 }
 
 function updateCamera(delta) {
@@ -1347,7 +1344,9 @@ function updateCamera(delta) {
 	if (forward || side) {
 		stopGuidedTour();
 		const speed =
-			keys.has('ShiftLeft') || keys.has('ShiftRight') ? 10 : 5.8;
+			keys.has('ShiftLeft') || keys.has('ShiftRight')
+				? sprintSpeed
+				: walkSpeed;
 		const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
 		const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
 		const movement = fwd
@@ -1359,6 +1358,14 @@ function updateCamera(delta) {
 }
 
 function moveCamera(movement) {
+	const steps = Math.max(1, Math.ceil(movement.length() / maxMovementStep));
+	const step = movement.clone().divideScalar(steps);
+	for (let index = 0; index < steps; index++) {
+		moveCameraStep(step);
+	}
+}
+
+function moveCameraStep(movement) {
 	const start = camera.position.clone();
 	const direct = getBoundedCameraPoint(start.clone().add(movement));
 	if (canStandAt(direct)) {
@@ -1404,10 +1411,8 @@ function stopGuidedTour() {
 }
 
 function spinArtifacts(delta) {
-	scene.traverse((object) => {
-		if (object.userData.spin) {
-			object.rotation.y += object.userData.spin * delta;
-		}
+	spinningArtifacts.forEach((artifact) => {
+		artifact.rotation.y += artifact.userData.spin * delta;
 	});
 }
 
@@ -1475,7 +1480,7 @@ function updatePanel(release) {
 	document.querySelector('#release-known-for').textContent = release.knownFor;
 	document.querySelector('#release-detail').textContent = release.detail;
 	document.querySelector('#release-counter').textContent =
-		`${activeIndex + 1} / ${releases.length}`;
+		`WP ${release.version}`;
 
 	const blueprintUrl = new URL(release.blueprint, window.location.href);
 	const playgroundUrl = new URL('https://playground.wordpress.net/');
