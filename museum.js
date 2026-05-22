@@ -32,7 +32,10 @@ const pointer = new THREE.Vector2();
 const pickables = [];
 const exhibitPositions = [];
 const spinningArtifacts = [];
-const railButtons = [];
+let railButtons = [];
+let railItems = [];
+let railMode = '';
+let railEra = '';
 let activeExhibitMarker = null;
 const keys = new Set();
 const mobileMotion = {
@@ -1227,17 +1230,8 @@ function returnToMuseumCenter() {
 
 function buildRail() {
 	const rail = document.querySelector('#release-rail-track');
-	releases.forEach((release, index) => {
-		const button = document.createElement('button');
-		button.type = 'button';
-		button.textContent = release.version;
-		button.title = `${release.version} ${release.name}: ${release.knownFor}`;
-		button.style.setProperty('--release-color', eraColors.get(release.era));
-		button.addEventListener('click', () => focusRelease(index));
-		rail.append(button);
-		railButtons[index] = button;
-	});
 	bindRailScroll(rail);
+	updateRail(false);
 }
 
 function bindRailScroll(rail) {
@@ -1262,17 +1256,34 @@ function bindRailScroll(rail) {
 		}
 		railScrollFrame = requestAnimationFrame(() => {
 			railScrollFrame = 0;
-			focusNearestRailRelease();
+			focusNearestRailItem();
 		});
 	});
 }
 
-function focusNearestRailRelease() {
-	const nearestIndex = getNearestRailIndex();
-	if (nearestIndex !== activeIndex) {
-		stopGuidedTour();
-		focusRelease(nearestIndex, false, { syncRail: false });
+function focusNearestRailItem() {
+	const item = railItems[getNearestRailItemIndex()];
+	if (!item || isRailItemActive(item)) {
+		return;
 	}
+	stopGuidedTour();
+	focusRailItem(item, { syncRail: false });
+}
+
+function focusRailItem(item, options = {}) {
+	if (item.kind === 'room') {
+		focusRoom(item.era, options);
+		return;
+	}
+	focusRelease(item.index, false, options);
+}
+
+function focusRoom(era, options = {}) {
+	const index = getEraReleaseItems(era)[0]?.index;
+	if (index === undefined) {
+		return;
+	}
+	focusRelease(index, false, options);
 }
 
 function shouldIgnoreMuseumWheel(target) {
@@ -1292,16 +1303,21 @@ function scrollRailBy(delta) {
 	document.querySelector('#release-rail-track').scrollLeft += delta;
 }
 
-function getNearestRailIndex() {
+function getNearestRailItemIndex() {
 	const rail = document.querySelector('#release-rail-track');
 	const maxScrollLeft = rail.scrollWidth - rail.clientWidth;
 	if (maxScrollLeft <= 0) {
-		return activeIndex;
+		const activeItemIndex = getActiveRailItemIndex();
+		return activeItemIndex >= 0 ? activeItemIndex : 0;
 	}
 	return Math.round(
 		THREE.MathUtils.clamp(rail.scrollLeft / maxScrollLeft, 0, 1) *
-			(releases.length - 1)
+			(railItems.length - 1)
 	);
+}
+
+function getActiveRailItemIndex() {
+	return railItems.findIndex(isRailItemActive);
 }
 
 function animate(timestamp = 0) {
@@ -1358,6 +1374,8 @@ function updateCamera(delta) {
 		if (camera.position.distanceTo(guidedTarget.position) < 0.035) {
 			guidedTarget = null;
 			tourHoldUntil = performance.now() + 1700;
+			updateNearestRelease();
+			updateRail();
 		}
 		return;
 	}
@@ -1537,8 +1555,9 @@ function updatePanel(release) {
 }
 
 function updateRail(syncRail = true) {
+	renderRailForCurrentContext();
 	railButtons.forEach((button, index) => {
-		button.classList.toggle('is-active', index === activeIndex);
+		button.classList.toggle('is-active', isRailItemActive(railItems[index]));
 	});
 	if (!syncRail) {
 		return;
@@ -1546,10 +1565,93 @@ function updateRail(syncRail = true) {
 	scrollActiveRailButton();
 }
 
+function renderRailForCurrentContext() {
+	const context = getRailContext();
+	if (context.mode === railMode && context.era === railEra) {
+		return;
+	}
+
+	railMode = context.mode;
+	railEra = context.era;
+	railItems =
+		context.mode === 'releases'
+			? getReleaseRailItems(context.era)
+			: getRoomRailItems();
+	railButtons = railItems.map(createRailButton);
+	document.querySelector('#release-rail-track').replaceChildren(...railButtons);
+}
+
+function getRailContext() {
+	const roomEra = getCameraNavigationEra();
+	return roomEra
+		? {
+				mode: 'releases',
+				era: roomEra,
+			}
+		: {
+				mode: 'rooms',
+				era: '',
+			};
+}
+
+function getCameraNavigationEra() {
+	const cameraPoint = camera.position.clone();
+	cameraPoint.y = 1.65;
+	return getCameraRoomEra(cameraPoint);
+}
+
+function getReleaseRailItems(era) {
+	return getEraReleaseItems(era).map(({ release, index }) => ({
+		kind: 'release',
+		era,
+		index,
+		label: release.version,
+		release,
+	}));
+}
+
+function getRoomRailItems() {
+	return getEraReleaseGroups().map(({ era, items }) => ({
+		kind: 'room',
+		era,
+		label: era,
+		title: `${era}: ${getReleaseYearRange(items)}`,
+	}));
+}
+
+function getEraReleaseItems(era) {
+	return releases
+		.map((release, index) => ({ release, index }))
+		.filter(({ release }) => release.era === era);
+}
+
+function createRailButton(item) {
+	const button = document.createElement('button');
+	button.type = 'button';
+	button.textContent = item.label;
+	button.classList.add(`is-${item.kind}`);
+	button.title =
+		item.kind === 'room'
+			? item.title
+			: `${item.release.version} ${item.release.name}: ${item.release.knownFor}`;
+	button.style.setProperty('--release-color', eraColors.get(item.era));
+	button.addEventListener('click', () => focusRailItem(item));
+	return button;
+}
+
+function isRailItemActive(item) {
+	if (!item) {
+		return false;
+	}
+	return item.kind === 'room'
+		? item.era === releases[activeIndex].era
+		: item.index === activeIndex;
+}
+
 function scrollActiveRailButton() {
 	programmaticRailScroll = true;
 	scheduleProgrammaticRailScrollEnd();
-	railButtons[activeIndex]?.scrollIntoView({
+	railButtons[getActiveRailItemIndex()]?.scrollIntoView({
 		behavior: 'smooth',
 		inline: 'center',
 		block: 'nearest',
@@ -1588,6 +1690,7 @@ function updateNearestRelease() {
 	cameraPoint.y = 1.65;
 	const activeRoomEra = getCameraRoomEra(cameraPoint);
 	if (!activeRoomEra) {
+		updateRail();
 		return;
 	}
 	exhibitPositions.forEach((position, index) => {
@@ -1600,12 +1703,15 @@ function updateNearestRelease() {
 			nearest = index;
 		}
 	});
-	if (nearest !== activeIndex && nearestDistance < 5.2) {
+	if (
+		releases[activeIndex].era !== activeRoomEra ||
+		(nearest !== activeIndex && nearestDistance < 5.2)
+	) {
 		activeIndex = nearest;
 		updatePanel(releases[activeIndex]);
-		updateRail();
 		updateActiveExhibitMarker();
 	}
+	updateRail();
 }
 
 function getCameraRoomEra(position) {

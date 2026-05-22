@@ -279,11 +279,16 @@ h1 {
 	min-width: 54px;
 	min-height: 38px;
 	padding: 0 12px;
+	white-space: nowrap;
 	border-color: color-mix(
 		in srgb,
 		var(--release-color, var(--line)) 42%,
 		var(--line)
 	);
+}
+
+#release-rail-track button.is-room {
+	min-width: 150px;
 }
 
 #release-rail-track button.is-active {
