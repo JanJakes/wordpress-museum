@@ -132,6 +132,7 @@ function buildScene() {
 		const room = {
 			era,
 			color,
+			yearRange: getReleaseYearRange(items),
 			...roomSide,
 		};
 		root.add(createRoom(room));
@@ -152,6 +153,13 @@ function buildScene() {
 			root.add(createArtifact(release, index, slot, color));
 		});
 	});
+}
+
+function getReleaseYearRange(items) {
+	const years = items.map(({ release }) => release.year);
+	const minYear = Math.min(...years);
+	const maxYear = Math.max(...years);
+	return minYear === maxYear ? `${minYear}` : `${minYear}-${maxYear}`;
 }
 
 function createBuildingShell() {
@@ -625,7 +633,7 @@ function createDoorFrame(room) {
 	beam.position.set(0, 3.55, -roomDepth / 2);
 	group.add(first, second, beam);
 	const signMaterial = new THREE.MeshBasicMaterial({
-		map: createEraTexture(room.era, room.color),
+		map: createEraTexture(room.era, room.color, room.yearRange),
 		transparent: true,
 	});
 	group.add(createDoorSign(signMaterial, -roomDepth / 2 - 0.08, Math.PI));
@@ -1016,7 +1024,7 @@ function createPlaqueTexture(release, index, color) {
 	return texture;
 }
 
-function createEraTexture(text, color) {
+function createEraTexture(text, color, yearRange) {
 	const canvas = document.createElement('canvas');
 	canvas.width = 1024;
 	canvas.height = 160;
@@ -1027,13 +1035,44 @@ function createEraTexture(text, color) {
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 	ctx.globalAlpha = 1;
 	ctx.fillStyle = '#07100b';
-	ctx.font = '900 66px Arial Black, Impact, sans-serif';
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-	ctx.fillText(text.toUpperCase(), canvas.width / 2, canvas.height / 2 + 6);
+	ctx.font = '800 30px system-ui, sans-serif';
+	ctx.globalAlpha = 0.72;
+	ctx.fillText(yearRange, canvas.width / 2, 42);
+	ctx.globalAlpha = 1;
+	fillFittedCanvasText(
+		ctx,
+		text.toUpperCase(),
+		canvas.width / 2,
+		107,
+		900,
+		58,
+		'900',
+		'Arial Black, Impact, sans-serif'
+	);
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
 	return texture;
+}
+
+function fillFittedCanvasText(
+	ctx,
+	text,
+	x,
+	y,
+	maxWidth,
+	maxFontSize,
+	fontWeight,
+	fontFamily
+) {
+	let fontSize = maxFontSize;
+	do {
+		ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+		fontSize -= 2;
+	} while (ctx.measureText(text).width > maxWidth && fontSize > 34);
+	ctx.fillText(text, x, y);
 }
 
 function bindControls() {
