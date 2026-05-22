@@ -924,14 +924,14 @@ function getMuseumFootprintPoints() {
 
 function createHubSides() {
 	return [
-		createHubSide(0, 'Early Blog Engine'),
-		createHubSide(Math.PI / 4, 'Dashboard Matures'),
-		createHubSide(Math.PI / 2, 'CMS Expansion'),
-		createHubSide((Math.PI * 3) / 4, 'Modern Admin'),
+		createHubSide(0, eras[0]),
+		createHubSide(Math.PI / 4, eras[1]),
+		createHubSide(Math.PI / 2, eras[2]),
+		createHubSide((Math.PI * 3) / 4, eras[3]),
 		createHubSide(Math.PI, undefined, 'mural'),
-		createHubSide((-Math.PI * 3) / 4, 'Customizer and API'),
-		createHubSide(-Math.PI / 2, 'Block Foundations'),
-		createHubSide(-Math.PI / 4, 'Block Site Editing'),
+		createHubSide((-Math.PI * 3) / 4, eras[4]),
+		createHubSide(-Math.PI / 2, eras[5]),
+		createHubSide(-Math.PI / 4, eras[6]),
 	];
 }
 
