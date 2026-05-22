@@ -61,7 +61,7 @@ const wallThickness = 0.26;
 const roomDoorHalfWidth = 2.9;
 const exhibitFrameOffset = wallThickness / 2 + 0.06;
 const exhibitPlaqueOffset = exhibitFrameOffset + 0.015;
-const sideExhibitMinZ = -roomDepth / 2 + 3.8;
+const sideExhibitMinZ = 0.7;
 const sideExhibitMaxZ = roomDepth / 2 - 1.95;
 const hubApothem = 15.5;
 const hubCircumradius = hubApothem / Math.cos(Math.PI / 8);
@@ -800,7 +800,7 @@ function createExhibitSlots(room, releaseCount) {
 		{ side: 'back', reverse: true },
 		{ side: 'left', reverse: true },
 	];
-	const wallCounts = distributeCount(releaseCount, walls.length);
+	const wallCounts = distributeWallCounts(releaseCount);
 	return walls.flatMap(({ side, reverse }, wallIndex) => {
 		const slotCount = wallCounts[wallIndex];
 		return Array.from({ length: slotCount }, (_, slotIndex) => {
@@ -874,11 +874,21 @@ function getSlotTangent(room, side) {
 	return side === 'back' ? room.tangent.clone() : room.normal.clone();
 }
 
-function distributeCount(count, buckets) {
-	return Array.from({ length: buckets }, (_, index) => {
-		const base = Math.floor(count / buckets);
-		return base + (index < count % buckets ? 1 : 0);
-	});
+function distributeWallCounts(count) {
+	// Keep side-wall frames in the rear half so doorway cheeks never occlude them.
+	if (count <= 3) {
+		return [0, count, 0];
+	}
+	if (count <= 5) {
+		return [1, count - 2, 1];
+	}
+	if (count === 6) {
+		return [1, 4, 1];
+	}
+	if (count === 7) {
+		return [2, 3, 2];
+	}
+	return [2, count - 4, 2];
 }
 
 function getEraReleaseGroups() {
