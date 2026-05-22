@@ -21,9 +21,19 @@ const canvas = document.querySelector('#museum-canvas');
 const renderer = new THREE.WebGLRenderer({
 	canvas,
 	antialias: true,
-	powerPreference: 'high-performance',
+	powerPreference: 'low-power',
 });
 const textureCanvases = new Map();
+const museumTextures = new Map();
+const plaqueImageCache = new Map();
+const textureLoader = new THREE.TextureLoader();
+const museumTextureSources = {
+	atriumFloor: './assets/textures/floor-paving-stones.jpg',
+	ceiling: './assets/textures/ceiling-tiles.jpg',
+	roomFloor: './assets/textures/floor-paving-stones.jpg',
+	roomWall: './assets/textures/wall-marble.jpg',
+	shellWall: './assets/textures/wall-marble.jpg',
+};
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(68, 1, 0.1, 420);
 const clock = new THREE.Clock();
@@ -31,7 +41,6 @@ const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const pickables = [];
 const exhibitPositions = [];
-const spinningArtifacts = [];
 let railButtons = [];
 let railItems = [];
 let railMode = '';
@@ -52,8 +61,8 @@ const wallThickness = 0.26;
 const roomDoorHalfWidth = 2.9;
 const exhibitFrameOffset = wallThickness / 2 + 0.06;
 const exhibitPlaqueOffset = exhibitFrameOffset + 0.015;
-const sideExhibitMinZ = -roomDepth / 2 + 5.2;
-const sideExhibitMaxZ = roomDepth / 2 - 2.1;
+const sideExhibitMinZ = -roomDepth / 2 + 2.8;
+const sideExhibitMaxZ = roomDepth / 2 - 2.6;
 const hubApothem = 15.5;
 const hubCircumradius = hubApothem / Math.cos(Math.PI / 8);
 const hubSideLength = 2 * hubApothem * Math.tan(Math.PI / 8);
@@ -64,7 +73,7 @@ const walkSpeed = 7.2;
 const sprintSpeed = 12;
 const maxMovementStep = 0.16;
 const activeFrameInterval = 1000 / 60;
-const idleFrameInterval = 1000 / 30;
+const idleFrameInterval = 1000 / 15;
 const hubSides = createHubSides();
 const muralSide = hubSides.find((side) => side.kind === 'mural');
 const roomSides = hubSides.filter((side) => side.era);
@@ -93,6 +102,7 @@ let programmaticRailScroll = false;
 let programmaticRailScrollTimer = 0;
 let railScrollFrame = 0;
 let lastFrameTime = 0;
+let renderedFrameCount = 0;
 
 camera.rotation.order = 'YXZ';
 camera.position.copy(atriumStartPosition);
@@ -103,6 +113,7 @@ buildScene();
 buildRail();
 bindControls();
 startAtMuseumCenter();
+initDebugApi();
 animate();
 
 function initRenderer() {
@@ -153,7 +164,6 @@ function buildScene() {
 			};
 			exhibitPositions[index].stand.y = 1.65;
 			root.add(createExhibit(release, index, slot, color));
-			root.add(createArtifact(release, index, slot, color));
 		});
 	});
 }
@@ -196,13 +206,26 @@ function createMuseumMaterial(textureName, options = {}) {
 }
 
 function createMuseumTexture(name, repeatX, repeatY) {
-	const texture = new THREE.CanvasTexture(getTextureCanvas(name));
+	const cacheKey = `${name}:${repeatX}:${repeatY}`;
+	if (museumTextures.has(cacheKey)) {
+		return museumTextures.get(cacheKey);
+	}
+
+	const source = museumTextureSources[name];
+	const texture = source
+		? textureLoader.load(source)
+		: new THREE.CanvasTexture(getTextureCanvas(name));
+	configureMuseumTexture(texture, repeatX, repeatY);
+	museumTextures.set(cacheKey, texture);
+	return texture;
+}
+
+function configureMuseumTexture(texture, repeatX, repeatY) {
 	texture.wrapS = THREE.RepeatWrapping;
 	texture.wrapT = THREE.RepeatWrapping;
 	texture.repeat.set(repeatX, repeatY);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
-	return texture;
 }
 
 function getTextureCanvas(name) {
@@ -405,8 +428,8 @@ function createHubFloor() {
 	const floor = new THREE.Mesh(
 		new THREE.CircleGeometry(hubCircumradius, 8, Math.PI / 8),
 		createMuseumMaterial('atriumFloor', {
-			repeatX: 1,
-			repeatY: 1,
+			repeatX: hubCircumradius / 3,
+			repeatY: hubCircumradius / 3,
 			roughness: 0.78,
 			metalness: 0.08,
 		})
@@ -725,7 +748,7 @@ function createExhibit(release, index, slot, color) {
 	const plaque = new THREE.Mesh(
 		new THREE.PlaneGeometry(3.02, 2.16),
 		new THREE.MeshBasicMaterial({
-			map: createPlaqueTexture(release, index, color),
+			map: createPlaqueTexture(release, color),
 			side: THREE.DoubleSide,
 		})
 	);
@@ -768,45 +791,6 @@ function createExhibitFrame(color) {
 		side: THREE.DoubleSide,
 	});
 	return new THREE.Mesh(geometry, material);
-}
-
-function createArtifact(release, index, slot, color) {
-	const group = new THREE.Group();
-	const base = slot.position
-		.clone()
-		.add(slot.normal.clone().multiplyScalar(1.35))
-		.add(slot.tangent.clone().multiplyScalar(index % 2 === 0 ? -1.6 : 1.6));
-	const plinth = new THREE.Mesh(
-		new THREE.BoxGeometry(1.2, 0.82, 1.2),
-		new THREE.MeshStandardMaterial({
-			color: 0x1c2538,
-			roughness: 0.72,
-			metalness: 0.12,
-		})
-	);
-	plinth.position.set(base.x, 0.41, base.z);
-	group.add(plinth);
-
-	const artifact = new THREE.Mesh(
-		index % 3 === 0
-			? new THREE.BoxGeometry(0.66, 0.66, 0.66)
-			: index % 3 === 1
-				? new THREE.CylinderGeometry(0.36, 0.36, 0.72, 6)
-				: new THREE.TorusGeometry(0.34, 0.095, 10, 20),
-		new THREE.MeshStandardMaterial({
-			color: new THREE.Color(color),
-			roughness: 0.36,
-			metalness: 0.28,
-			emissive: new THREE.Color(color),
-			emissiveIntensity: 0.12,
-		})
-	);
-	artifact.position.set(base.x, 1.08, base.z);
-	artifact.rotation.set(0.35, index * 0.31, 0.18);
-	artifact.userData.spin = 0.18 + (index % 5) * 0.035;
-	group.add(artifact);
-	spinningArtifacts.push(artifact);
-	return group;
 }
 
 function createExhibitSlots(room, releaseCount) {
@@ -992,47 +976,200 @@ function getShellBounds() {
 	};
 }
 
-function createPlaqueTexture(release, index, color) {
+function createPlaqueTexture(release, color) {
 	const canvas = document.createElement('canvas');
 	canvas.width = 1024;
 	canvas.height = 736;
 	const ctx = canvas.getContext('2d');
-	ctx.fillStyle = '#fff5df';
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	ctx.fillStyle = '#111827';
-	ctx.fillRect(24, 24, canvas.width - 48, canvas.height - 48);
-	ctx.fillStyle = color;
-	ctx.fillRect(24, 24, canvas.width - 48, 18);
-	ctx.fillStyle = color;
-	ctx.globalAlpha = 0.14;
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	ctx.globalAlpha = 1;
-
-	ctx.fillStyle = '#fff5df';
-	ctx.font = '900 150px Arial Black, Impact, sans-serif';
-	ctx.fillText(release.version, 64, 190);
-	ctx.font = '700 42px system-ui, sans-serif';
-	ctx.fillText(release.name, 70, 258);
-	ctx.fillStyle = 'rgba(255, 245, 223, 0.68)';
-	ctx.font = '600 28px system-ui, sans-serif';
-	ctx.fillText(release.released, 70, 310);
-
-	ctx.fillStyle = color;
-	ctx.font = '800 38px system-ui, sans-serif';
-	wrapText(ctx, release.knownFor, 70, 392, 860, 48, 2);
-
-	ctx.fillStyle = 'rgba(255, 245, 223, 0.82)';
-	ctx.font = '500 30px system-ui, sans-serif';
-	wrapText(ctx, release.detail, 70, 506, 860, 40, 3);
-
-	ctx.fillStyle = 'rgba(255, 245, 223, 0.52)';
-	ctx.font = '700 22px system-ui, sans-serif';
-	ctx.fillText(release.artifact, 70, 672);
-
+	drawPlaqueTexture(ctx, canvas, release, color, {});
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
+
+	Promise.all([
+		loadPlaqueImage(getMusicianImagePath(release)),
+		loadPlaqueImage(getScreenshotImagePath(release)),
+	]).then(([musicianImage, screenshotImage]) => {
+		drawPlaqueTexture(ctx, canvas, release, color, {
+			musicianImage,
+			screenshotImage,
+		});
+		texture.needsUpdate = true;
+	});
+
 	return texture;
+}
+
+function drawPlaqueTexture(ctx, canvas, release, color, images) {
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#f8efd9';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#0f1726';
+	ctx.fillRect(24, 24, canvas.width - 48, canvas.height - 48);
+	ctx.fillStyle = color;
+	ctx.fillRect(24, 24, canvas.width - 48, 18);
+	ctx.globalAlpha = 0.16;
+	ctx.fillRect(24, canvas.height - 46, canvas.width - 48, 22);
+	ctx.globalAlpha = 1;
+
+	drawMediaPanel(ctx, images.musicianImage, 56, 76, 286, 356, {
+		fit: 'cover',
+		label: release.musician,
+		placeholder: 'Jazz portrait',
+	});
+	drawMediaPanel(ctx, images.screenshotImage, 376, 76, 592, 356, {
+		fit: 'contain',
+		label: 'WordPress ' + release.version,
+		placeholder: 'WordPress screenshot',
+	});
+
+	ctx.textAlign = 'left';
+	ctx.textBaseline = 'alphabetic';
+	ctx.fillStyle = '#fff5df';
+	ctx.font = '900 88px Arial Black, Impact, sans-serif';
+	ctx.fillText(release.version, 60, 548);
+	ctx.fillStyle = 'rgba(255, 245, 223, 0.92)';
+	ctx.font = '800 32px system-ui, sans-serif';
+	wrapText(ctx, release.name, 62, 598, 260, 34, 2);
+	ctx.fillStyle = 'rgba(255, 245, 223, 0.62)';
+	ctx.font = '700 22px system-ui, sans-serif';
+	ctx.fillText(release.released, 62, 682);
+
+	ctx.fillStyle = color;
+	ctx.font = '900 32px system-ui, sans-serif';
+	wrapText(ctx, release.knownFor, 376, 528, 560, 40, 2);
+	ctx.fillStyle = 'rgba(255, 245, 223, 0.84)';
+	ctx.font = '500 25px system-ui, sans-serif';
+	wrapText(ctx, release.detail, 376, 620, 560, 34, 2);
+	ctx.fillStyle = 'rgba(255, 245, 223, 0.52)';
+	ctx.font = '800 18px system-ui, sans-serif';
+	ctx.fillText(release.artifact, 376, 694);
+}
+
+function drawMediaPanel(ctx, image, x, y, width, height, options) {
+	ctx.fillStyle = '#f8efd9';
+	ctx.fillRect(x, y, width, height);
+	ctx.fillStyle = '#111827';
+	ctx.fillRect(x + 10, y + 10, width - 20, height - 20);
+
+	if (image) {
+		const draw =
+			options.fit === 'contain' ? drawImageContain : drawImageCover;
+		draw(ctx, image, x + 14, y + 14, width - 28, height - 28);
+	} else {
+		drawMediaPlaceholder(
+			ctx,
+			x + 14,
+			y + 14,
+			width - 28,
+			height - 28,
+			options.placeholder
+		);
+	}
+
+	ctx.fillStyle = 'rgba(15, 23, 38, 0.76)';
+	ctx.fillRect(x + 14, y + height - 54, width - 28, 40);
+	ctx.fillStyle = '#fff5df';
+	ctx.font = '800 20px system-ui, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	fillFittedCanvasText(
+		ctx,
+		options.label.toUpperCase(),
+		x + width / 2,
+		y + height - 34,
+		width - 52,
+		20,
+		'800',
+		'system-ui, sans-serif'
+	);
+
+	ctx.strokeStyle = 'rgba(255, 245, 223, 0.46)';
+	ctx.lineWidth = 4;
+	ctx.strokeRect(x + 12, y + 12, width - 24, height - 24);
+}
+
+function drawMediaPlaceholder(ctx, x, y, width, height, label) {
+	ctx.fillStyle = '#162033';
+	ctx.fillRect(x, y, width, height);
+	ctx.strokeStyle = 'rgba(255, 245, 223, 0.18)';
+	ctx.lineWidth = 6;
+	for (let offset = -height; offset < width; offset += 48) {
+		ctx.beginPath();
+		ctx.moveTo(x + offset, y + height);
+		ctx.lineTo(x + offset + height, y);
+		ctx.stroke();
+	}
+	ctx.fillStyle = 'rgba(255, 245, 223, 0.56)';
+	ctx.font = '800 24px system-ui, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText(label, x + width / 2, y + height / 2);
+}
+
+function drawImageCover(ctx, image, x, y, width, height) {
+	const sourceRatio = image.naturalWidth / image.naturalHeight;
+	const targetRatio = width / height;
+	const sourceWidth =
+		sourceRatio > targetRatio
+			? image.naturalHeight * targetRatio
+			: image.naturalWidth;
+	const sourceHeight =
+		sourceRatio > targetRatio
+			? image.naturalHeight
+			: image.naturalWidth / targetRatio;
+	const sourceX = (image.naturalWidth - sourceWidth) / 2;
+	const sourceY = (image.naturalHeight - sourceHeight) / 2;
+	ctx.drawImage(
+		image,
+		sourceX,
+		sourceY,
+		sourceWidth,
+		sourceHeight,
+		x,
+		y,
+		width,
+		height
+	);
+}
+
+function drawImageContain(ctx, image, x, y, width, height) {
+	const scale = Math.min(
+		width / image.naturalWidth,
+		height / image.naturalHeight
+	);
+	const drawWidth = image.naturalWidth * scale;
+	const drawHeight = image.naturalHeight * scale;
+	const drawX = x + (width - drawWidth) / 2;
+	const drawY = y + (height - drawHeight) / 2;
+	ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+}
+
+function loadPlaqueImage(path) {
+	if (!plaqueImageCache.has(path)) {
+		plaqueImageCache.set(
+			path,
+			new Promise((resolve) => {
+				const image = new Image();
+				image.onload = () => resolve(image);
+				image.onerror = () => resolve(null);
+				image.src = path;
+			})
+		);
+	}
+	return plaqueImageCache.get(path);
+}
+
+function getMusicianImagePath(release) {
+	return `./assets/musicians/wp-${getVersionSlug(release)}.jpg`;
+}
+
+function getScreenshotImagePath(release) {
+	return `./assets/wp-screenshots/wp-${getVersionSlug(release)}.png`;
+}
+
+function getVersionSlug(release) {
+	return release.version.replaceAll('.', '-');
 }
 
 function createEraTexture(text, color, yearRange) {
@@ -1079,10 +1216,14 @@ function fillFittedCanvasText(
 	fontFamily
 ) {
 	let fontSize = maxFontSize;
-	do {
+	const minFontSize = Math.min(34, maxFontSize);
+	while (true) {
 		ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+		if (ctx.measureText(text).width <= maxWidth || fontSize <= minFontSize) {
+			break;
+		}
 		fontSize -= 2;
-	} while (ctx.measureText(text).width > maxWidth && fontSize > 34);
+	}
 	ctx.fillText(text, x, y);
 }
 
@@ -1210,6 +1351,49 @@ function bindControls() {
 	});
 }
 
+function initDebugApi() {
+	if (!new URLSearchParams(window.location.search).has('debug')) {
+		return;
+	}
+
+	window.wpMuseumDebug = {
+		rooms: roomSides.map((side) => ({
+			era: side.era,
+			center: vectorToPlainObject(side.center),
+			normal: vectorToPlainObject(side.normal),
+			tangent: vectorToPlainObject(side.tangent),
+		})),
+		setCameraView(position, target) {
+			stopGuidedTour();
+			guidedTarget = null;
+			camera.position.set(position.x, position.y, position.z);
+			const angles = getViewAngles(
+				camera.position,
+				new THREE.Vector3(target.x, target.y, target.z)
+			);
+			yaw = angles.yaw;
+			pitch = angles.pitch;
+			setCameraRotation();
+		},
+		getRendererInfo() {
+			return {
+				render: { ...renderer.info.render },
+				memory: { ...renderer.info.memory },
+				pixelRatio: renderer.getPixelRatio(),
+				renderedFrameCount,
+			};
+		},
+	};
+}
+
+function vectorToPlainObject(vector) {
+	return {
+		x: vector.x,
+		y: vector.y,
+		z: vector.z,
+	};
+}
+
 function returnToMuseumCenter() {
 	stopGuidedTour();
 	keys.clear();
@@ -1329,8 +1513,8 @@ function animate(timestamp = 0) {
 
 	const delta = Math.min(clock.getDelta(), 0.05);
 	updateCamera(delta);
-	spinArtifacts(delta);
 	renderer.render(scene, camera);
+	renderedFrameCount += 1;
 }
 
 function getFrameInterval() {
@@ -1473,12 +1657,6 @@ function canStandAt(position) {
 function stopGuidedTour() {
 	guidedTour = false;
 	document.querySelector('#tour-button').textContent = 'Guided tour';
-}
-
-function spinArtifacts(delta) {
-	spinningArtifacts.forEach((artifact) => {
-		artifact.rotation.y += artifact.userData.spin * delta;
-	});
 }
 
 function startAtMuseumCenter() {
