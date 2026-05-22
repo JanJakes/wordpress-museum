@@ -89,9 +89,6 @@ const hubSides = createHubSides();
 const muralSide = hubSides.find((side) => side.kind === 'mural');
 const roomSides = hubSides.filter((side) => side.era);
 const roomLayout = new Map(roomSides.map((side) => [side.era, side]));
-const roomSideWallFrontInset = wallThickness * 2.2;
-const roomSideWallLength = roomDepth - roomSideWallFrontInset;
-const roomSideWallCenterZ = roomSideWallFrontInset / 2;
 const atriumCenterPosition = new THREE.Vector3(0, 1.65, 0);
 const atriumStartPosition = atriumCenterPosition
 	.clone()
@@ -611,13 +608,12 @@ function createRoomCeiling() {
 }
 
 function createRoomWall(side) {
-	const isDepthWall = side === 'left' || side === 'right';
 	return createRoomWallSegment(
 		side,
 		side === 'front' || side === 'back'
 			? roomWidth
-			: roomSideWallLength,
-		isDepthWall ? roomSideWallCenterZ : 0
+			: roomDepth,
+		0
 	);
 }
 
@@ -651,13 +647,11 @@ function createFloorTrim(side, color) {
 		new THREE.BoxGeometry(
 			isWidthTrim ? roomWidth : 0.08,
 			0.04,
-			isWidthTrim ? 0.08 : roomSideWallLength
+			isWidthTrim ? 0.08 : roomDepth
 		),
 		new THREE.MeshBasicMaterial({ color })
 	);
-	trim.position.copy(
-		getLocalWallPosition(side, isWidthTrim ? 0 : roomSideWallCenterZ)
-	);
+	trim.position.copy(getLocalWallPosition(side, 0));
 	trim.position.y = 0.05;
 	return trim;
 }
