@@ -261,10 +261,25 @@ h1 {
 	left: 0;
 	right: 0;
 	bottom: 0;
+	display: grid;
+	grid-template-columns: 92px minmax(0, 1fr) 92px;
+	align-items: center;
+	gap: 12px;
 	padding: 12px 16px 16px;
 	border-top: 1px solid var(--line);
 	background: rgba(17, 24, 39, 0.78);
 	backdrop-filter: blur(18px);
+}
+
+.release-rail::after {
+	width: 92px;
+	content: '';
+}
+
+.rail-center-button {
+	min-height: 38px;
+	padding: 0 14px;
+	font-weight: 760;
 }
 
 #release-rail-track {
@@ -272,6 +287,14 @@ h1 {
 	gap: 8px;
 	overflow-x: auto;
 	padding-bottom: 2px;
+}
+
+#release-rail-track button:first-child {
+	margin-left: auto;
+}
+
+#release-rail-track button:last-child {
+	margin-right: auto;
 }
 
 #release-rail-track button {
