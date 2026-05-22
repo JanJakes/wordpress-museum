@@ -59,8 +59,13 @@ const roomDepth = 13;
 const wallHeight = 5.2;
 const wallThickness = 0.26;
 const roomDoorHalfWidth = 2.9;
-const exhibitFrameOffset = wallThickness / 2 + 0.06;
-const exhibitPlaqueOffset = exhibitFrameOffset + 0.015;
+const exhibitMountOffset = wallThickness / 2 + 0.035;
+const exhibitFrameDepth = 0.13;
+const exhibitPlaqueRecess = 0.065;
+const exhibitOuterWidth = 3.38;
+const exhibitOuterHeight = 2.48;
+const exhibitPlaqueWidth = 3.02;
+const exhibitPlaqueHeight = 2.16;
 const sideExhibitMinZ = 0.7;
 const sideExhibitMaxZ = roomDepth / 2 - 1.95;
 const hubApothem = 15.5;
@@ -738,24 +743,22 @@ function createActiveExhibitMarker() {
 
 function createExhibit(release, index, slot, color) {
 	const group = new THREE.Group();
-	const frame = createExhibitFrame(color);
-	frame.position
+	group.position
 		.copy(slot.position)
-		.add(slot.normal.clone().multiplyScalar(exhibitFrameOffset));
-	frame.rotation.y = slot.rotationY;
+		.add(slot.normal.clone().multiplyScalar(exhibitMountOffset));
+	group.rotation.y = slot.rotationY;
+
+	const frame = createExhibitFrame(color);
 	group.add(frame);
 
 	const plaque = new THREE.Mesh(
-		new THREE.PlaneGeometry(3.02, 2.16),
+		new THREE.PlaneGeometry(exhibitPlaqueWidth, exhibitPlaqueHeight),
 		new THREE.MeshBasicMaterial({
 			map: createPlaqueTexture(release, color),
 			side: THREE.DoubleSide,
 		})
 	);
-	plaque.position
-		.copy(slot.position)
-		.add(slot.normal.clone().multiplyScalar(exhibitPlaqueOffset));
-	plaque.rotation.y = slot.rotationY;
+	plaque.position.z = exhibitPlaqueRecess;
 	plaque.renderOrder = 2;
 	plaque.userData.releaseIndex = index;
 	group.add(plaque);
@@ -765,17 +768,38 @@ function createExhibit(release, index, slot, color) {
 }
 
 function createExhibitFrame(color) {
-	const outerWidth = 3.38;
-	const outerHeight = 2.48;
-	const rail = 0.16;
-	const innerWidth = outerWidth - rail * 2;
-	const innerHeight = outerHeight - rail * 2;
+	const group = new THREE.Group();
+	const rail = (exhibitOuterWidth - exhibitPlaqueWidth) / 2;
+	const innerWidth = exhibitOuterWidth - rail * 2;
+	const innerHeight = exhibitOuterHeight - rail * 2;
+	const railMaterial = new THREE.MeshStandardMaterial({
+		color,
+		roughness: 0.46,
+		metalness: 0.16,
+	});
+	const shadowMaterial = new THREE.MeshBasicMaterial({
+		color: 0x080d16,
+		transparent: true,
+		opacity: 0.62,
+	});
+
+	const shadow = new THREE.Mesh(
+		new THREE.BoxGeometry(
+			exhibitOuterWidth + 0.08,
+			exhibitOuterHeight + 0.08,
+			0.05
+		),
+		shadowMaterial
+	);
+	shadow.position.z = 0.025;
+	group.add(shadow);
+
 	const shape = new THREE.Shape();
-	shape.moveTo(-outerWidth / 2, -outerHeight / 2);
-	shape.lineTo(outerWidth / 2, -outerHeight / 2);
-	shape.lineTo(outerWidth / 2, outerHeight / 2);
-	shape.lineTo(-outerWidth / 2, outerHeight / 2);
-	shape.lineTo(-outerWidth / 2, -outerHeight / 2);
+	shape.moveTo(-exhibitOuterWidth / 2, -exhibitOuterHeight / 2);
+	shape.lineTo(exhibitOuterWidth / 2, -exhibitOuterHeight / 2);
+	shape.lineTo(exhibitOuterWidth / 2, exhibitOuterHeight / 2);
+	shape.lineTo(-exhibitOuterWidth / 2, exhibitOuterHeight / 2);
+	shape.lineTo(-exhibitOuterWidth / 2, -exhibitOuterHeight / 2);
 
 	const hole = new THREE.Path();
 	hole.moveTo(-innerWidth / 2, -innerHeight / 2);
@@ -785,12 +809,31 @@ function createExhibitFrame(color) {
 	hole.lineTo(-innerWidth / 2, -innerHeight / 2);
 	shape.holes.push(hole);
 
-	const geometry = new THREE.ShapeGeometry(shape);
-	const material = new THREE.MeshBasicMaterial({
-		color,
-		side: THREE.DoubleSide,
-	});
-	return new THREE.Mesh(geometry, material);
+	const frame = new THREE.Mesh(
+		new THREE.ExtrudeGeometry(shape, {
+			depth: exhibitFrameDepth,
+			bevelEnabled: true,
+			bevelSegments: 1,
+			bevelSize: 0.018,
+			bevelThickness: 0.018,
+		}),
+		railMaterial
+	);
+	group.add(frame);
+
+	const inset = new THREE.Mesh(
+		new THREE.PlaneGeometry(
+			exhibitPlaqueWidth + 0.08,
+			exhibitPlaqueHeight + 0.08
+		),
+		new THREE.MeshBasicMaterial({
+			color: 0x0c1320,
+			side: THREE.DoubleSide,
+		})
+	);
+	inset.position.z = exhibitPlaqueRecess - 0.025;
+	group.add(inset);
+	return group;
 }
 
 function createExhibitSlots(room, releaseCount) {
