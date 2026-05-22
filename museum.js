@@ -931,15 +931,16 @@ function getMuseumFootprintPoints() {
 }
 
 function createHubSides() {
+	// Facing the mural, chronology starts on the visitor's right.
 	return [
-		createHubSide(0, eras[0]),
-		createHubSide(Math.PI / 4, eras[1]),
-		createHubSide(Math.PI / 2, eras[2]),
-		createHubSide((Math.PI * 3) / 4, eras[3]),
+		createHubSide(0, eras[3]),
+		createHubSide(Math.PI / 4, eras[4]),
+		createHubSide(Math.PI / 2, eras[5]),
+		createHubSide((Math.PI * 3) / 4, eras[6]),
 		createHubSide(Math.PI, undefined, 'mural'),
-		createHubSide((-Math.PI * 3) / 4, eras[4]),
-		createHubSide(-Math.PI / 2, eras[5]),
-		createHubSide(-Math.PI / 4, eras[6]),
+		createHubSide((-Math.PI * 3) / 4, eras[0]),
+		createHubSide(-Math.PI / 2, eras[1]),
+		createHubSide(-Math.PI / 4, eras[2]),
 	];
 }
 
