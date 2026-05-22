@@ -77,7 +77,11 @@ const entryDistanceFromCenter = 5.2;
 const shellPadding = 1.4;
 const shellHeight = 5.45;
 const walkSpeed = 7.2;
+const arrowWalkSpeed = 9.2;
+const mobileWalkSpeed = 8.8;
 const sprintSpeed = 12;
+const keyboardTurnSpeed = 520;
+const mobileTurnSpeed = 320;
 const maxMovementStep = 0.16;
 const activeFrameInterval = 1000 / 60;
 const idleFrameInterval = 1000 / 15;
@@ -85,6 +89,9 @@ const hubSides = createHubSides();
 const muralSide = hubSides.find((side) => side.kind === 'mural');
 const roomSides = hubSides.filter((side) => side.era);
 const roomLayout = new Map(roomSides.map((side) => [side.era, side]));
+const roomSideWallFrontInset = wallThickness * 2.2;
+const roomSideWallLength = roomDepth - roomSideWallFrontInset;
+const roomSideWallCenterZ = roomSideWallFrontInset / 2;
 const atriumCenterPosition = new THREE.Vector3(0, 1.65, 0);
 const atriumStartPosition = atriumCenterPosition
 	.clone()
@@ -604,12 +611,13 @@ function createRoomCeiling() {
 }
 
 function createRoomWall(side) {
+	const isDepthWall = side === 'left' || side === 'right';
 	return createRoomWallSegment(
 		side,
 		side === 'front' || side === 'back'
 			? roomWidth
-			: roomDepth + wallThickness * 2,
-		0
+			: roomSideWallLength,
+		isDepthWall ? roomSideWallCenterZ : 0
 	);
 }
 
@@ -643,11 +651,13 @@ function createFloorTrim(side, color) {
 		new THREE.BoxGeometry(
 			isWidthTrim ? roomWidth : 0.08,
 			0.04,
-			isWidthTrim ? 0.08 : roomDepth
+			isWidthTrim ? 0.08 : roomSideWallLength
 		),
 		new THREE.MeshBasicMaterial({ color })
 	);
-	trim.position.copy(getLocalWallPosition(side, 0));
+	trim.position.copy(
+		getLocalWallPosition(side, isWidthTrim ? 0 : roomSideWallCenterZ)
+	);
 	trim.position.y = 0.05;
 	return trim;
 }
@@ -1648,23 +1658,23 @@ function updateCamera(delta) {
 		side += 1;
 	}
 	if (keys.has('ArrowLeft')) {
-		turnCamera(-300 * delta, 0);
+		turnCamera(-keyboardTurnSpeed * delta, 0);
 	}
 	if (keys.has('ArrowRight')) {
-		turnCamera(300 * delta, 0);
+		turnCamera(keyboardTurnSpeed * delta, 0);
 	}
 	if (mobileMotion.left) {
-		turnCamera(-220 * delta, 0);
+		turnCamera(-mobileTurnSpeed * delta, 0);
 	}
 	if (mobileMotion.right) {
-		turnCamera(220 * delta, 0);
+		turnCamera(mobileTurnSpeed * delta, 0);
 	}
 	if (forward || side) {
 		stopGuidedTour();
 		const speed =
 			keys.has('ShiftLeft') || keys.has('ShiftRight')
 				? sprintSpeed
-				: walkSpeed;
+				: getWalkSpeed();
 		const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
 		const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
 		const movement = fwd
@@ -1673,6 +1683,13 @@ function updateCamera(delta) {
 		moveCamera(movement);
 		updateNearestRelease();
 	}
+}
+
+function getWalkSpeed() {
+	if (keys.has('ArrowUp') || keys.has('ArrowDown')) {
+		return arrowWalkSpeed;
+	}
+	return mobileMotion.forward || mobileMotion.back ? mobileWalkSpeed : walkSpeed;
 }
 
 function moveCamera(movement) {
