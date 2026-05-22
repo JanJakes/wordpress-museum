@@ -54,7 +54,10 @@ const mobileMotion = {
 	right: false,
 };
 
-const roomWidth = 16;
+const hubApothem = 15.5;
+const hubCircumradius = hubApothem / Math.cos(Math.PI / 8);
+const hubSideLength = 2 * hubApothem * Math.tan(Math.PI / 8);
+const roomWidth = hubSideLength;
 const roomDepth = 13;
 const wallHeight = 5.2;
 const wallThickness = 0.26;
@@ -66,11 +69,10 @@ const exhibitOuterWidth = 3.38;
 const exhibitOuterHeight = 2.48;
 const exhibitPlaqueWidth = 3.02;
 const exhibitPlaqueHeight = 2.16;
-const sideExhibitMinZ = 0.7;
-const sideExhibitMaxZ = roomDepth / 2 - 1.95;
-const hubApothem = 15.5;
-const hubCircumradius = hubApothem / Math.cos(Math.PI / 8);
-const hubSideLength = 2 * hubApothem * Math.tan(Math.PI / 8);
+const exhibitWallMargin = 0.75;
+const exhibitPreferredSpacing = exhibitOuterWidth + 0.65;
+const sideExhibitMinZ = -roomDepth / 2 + exhibitOuterWidth / 2 + 1.65;
+const sideExhibitMaxZ = roomDepth / 2 - exhibitOuterWidth / 2 - exhibitWallMargin;
 const entryDistanceFromCenter = 5.2;
 const shellPadding = 1.4;
 const shellHeight = 5.45;
@@ -868,12 +870,11 @@ function createWallSlot(room, side, slotIndex, slotCount) {
 
 function getLocalSlotPosition(side, slotIndex, slotCount) {
 	if (side === 'back') {
-		const spread = roomWidth - 5.2;
 		const value = getSlotAxisValue(
 			slotIndex,
 			slotCount,
-			-spread / 2,
-			spread / 2
+			-roomWidth / 2 + exhibitOuterWidth / 2 + exhibitWallMargin,
+			roomWidth / 2 - exhibitOuterWidth / 2 - exhibitWallMargin
 		);
 		return new THREE.Vector3(value, 0, roomDepth / 2);
 	}
@@ -891,9 +892,16 @@ function getLocalSlotPosition(side, slotIndex, slotCount) {
 }
 
 function getSlotAxisValue(slotIndex, slotCount, min, max) {
-	return slotCount === 1
-		? (min + max) / 2
-		: min + ((max - min) * slotIndex) / (slotCount - 1);
+	const center = (min + max) / 2;
+	if (slotCount === 1) {
+		return center;
+	}
+
+	const spacing = Math.min(
+		exhibitPreferredSpacing,
+		(max - min) / (slotCount - 1)
+	);
+	return center - (spacing * (slotCount - 1)) / 2 + spacing * slotIndex;
 }
 
 function roomLocalToWorld(room, localPosition) {
@@ -918,20 +926,28 @@ function getSlotTangent(room, side) {
 }
 
 function distributeWallCounts(count) {
-	// Keep side-wall frames in the rear half so doorway cheeks never occlude them.
-	if (count <= 3) {
-		return [0, count, 0];
+	if (count === 1) {
+		return [0, 1, 0];
 	}
-	if (count <= 5) {
-		return [1, count - 2, 1];
+	if (count === 2) {
+		return [1, 0, 1];
+	}
+	if (count === 3) {
+		return [1, 1, 1];
+	}
+	if (count === 4) {
+		return [1, 2, 1];
+	}
+	if (count === 5) {
+		return [2, 1, 2];
 	}
 	if (count === 6) {
-		return [1, 4, 1];
+		return [2, 2, 2];
 	}
 	if (count === 7) {
 		return [2, 3, 2];
 	}
-	return [2, count - 4, 2];
+	return [3, count - 6, 3];
 }
 
 function getEraReleaseGroups() {
