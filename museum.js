@@ -2,18 +2,12 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.171.0/build/three.m
 
 const releases = [...window.WP_MUSEUM_RELEASES].sort(compareVersions);
 const eras = window.WP_MUSEUM_ERAS;
+const activeVariant = getActiveVariant();
+const isCurrentVariant = activeVariant.isCurrent;
 const eraColors = new Map(
 	eras.map((era, index) => [
 		era,
-		[
-			'#ffd166',
-			'#ff4f64',
-			'#2bb7ff',
-			'#50d890',
-			'#b37cff',
-			'#ff9b54',
-			'#78e0dc',
-		][index],
+		activeVariant.eraColors[index % activeVariant.eraColors.length],
 	])
 );
 
@@ -28,11 +22,15 @@ const museumTextures = new Map();
 const plaqueImageCache = new Map();
 const textureLoader = new THREE.TextureLoader();
 const museumTextureSources = {
-	atriumFloor: './assets/textures/floor-paving-stones.jpg',
-	ceiling: './assets/textures/ceiling-tiles.jpg',
-	roomFloor: './assets/textures/floor-paving-stones.jpg',
-	roomWall: './assets/textures/wall-marble.jpg',
-	shellWall: './assets/textures/wall-marble.jpg',
+	...(isCurrentVariant
+		? {
+				atriumFloor: './assets/textures/floor-paving-stones.jpg',
+				ceiling: './assets/textures/ceiling-tiles.jpg',
+				roomFloor: './assets/textures/floor-paving-stones.jpg',
+				roomWall: './assets/textures/wall-marble.jpg',
+				shellWall: './assets/textures/wall-marble.jpg',
+			}
+		: {}),
 };
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(68, 1, 0.1, 420);
@@ -128,19 +126,97 @@ initDebugApi();
 animate();
 
 function initRenderer() {
+	applyVariantUi();
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.35));
 	renderer.outputColorSpace = THREE.SRGBColorSpace;
-	scene.background = new THREE.Color(0x151a2a);
-	scene.fog = new THREE.Fog(0x151a2a, 42, 95);
+	scene.background = new THREE.Color(activeVariant.scene.background);
+	scene.fog = new THREE.Fog(activeVariant.scene.fog, 42, 95);
 
-	scene.add(new THREE.HemisphereLight(0xfff7df, 0x2d3a58, 3.1));
-	scene.add(new THREE.AmbientLight(0xe8edff, 0.9));
+	scene.add(
+		new THREE.HemisphereLight(
+			activeVariant.scene.hemiSky,
+			activeVariant.scene.hemiGround,
+			activeVariant.scene.hemiIntensity
+		)
+	);
+	scene.add(new THREE.AmbientLight(0xe8edff, isCurrentVariant ? 0.9 : 0.72));
 	const keyLight = new THREE.DirectionalLight(0xffe2b0, 2.8);
+	keyLight.intensity = activeVariant.scene.keyIntensity;
 	keyLight.position.set(2, 8, -6);
 	scene.add(keyLight);
 
 	window.addEventListener('resize', resizeRenderer);
 	resizeRenderer();
+}
+
+function getActiveVariant() {
+	const variants = window.WP_MUSEUM_VARIANTS || [];
+	const current = variants.find((variant) => variant.slug === 'current') || {
+		slug: 'current',
+		name: 'Current Museum',
+		kicker: 'Plain Three.js prototype',
+		isCurrent: true,
+		uiStyle: 'glass',
+		textureStyle: 'current',
+		frameStyle: 'classic',
+		props: [],
+		scene: {
+			background: '#151a2a',
+			fog: '#151a2a',
+			hemiSky: '#fff7df',
+			hemiGround: '#2d3a58',
+			hemiIntensity: 3.1,
+			keyIntensity: 2.8,
+		},
+		eraColors: [
+			'#ffd166',
+			'#ff4f64',
+			'#2bb7ff',
+			'#50d890',
+			'#b37cff',
+			'#ff9b54',
+			'#78e0dc',
+		],
+		wall: ['#cbd7e7', '#9fb1c9', '#f3f0dd'],
+		floor: ['#2f3f5f', '#1f2b44', '#ffcf6a'],
+		ceiling: ['#d5dde8', '#97a8bf', '#ffffff'],
+	};
+	const slug = new URLSearchParams(window.location.search).get('variant');
+	return variants.find((variant) => variant.slug === slug) || current;
+}
+
+function applyVariantUi() {
+	document.body.dataset.variant = activeVariant.slug;
+	document.body.dataset.ui = activeVariant.uiStyle || 'glass';
+	document.documentElement.style.setProperty(
+		'--accent',
+		activeVariant.eraColors[0]
+	);
+	document.documentElement.style.setProperty(
+		'--danger',
+		activeVariant.eraColors[1]
+	);
+	document.documentElement.style.setProperty(
+		'--variant-panel',
+		getPanelBackground()
+	);
+	document.querySelector('.kicker').textContent = activeVariant.kicker;
+	document.title = isCurrentVariant
+		? 'WordPress Museum - Three.js Gallery'
+		: `${activeVariant.name} - WordPress Museum`;
+}
+
+function getPanelBackground() {
+	if (isCurrentVariant) {
+		return 'rgba(17, 24, 39, 0.74)';
+	}
+	return activeVariant.uiStyle === 'paper'
+		? 'rgba(245, 232, 199, 0.9)'
+		: activeVariant.uiStyle === 'terminal'
+			? 'rgba(0, 24, 18, 0.86)'
+			: activeVariant.uiStyle === 'brutalist'
+				? 'rgba(28, 28, 26, 0.88)'
+				: 'rgba(17, 24, 39, 0.72)';
 }
 
 function buildScene() {
@@ -261,6 +337,10 @@ function getTextureCanvas(name) {
 }
 
 function drawRoomFloorTexture(ctx, width, height) {
+	if (!isCurrentVariant) {
+		drawVariantTexture(ctx, width, height, activeVariant.floor, 'floor');
+		return;
+	}
 	ctx.fillStyle = '#2f3f5f';
 	ctx.fillRect(0, 0, width, height);
 	drawTileGrid(ctx, width, height, 48, '#1f2b44', '#405373');
@@ -273,6 +353,11 @@ function drawRoomFloorTexture(ctx, width, height) {
 }
 
 function drawAtriumFloorTexture(ctx, width, height) {
+	if (!isCurrentVariant) {
+		drawVariantTexture(ctx, width, height, activeVariant.floor, 'atrium');
+		drawAtriumRings(ctx, width, height, activeVariant.eraColors[0]);
+		return;
+	}
 	const center = width / 2;
 	ctx.fillStyle = '#31415f';
 	ctx.fillRect(0, 0, width, height);
@@ -304,20 +389,280 @@ function drawAtriumFloorTexture(ctx, width, height) {
 }
 
 function drawShellWallTexture(ctx, width, height) {
+	if (!isCurrentVariant) {
+		drawVariantTexture(ctx, width, height, activeVariant.wall, 'wall');
+		return;
+	}
 	drawPlasterTexture(ctx, width, height, '#b9c7da', '#8fa3bd', '#dce6f2');
 	drawWallPanels(ctx, width, height, 128, 96, '#7d91ad');
 }
 
 function drawRoomWallTexture(ctx, width, height) {
+	if (!isCurrentVariant) {
+		drawVariantTexture(ctx, width, height, activeVariant.wall, 'wall');
+		return;
+	}
 	drawPlasterTexture(ctx, width, height, '#cbd7e7', '#9fb1c9', '#f3f0dd');
 	drawWallPanels(ctx, width, height, 96, 128, '#879bb7');
 }
 
 function drawCeilingTexture(ctx, width, height) {
+	if (!isCurrentVariant) {
+		drawVariantTexture(ctx, width, height, activeVariant.ceiling, 'ceiling');
+		return;
+	}
 	ctx.fillStyle = '#d5dde8';
 	ctx.fillRect(0, 0, width, height);
 	drawTileGrid(ctx, width, height, 128, '#97a8bf', '#e7edf4');
 	drawSpeckles(ctx, width, height, 160, ['#ffffff', '#b6c2d3', '#8393aa']);
+}
+
+function drawVariantTexture(ctx, width, height, palette, surface) {
+	const [base, lowlight, highlight] = palette;
+	ctx.fillStyle = base;
+	ctx.fillRect(0, 0, width, height);
+
+	const style = activeVariant.textureStyle;
+	if (style === 'pixel') {
+		drawPixelTexture(ctx, width, height, base, lowlight, highlight);
+	} else if (style === 'memphis') {
+		drawMemphisTexture(ctx, width, height, lowlight, highlight);
+	} else if (style === 'terminal') {
+		drawTerminalTexture(ctx, width, height, lowlight, highlight);
+	} else if (style === 'botanical') {
+		drawBotanicalTexture(ctx, width, height, lowlight, highlight);
+	} else if (style === 'paper') {
+		drawPaperTexture(ctx, width, height, lowlight, highlight);
+	} else if (style === 'space') {
+		drawSpaceTexture(ctx, width, height, lowlight, highlight);
+	} else if (style === 'brutalist') {
+		drawBrutalistTexture(ctx, width, height, lowlight, highlight);
+	} else if (style === 'lab') {
+		drawLabTexture(ctx, width, height, lowlight, highlight);
+	} else if (style === 'velvet') {
+		drawVelvetTexture(ctx, width, height, lowlight, highlight);
+	} else {
+		drawNoirTexture(ctx, width, height, lowlight, highlight);
+	}
+
+	if (surface !== 'wall') {
+		drawTileGrid(
+			ctx,
+			width,
+			height,
+			surface === 'ceiling' ? 128 : 64,
+			lowlight,
+			highlight
+		);
+	}
+	drawSpeckles(ctx, width, height, surface === 'wall' ? 240 : 160, [
+		lowlight,
+		highlight,
+		'#fff5df',
+	]);
+}
+
+function drawAtriumRings(ctx, width, height, color) {
+	const center = width / 2;
+	ctx.strokeStyle = color;
+	ctx.globalAlpha = 0.42;
+	ctx.lineWidth = 5;
+	for (let radius = 48; radius < 360; radius += 56) {
+		ctx.beginPath();
+		ctx.arc(center, center, radius, 0, Math.PI * 2);
+		ctx.stroke();
+	}
+	ctx.globalAlpha = 1;
+}
+
+function drawPixelTexture(ctx, width, height, base, lowlight, highlight) {
+	for (let y = 0; y < height; y += 32) {
+		for (let x = 0; x < width; x += 32) {
+			ctx.fillStyle = (x / 32 + y / 32) % 3 === 0 ? lowlight : base;
+			ctx.globalAlpha = 0.18;
+			ctx.fillRect(x, y, 32, 32);
+		}
+	}
+	ctx.globalAlpha = 1;
+	ctx.strokeStyle = highlight;
+	ctx.lineWidth = 2;
+	drawLooseGrid(ctx, width, height, 64);
+}
+
+function drawMemphisTexture(ctx, width, height, lowlight, highlight) {
+	for (let index = 0; index < 44; index++) {
+		const x = pseudoRandom(index * 11) * width;
+		const y = pseudoRandom(index * 13) * height;
+		ctx.fillStyle = index % 2 ? lowlight : highlight;
+		ctx.globalAlpha = 0.18;
+		if (index % 3 === 0) {
+			ctx.fillRect(x, y, 42, 11);
+		} else {
+			ctx.beginPath();
+			ctx.arc(x, y, 10 + pseudoRandom(index) * 20, 0, Math.PI * 2);
+			ctx.fill();
+		}
+	}
+	ctx.globalAlpha = 1;
+}
+
+function drawTerminalTexture(ctx, width, height, lowlight, highlight) {
+	ctx.strokeStyle = highlight;
+	ctx.lineWidth = 1;
+	ctx.globalAlpha = 0.2;
+	for (let y = 0; y < height; y += 14) {
+		ctx.beginPath();
+		ctx.moveTo(0, y);
+		ctx.lineTo(width, y);
+		ctx.stroke();
+	}
+	ctx.globalAlpha = 0.22;
+	drawLooseGrid(ctx, width, height, 96);
+	ctx.globalAlpha = 1;
+	ctx.fillStyle = lowlight;
+	for (let index = 0; index < 26; index++) {
+		ctx.fillRect(
+			pseudoRandom(index * 5) * width,
+			pseudoRandom(index * 7) * height,
+			40 + pseudoRandom(index) * 70,
+			4
+		);
+	}
+}
+
+function drawBotanicalTexture(ctx, width, height, lowlight, highlight) {
+	ctx.strokeStyle = lowlight;
+	ctx.lineWidth = 5;
+	ctx.globalAlpha = 0.22;
+	for (let index = 0; index < 18; index++) {
+		const x = pseudoRandom(index * 17) * width;
+		const y = pseudoRandom(index * 19) * height;
+		ctx.beginPath();
+		ctx.moveTo(x, y);
+		ctx.bezierCurveTo(x + 80, y - 30, x + 120, y + 80, x + 190, y + 20);
+		ctx.stroke();
+		ctx.fillStyle = highlight;
+		ctx.beginPath();
+		ctx.ellipse(x + 60, y - 12, 18, 8, 0.4, 0, Math.PI * 2);
+		ctx.fill();
+	}
+	ctx.globalAlpha = 1;
+}
+
+function drawPaperTexture(ctx, width, height, lowlight, highlight) {
+	ctx.globalAlpha = 0.2;
+	ctx.strokeStyle = lowlight;
+	for (let y = 24; y < height; y += 38) {
+		ctx.beginPath();
+		ctx.moveTo(0, y + pseudoRandom(y) * 4);
+		ctx.lineTo(width, y + pseudoRandom(y + 1) * 4);
+		ctx.stroke();
+	}
+	ctx.globalAlpha = 0.14;
+	ctx.fillStyle = highlight;
+	for (let index = 0; index < 18; index++) {
+		ctx.fillRect(
+			pseudoRandom(index * 29) * width,
+			pseudoRandom(index * 31) * height,
+			100,
+			22
+		);
+	}
+	ctx.globalAlpha = 1;
+}
+
+function drawSpaceTexture(ctx, width, height, lowlight, highlight) {
+	ctx.fillStyle = lowlight;
+	ctx.globalAlpha = 0.2;
+	ctx.fillRect(0, 0, width, height);
+	ctx.fillStyle = highlight;
+	for (let index = 0; index < 90; index++) {
+		ctx.globalAlpha = 0.2 + pseudoRandom(index) * 0.5;
+		ctx.fillRect(
+			pseudoRandom(index * 3) * width,
+			pseudoRandom(index * 5) * height,
+			2,
+			2
+		);
+	}
+	ctx.globalAlpha = 1;
+}
+
+function drawBrutalistTexture(ctx, width, height, lowlight, highlight) {
+	ctx.globalAlpha = 0.22;
+	ctx.strokeStyle = lowlight;
+	ctx.lineWidth = 12;
+	for (let index = 0; index < 12; index++) {
+		ctx.beginPath();
+		ctx.moveTo(0, pseudoRandom(index * 8) * height);
+		ctx.lineTo(width, pseudoRandom(index * 9) * height);
+		ctx.stroke();
+	}
+	ctx.globalAlpha = 0.12;
+	ctx.fillStyle = highlight;
+	ctx.fillRect(width * 0.14, 0, width * 0.08, height);
+	ctx.fillRect(width * 0.58, 0, width * 0.05, height);
+	ctx.globalAlpha = 1;
+}
+
+function drawLabTexture(ctx, width, height, lowlight, highlight) {
+	ctx.strokeStyle = lowlight;
+	ctx.globalAlpha = 0.38;
+	ctx.lineWidth = 2;
+	drawLooseGrid(ctx, width, height, 72);
+	ctx.globalAlpha = 0.18;
+	ctx.fillStyle = highlight;
+	for (let index = 0; index < 16; index++) {
+		ctx.beginPath();
+		ctx.arc(
+			pseudoRandom(index * 37) * width,
+			pseudoRandom(index * 41) * height,
+			18 + pseudoRandom(index) * 24,
+			0,
+			Math.PI * 2
+		);
+		ctx.fill();
+	}
+	ctx.globalAlpha = 1;
+}
+
+function drawVelvetTexture(ctx, width, height, lowlight, highlight) {
+	const gradient = ctx.createLinearGradient(0, 0, width, height);
+	gradient.addColorStop(0, lowlight);
+	gradient.addColorStop(0.48, 'rgba(255,255,255,0.08)');
+	gradient.addColorStop(1, highlight);
+	ctx.globalAlpha = 0.18;
+	ctx.fillStyle = gradient;
+	ctx.fillRect(0, 0, width, height);
+	ctx.globalAlpha = 1;
+}
+
+function drawNoirTexture(ctx, width, height, lowlight, highlight) {
+	ctx.globalAlpha = 0.2;
+	ctx.fillStyle = lowlight;
+	ctx.fillRect(0, 0, width, height);
+	ctx.strokeStyle = highlight;
+	for (let index = 0; index < 16; index++) {
+		ctx.beginPath();
+		ctx.arc(width / 2, height / 2, 44 + index * 28, 0, Math.PI * 2);
+		ctx.stroke();
+	}
+	ctx.globalAlpha = 1;
+}
+
+function drawLooseGrid(ctx, width, height, size) {
+	for (let x = 0; x <= width; x += size) {
+		ctx.beginPath();
+		ctx.moveTo(x, 0);
+		ctx.lineTo(x, height);
+		ctx.stroke();
+	}
+	for (let y = 0; y <= height; y += size) {
+		ctx.beginPath();
+		ctx.moveTo(0, y);
+		ctx.lineTo(width, y);
+		ctx.stroke();
+	}
 }
 
 function drawPlasterTexture(ctx, width, height, base, lowlight, highlight) {
@@ -432,6 +777,7 @@ function createAtrium() {
 	const group = new THREE.Group();
 	group.add(createHubFloor());
 	group.add(createHubWalls());
+	group.add(createAtriumDecor());
 	return group;
 }
 
@@ -524,6 +870,13 @@ function createWordPressMuralTexture() {
 	canvas.width = 1024;
 	canvas.height = 640;
 	const ctx = canvas.getContext('2d');
+	if (!isCurrentVariant) {
+		drawVariantMural(ctx, canvas);
+		const texture = new THREE.CanvasTexture(canvas);
+		texture.colorSpace = THREE.SRGBColorSpace;
+		texture.anisotropy = 4;
+		return texture;
+	}
 	ctx.fillStyle = '#111827';
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 	ctx.fillStyle = '#ffd166';
@@ -563,6 +916,135 @@ function createWordPressMuralTexture() {
 	return texture;
 }
 
+function drawVariantMural(ctx, canvas) {
+	const color = activeVariant.eraColors[0];
+	const second = activeVariant.eraColors[2];
+	ctx.fillStyle = activeVariant.scene.background;
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = color;
+	ctx.fillRect(0, 0, canvas.width, 30);
+	ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
+
+	drawMuralMotif(ctx, canvas, color, second);
+
+	ctx.fillStyle = '#fff5df';
+	if (activeVariant.uiStyle === 'paper') {
+		ctx.fillStyle = '#111827';
+	}
+	ctx.textAlign = 'center';
+	ctx.font = '900 88px Arial Black, Impact, sans-serif';
+	fillFittedCanvasText(
+		ctx,
+		activeVariant.muralTitle || 'WORDPRESS MUSEUM',
+		canvas.width / 2,
+		250,
+		900,
+		88,
+		'900',
+		'Arial Black, Impact, sans-serif'
+	);
+	ctx.font = '900 78px Arial Black, Impact, sans-serif';
+	fillFittedCanvasText(
+		ctx,
+		activeVariant.name.split(':')[0].toUpperCase(),
+		canvas.width / 2,
+		352,
+		900,
+		78,
+		'900',
+		'Arial Black, Impact, sans-serif'
+	);
+
+	ctx.fillStyle = color;
+	ctx.font = '800 31px system-ui, sans-serif';
+	wrapCenteredText(ctx, activeVariant.muralSubtitle, canvas.width / 2, 438, 760, 38, 2);
+
+	ctx.fillStyle = 'rgba(255, 245, 223, 0.72)';
+	if (activeVariant.uiStyle === 'paper') {
+		ctx.fillStyle = 'rgba(17, 24, 39, 0.72)';
+	}
+	ctx.font = '700 23px system-ui, sans-serif';
+	ctx.fillText('Variant ' + String(activeVariant.number).padStart(3, '0'), canvas.width / 2, 540);
+}
+
+function drawMuralMotif(ctx, canvas, color, second) {
+	ctx.strokeStyle = 'rgba(255, 245, 223, 0.18)';
+	ctx.lineWidth = 6;
+	for (let index = 0; index < 9; index++) {
+		ctx.beginPath();
+		ctx.arc(512, 320, 76 + index * 48, 0, Math.PI * 2);
+		ctx.stroke();
+	}
+	const motif = activeVariant.muralStyle;
+	ctx.globalAlpha = 0.78;
+	ctx.fillStyle = second;
+	if (motif === 'blocks') {
+		for (let index = 0; index < 14; index++) {
+			ctx.fillRect(120 + (index % 7) * 112, 110 + Math.floor(index / 7) * 360, 62, 62);
+		}
+	} else if (motif === 'api' || motif === 'portal') {
+		ctx.strokeStyle = second;
+		ctx.lineWidth = 14;
+		for (let index = 0; index < 5; index++) {
+			ctx.strokeRect(120 + index * 160, 100 + index * 16, 110, 110);
+		}
+	} else if (motif === 'comments') {
+		for (let index = 0; index < 8; index++) {
+			ctx.beginPath();
+			ctx.roundRect(90 + index * 110, 105 + (index % 2) * 370, 86, 46, 14);
+			ctx.fill();
+		}
+	} else if (motif === 'train') {
+		ctx.fillRect(72, 470, 880, 18);
+		for (let index = 0; index < 6; index++) {
+			ctx.fillRect(130 + index * 130, 430, 96, 54);
+		}
+	} else if (motif === 'capsule') {
+		ctx.beginPath();
+		ctx.roundRect(326, 88, 372, 118, 58);
+		ctx.fill();
+		ctx.beginPath();
+		ctx.roundRect(326, 434, 372, 118, 58);
+		ctx.fill();
+	} else {
+		for (let index = 0; index < 24; index++) {
+			ctx.beginPath();
+			ctx.arc(
+				80 + pseudoRandom(index * 3) * 860,
+				80 + pseudoRandom(index * 5) * 480,
+				8 + pseudoRandom(index) * 28,
+				0,
+				Math.PI * 2
+			);
+			ctx.fill();
+		}
+	}
+	ctx.globalAlpha = 1;
+}
+
+function wrapCenteredText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
+	const words = text.split(' ');
+	let line = '';
+	let lines = 0;
+	for (const word of words) {
+		const testLine = line ? `${line} ${word}` : word;
+		if (ctx.measureText(testLine).width > maxWidth && line) {
+			ctx.fillText(line, x, y);
+			y += lineHeight;
+			line = word;
+			lines += 1;
+			if (lines >= maxLines) {
+				return;
+			}
+		} else {
+			line = testLine;
+		}
+	}
+	if (line && lines < maxLines) {
+		ctx.fillText(line, x, y);
+	}
+}
+
 function createRoom(room) {
 	const group = new THREE.Group();
 	group.position.copy(room.center);
@@ -591,6 +1073,7 @@ function createRoom(room) {
 	group.add(createFloorTrim('right', room.color));
 	group.add(createDoorFrame(room));
 	group.add(createRoomLight(room.color));
+	group.add(createRoomDecor(room));
 	return group;
 }
 
@@ -707,6 +1190,269 @@ function createRoomLight(color) {
 	return group;
 }
 
+function createAtriumDecor() {
+	const group = new THREE.Group();
+	if (isCurrentVariant) {
+		return group;
+	}
+
+	const color = activeVariant.eraColors[0];
+	const secondary = activeVariant.eraColors[3];
+	const mascot = createMascotStatue(color, secondary);
+	mascot.position.set(0, 0, 4.2);
+	mascot.rotation.y = Math.PI;
+	group.add(mascot);
+
+	const leftBench = createBench(activeVariant.eraColors[5]);
+	leftBench.position.set(-4.8, 0, 1.2);
+	leftBench.rotation.y = Math.PI / 2;
+	group.add(leftBench);
+
+	const rightBench = createBench(activeVariant.eraColors[2]);
+	rightBench.position.set(4.8, 0, 1.2);
+	rightBench.rotation.y = -Math.PI / 2;
+	group.add(rightBench);
+
+	if (activeVariant.props.includes('orbital') || activeVariant.props.includes('apiPortal')) {
+		const orbital = createOrbitalSculpture(activeVariant.eraColors[4]);
+		orbital.position.set(0, 0, -3.8);
+		group.add(orbital);
+	}
+
+	return group;
+}
+
+function createRoomDecor(room) {
+	const group = new THREE.Group();
+	if (isCurrentVariant) {
+		return group;
+	}
+
+	const roomIndex = eras.indexOf(room.era);
+	const primaryProp = activeVariant.props[roomIndex % activeVariant.props.length];
+	const secondaryProp = activeVariant.props[(roomIndex + 3) % activeVariant.props.length];
+	const left = createMuseumProp(primaryProp, room.color);
+	left.position.set(-roomWidth / 2 + 1.2, 0, -roomDepth / 2 + 1.4);
+	left.rotation.y = Math.PI / 4;
+	group.add(left);
+
+	const right = createMuseumProp(secondaryProp, activeVariant.eraColors[(roomIndex + 2) % 7]);
+	right.position.set(roomWidth / 2 - 1.2, 0, -roomDepth / 2 + 1.4);
+	right.rotation.y = -Math.PI / 4;
+	group.add(right);
+
+	if (roomIndex % 2 === 0) {
+		const bench = createBench(room.color);
+		bench.position.set(0, 0, -roomDepth / 2 + 1.1);
+		group.add(bench);
+	}
+
+	return group;
+}
+
+function createMuseumProp(type, color) {
+	if (type.includes('plant')) {
+		return createPlant(color, type.includes('big') ? 1.25 : 0.9);
+	}
+	if (type.includes('bench')) {
+		return createBench(color);
+	}
+	if (type.includes('server') || type.includes('console') || type.includes('code')) {
+		return createServerStack(color);
+	}
+	if (type.includes('comment')) {
+		return createCommentSculpture(color);
+	}
+	if (type.includes('orbital') || type.includes('apiPortal')) {
+		return createOrbitalSculpture(color);
+	}
+	if (type.includes('train')) {
+		return createReleaseTrain(color);
+	}
+	if (type.includes('capsule')) {
+		return createTimeCapsule(color);
+	}
+	if (type.includes('tea') || type.includes('knob')) {
+		return createKnobConsole(color);
+	}
+	return createBlockStack(color);
+}
+
+function createMascotStatue(color, secondary) {
+	const group = new THREE.Group();
+	const pedestal = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.72, 0.84, 0.42, 18),
+		new THREE.MeshStandardMaterial({ color: 0xf8efd9, roughness: 0.7 })
+	);
+	pedestal.position.y = 0.21;
+	group.add(pedestal);
+
+	const body = new THREE.Mesh(
+		new THREE.SphereGeometry(0.48, 24, 16),
+		new THREE.MeshStandardMaterial({ color, roughness: 0.42 })
+	);
+	body.position.y = 0.9;
+	group.add(body);
+
+	const earMaterial = new THREE.MeshStandardMaterial({ color: secondary, roughness: 0.5 });
+	for (const x of [-1, 1]) {
+		const ear = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.34, 16), earMaterial);
+		ear.position.set(x * 0.35, 1.25, 0);
+		ear.rotation.z = -x * 0.55;
+		group.add(ear);
+	}
+
+	const faceMaterial = new THREE.MeshBasicMaterial({ color: 0x111827 });
+	for (const x of [-1, 1]) {
+		const eye = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), faceMaterial);
+		eye.position.set(x * 0.14, 0.98, -0.45);
+		group.add(eye);
+	}
+	group.scale.setScalar(1.12);
+	return group;
+}
+
+function createPlant(color, scale = 1) {
+	const group = new THREE.Group();
+	const pot = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.22, 0.3, 0.42, 12),
+		new THREE.MeshStandardMaterial({ color: 0x8f5a2d, roughness: 0.76 })
+	);
+	pot.position.y = 0.21;
+	group.add(pot);
+	const leafMaterial = new THREE.MeshStandardMaterial({ color, roughness: 0.5 });
+	for (let index = 0; index < 7; index++) {
+		const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.6, 10), leafMaterial);
+		const angle = (Math.PI * 2 * index) / 7;
+		leaf.position.set(Math.cos(angle) * 0.14, 0.74, Math.sin(angle) * 0.14);
+		leaf.rotation.z = Math.cos(angle) * 0.55;
+		leaf.rotation.x = Math.sin(angle) * 0.55;
+		group.add(leaf);
+	}
+	group.scale.setScalar(scale);
+	return group;
+}
+
+function createBench(color) {
+	const group = new THREE.Group();
+	const material = new THREE.MeshStandardMaterial({ color, roughness: 0.58 });
+	const dark = new THREE.MeshStandardMaterial({ color: 0x141820, roughness: 0.5 });
+	const seat = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.16, 0.42), material);
+	seat.position.y = 0.52;
+	group.add(seat);
+	const back = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.52, 0.12), material);
+	back.position.set(0, 0.84, 0.22);
+	group.add(back);
+	for (const x of [-0.68, 0.68]) {
+		for (const z of [-0.12, 0.18]) {
+			const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.5, 0.08), dark);
+			leg.position.set(x, 0.25, z);
+			group.add(leg);
+		}
+	}
+	return group;
+}
+
+function createBlockStack(color) {
+	const group = new THREE.Group();
+	for (let index = 0; index < 5; index++) {
+		const block = new THREE.Mesh(
+			new THREE.BoxGeometry(0.52, 0.32, 0.52),
+			new THREE.MeshStandardMaterial({
+				color: activeVariant.eraColors[index % activeVariant.eraColors.length],
+				roughness: 0.5,
+			})
+		);
+		block.position.set((index % 2) * 0.34 - 0.17, 0.18 + index * 0.32, 0);
+		block.rotation.y = index * 0.18;
+		group.add(block);
+	}
+	return group;
+}
+
+function createServerStack(color) {
+	const group = new THREE.Group();
+	const material = new THREE.MeshStandardMaterial({ color: 0x101827, roughness: 0.36, metalness: 0.28 });
+	for (let index = 0; index < 4; index++) {
+		const unit = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.28, 0.46), material);
+		unit.position.y = 0.16 + index * 0.31;
+		group.add(unit);
+		const light = new THREE.Mesh(
+			new THREE.BoxGeometry(0.08, 0.04, 0.03),
+			new THREE.MeshBasicMaterial({ color })
+		);
+		light.position.set(0.3, unit.position.y, -0.25);
+		group.add(light);
+	}
+	return group;
+}
+
+function createCommentSculpture(color) {
+	const group = new THREE.Group();
+	const material = new THREE.MeshStandardMaterial({ color, roughness: 0.4 });
+	for (let index = 0; index < 3; index++) {
+		const bubble = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.38, 0.08), material);
+		bubble.position.set(0, 0.42 + index * 0.42, index * 0.08);
+		group.add(bubble);
+	}
+	return group;
+}
+
+function createOrbitalSculpture(color) {
+	const group = new THREE.Group();
+	const material = new THREE.MeshStandardMaterial({ color, roughness: 0.24, metalness: 0.55 });
+	const core = new THREE.Mesh(new THREE.SphereGeometry(0.24, 18, 12), material);
+	core.position.y = 0.9;
+	group.add(core);
+	for (const rotation of [0, Math.PI / 3, -Math.PI / 3]) {
+		const ring = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.025, 8, 48), material);
+		ring.position.y = 0.9;
+		ring.rotation.x = Math.PI / 2;
+		ring.rotation.z = rotation;
+		group.add(ring);
+	}
+	return group;
+}
+
+function createReleaseTrain(color) {
+	const group = new THREE.Group();
+	const material = new THREE.MeshStandardMaterial({ color, roughness: 0.46 });
+	for (let index = 0; index < 3; index++) {
+		const car = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.34, 0.34), material);
+		car.position.set(-0.5 + index * 0.5, 0.38, 0);
+		group.add(car);
+	}
+	return group;
+}
+
+function createTimeCapsule(color) {
+	const group = new THREE.Group();
+	const material = new THREE.MeshStandardMaterial({ color, roughness: 0.2, metalness: 0.35 });
+	const capsule = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.1, 18), material);
+	capsule.position.y = 0.7;
+	capsule.rotation.z = Math.PI / 2;
+	group.add(capsule);
+	return group;
+}
+
+function createKnobConsole(color) {
+	const group = new THREE.Group();
+	const base = new THREE.Mesh(
+		new THREE.BoxGeometry(0.9, 0.24, 0.5),
+		new THREE.MeshStandardMaterial({ color: 0x151a2a, roughness: 0.48 })
+	);
+	base.position.y = 0.34;
+	group.add(base);
+	const material = new THREE.MeshStandardMaterial({ color, roughness: 0.32 });
+	for (let index = 0; index < 4; index++) {
+		const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.07, 16), material);
+		knob.position.set(-0.3 + index * 0.2, 0.51, -0.12);
+		knob.rotation.x = Math.PI / 2;
+		group.add(knob);
+	}
+	return group;
+}
+
 function getLocalWallPosition(side, tangentOffset) {
 	return {
 		front: new THREE.Vector3(tangentOffset, 0, -roomDepth / 2),
@@ -778,11 +1524,7 @@ function createExhibitFrame(color) {
 	const rail = (exhibitOuterWidth - exhibitPlaqueWidth) / 2;
 	const innerWidth = exhibitOuterWidth - rail * 2;
 	const innerHeight = exhibitOuterHeight - rail * 2;
-	const railMaterial = new THREE.MeshStandardMaterial({
-		color,
-		roughness: 0.46,
-		metalness: 0.16,
-	});
+	const railMaterial = createFrameMaterial(color);
 	const shadowMaterial = new THREE.MeshBasicMaterial({
 		color: 0x080d16,
 		transparent: true,
@@ -826,6 +1568,7 @@ function createExhibitFrame(color) {
 		railMaterial
 	);
 	group.add(frame);
+	addFrameAccents(group, color);
 
 	const inset = new THREE.Mesh(
 		new THREE.PlaneGeometry(
@@ -840,6 +1583,97 @@ function createExhibitFrame(color) {
 	inset.position.z = exhibitPlaqueRecess - 0.025;
 	group.add(inset);
 	return group;
+}
+
+function createFrameMaterial(color) {
+	const style = activeVariant.frameStyle || 'classic';
+	const material = new THREE.MeshStandardMaterial({
+		color,
+		roughness: 0.46,
+		metalness: 0.16,
+	});
+	if (style === 'chrome' || style === 'portal') {
+		material.color.set(0xd8ecff);
+		material.metalness = 0.78;
+		material.roughness = 0.22;
+	}
+	if (style === 'wood' || style === 'market') {
+		material.color.set(0x8f5a2d);
+		material.metalness = 0.04;
+		material.roughness = 0.7;
+	}
+	if (style === 'neon' || style === 'bubble') {
+		material.emissive = new THREE.Color(color);
+		material.emissiveIntensity = 0.18;
+		material.roughness = 0.3;
+	}
+	if (style === 'concrete') {
+		material.color.set(0x9b9b91);
+		material.metalness = 0.02;
+		material.roughness = 0.92;
+	}
+	return material;
+}
+
+function addFrameAccents(group, color) {
+	if (isCurrentVariant) {
+		return;
+	}
+	const style = activeVariant.frameStyle || activeVariant.frameBase;
+	if (['badge', 'knob', 'rail', 'capsule', 'bubble'].includes(style)) {
+		addFrameCornerDots(group, color, style);
+	}
+	if (['block', 'maze', 'portal'].includes(style)) {
+		addFrameEdgeBlocks(group, color);
+	}
+	if (style === 'tape' || style === 'porcelain') {
+		addFrameTape(group);
+	}
+}
+
+function addFrameCornerDots(group, color, style) {
+	const radius = style === 'bubble' ? 0.055 : 0.04;
+	const geometry = new THREE.SphereGeometry(radius, 12, 8);
+	const material = new THREE.MeshStandardMaterial({
+		color: style === 'capsule' ? 0xf8efd9 : color,
+		metalness: style === 'rail' ? 0.55 : 0.08,
+		roughness: 0.38,
+	});
+	for (const x of [-1, 1]) {
+		for (const y of [-1, 1]) {
+			const dot = new THREE.Mesh(geometry, material);
+			dot.position.set(
+				x * (exhibitOuterWidth / 2 - 0.18),
+				y * (exhibitOuterHeight / 2 - 0.18),
+				exhibitFrameDepth + 0.04
+			);
+			group.add(dot);
+		}
+	}
+}
+
+function addFrameEdgeBlocks(group, color) {
+	const material = new THREE.MeshBasicMaterial({ color });
+	const geometry = new THREE.BoxGeometry(0.22, 0.1, 0.08);
+	for (let index = 0; index < 5; index++) {
+		const top = new THREE.Mesh(geometry, material);
+		top.position.set(-1.1 + index * 0.55, exhibitOuterHeight / 2 + 0.08, 0.1);
+		group.add(top);
+	}
+}
+
+function addFrameTape(group) {
+	const material = new THREE.MeshBasicMaterial({
+		color: 0xf8e6b0,
+		transparent: true,
+		opacity: 0.72,
+	});
+	for (const x of [-1, 1]) {
+		const tape = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 0.18), material);
+		tape.position.set(x * 1.25, exhibitOuterHeight / 2 + 0.04, exhibitFrameDepth + 0.055);
+		tape.rotation.z = x * 0.18;
+		group.add(tape);
+	}
 }
 
 function createExhibitSlots(room, releaseCount) {
@@ -1074,10 +1908,29 @@ function createPlaqueTexture(release, color) {
 }
 
 function drawPlaqueTexture(ctx, canvas, release, color, images) {
+	const plaquePaper = isCurrentVariant
+		? '#f8efd9'
+		: activeVariant.uiStyle === 'paper'
+			? '#f1dfb8'
+			: activeVariant.uiStyle === 'terminal'
+				? '#9effd0'
+				: '#f8efd9';
+	const plaqueInk = isCurrentVariant
+		? '#0f1726'
+		: activeVariant.uiStyle === 'paper'
+			? '#24170d'
+			: activeVariant.uiStyle === 'terminal'
+				? '#00150f'
+				: '#0f1726';
+	const mutedInk = isCurrentVariant
+		? 'rgba(255, 245, 223, 0.84)'
+		: activeVariant.uiStyle === 'paper'
+			? 'rgba(36, 23, 13, 0.78)'
+			: 'rgba(255, 245, 223, 0.84)';
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
-	ctx.fillStyle = '#f8efd9';
+	ctx.fillStyle = plaquePaper;
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	ctx.fillStyle = '#0f1726';
+	ctx.fillStyle = plaqueInk;
 	ctx.fillRect(24, 24, canvas.width - 48, canvas.height - 48);
 	ctx.fillStyle = color;
 	ctx.fillRect(24, 24, canvas.width - 48, 18);
@@ -1098,20 +1951,20 @@ function drawPlaqueTexture(ctx, canvas, release, color, images) {
 
 	ctx.textAlign = 'left';
 	ctx.textBaseline = 'alphabetic';
-	ctx.fillStyle = '#fff5df';
+	ctx.fillStyle = plaquePaper;
 	ctx.font = '900 88px Arial Black, Impact, sans-serif';
 	ctx.fillText(release.version, 60, 548);
-	ctx.fillStyle = 'rgba(255, 245, 223, 0.92)';
+	ctx.fillStyle = activeVariant.uiStyle === 'paper' ? '#f8efd9' : 'rgba(255, 245, 223, 0.92)';
 	ctx.font = '800 32px system-ui, sans-serif';
 	wrapText(ctx, release.name, 62, 598, 260, 34, 2);
-	ctx.fillStyle = 'rgba(255, 245, 223, 0.62)';
+	ctx.fillStyle = isCurrentVariant ? 'rgba(255, 245, 223, 0.62)' : mutedInk;
 	ctx.font = '700 22px system-ui, sans-serif';
 	ctx.fillText(release.released, 62, 682);
 
 	ctx.fillStyle = color;
 	ctx.font = '900 32px system-ui, sans-serif';
 	wrapText(ctx, release.knownFor, 376, 528, 560, 40, 2);
-	ctx.fillStyle = 'rgba(255, 245, 223, 0.84)';
+	ctx.fillStyle = mutedInk;
 	ctx.font = '500 25px system-ui, sans-serif';
 	wrapText(ctx, release.detail, 376, 620, 560, 34, 2);
 	ctx.fillStyle = 'rgba(255, 245, 223, 0.52)';

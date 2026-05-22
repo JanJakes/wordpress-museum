@@ -189,7 +189,7 @@ h1 {
 	padding: 18px;
 	border: 1px solid var(--line);
 	border-radius: 8px;
-	background: rgba(17, 24, 39, 0.74);
+	background: var(--variant-panel, rgba(17, 24, 39, 0.74));
 	box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
 	backdrop-filter: blur(18px);
 }
@@ -372,6 +372,132 @@ h1 {
 	margin-top: 4px;
 	font-size: 0.86rem;
 	line-height: 1.38;
+}
+
+body[data-ui='terminal'] {
+	--paper: #afffce;
+	--muted: rgba(175, 255, 206, 0.68);
+	--line: rgba(91, 255, 181, 0.28);
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+body[data-ui='terminal'] h1,
+body[data-ui='terminal'] .release-panel h2 {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	letter-spacing: 0;
+}
+
+body[data-ui='terminal'] button,
+body[data-ui='terminal'] .panel-links a,
+body[data-ui='terminal'] .release-panel,
+body[data-ui='terminal'] .tour-controls,
+body[data-ui='terminal'] .release-rail {
+	border-radius: 2px;
+	box-shadow: 0 0 22px rgba(89, 255, 183, 0.13);
+}
+
+body[data-ui='ticket'] .release-panel,
+body[data-ui='ticket'] .tour-controls,
+body[data-ui='ticket'] .release-rail,
+body[data-ui='paper'] .release-panel,
+body[data-ui='paper'] .tour-controls,
+body[data-ui='paper'] .release-rail {
+	color: #24170d;
+	background: rgba(245, 232, 199, 0.9);
+	border-color: rgba(36, 23, 13, 0.24);
+}
+
+body[data-ui='ticket'] .release-panel p,
+body[data-ui='ticket'] .panel-kicker,
+body[data-ui='paper'] .release-panel p,
+body[data-ui='paper'] .panel-kicker {
+	color: rgba(36, 23, 13, 0.72);
+}
+
+body[data-ui='ticket'] #release-known-for,
+body[data-ui='paper'] #release-known-for {
+	color: #24170d;
+}
+
+body[data-ui='ticket'] {
+	--paper: #fff1c9;
+	--muted: rgba(255, 241, 201, 0.72);
+}
+
+body[data-ui='ticket'] .release-panel {
+	border-style: dashed;
+}
+
+body[data-ui='zine'] .release-panel,
+body[data-ui='zine'] button,
+body[data-ui='zine'] .panel-links a {
+	border-radius: 0;
+	transform: rotate(-0.4deg);
+}
+
+body[data-ui='zine'] .release-rail {
+	background: rgba(20, 19, 31, 0.88);
+}
+
+body[data-ui='neon'] .release-panel,
+body[data-ui='neon'] .tour-controls,
+body[data-ui='neon'] .release-rail {
+	border-color: color-mix(in srgb, var(--accent) 62%, var(--line));
+	box-shadow:
+		0 0 22px color-mix(in srgb, var(--accent) 24%, transparent),
+		0 24px 70px rgba(0, 0, 0, 0.36);
+}
+
+body[data-ui='museum-label'] .release-panel {
+	background: rgba(255, 248, 224, 0.9);
+	color: #23351f;
+}
+
+body[data-ui='museum-label'] .release-panel p,
+body[data-ui='museum-label'] .panel-kicker {
+	color: rgba(35, 53, 31, 0.72);
+}
+
+body[data-ui='blueprint'] {
+	--paper: #e6f0ff;
+	--muted: rgba(230, 240, 255, 0.7);
+	--line: rgba(109, 220, 255, 0.34);
+}
+
+body[data-ui='blueprint'] .release-panel,
+body[data-ui='blueprint'] .tour-controls,
+body[data-ui='blueprint'] .release-rail {
+	background-image:
+		linear-gradient(rgba(109, 220, 255, 0.08) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(109, 220, 255, 0.08) 1px, transparent 1px);
+	background-size: 18px 18px;
+}
+
+body[data-ui='brutalist'] button,
+body[data-ui='brutalist'] .panel-links a,
+body[data-ui='brutalist'] .release-panel,
+body[data-ui='brutalist'] .tour-controls,
+body[data-ui='brutalist'] .release-rail {
+	border: 2px solid #f4f1e4;
+	border-radius: 0;
+	box-shadow: none;
+}
+
+body[data-ui='arcade'] h1 {
+	text-shadow:
+		4px 0 #ff4f64,
+		-4px 0 #2bb7ff;
+}
+
+body[data-ui='arcade'] button,
+body[data-ui='arcade'] .panel-links a {
+	border-radius: 4px;
+}
+
+body[data-ui='glass'] .release-panel,
+body[data-ui='glass'] .tour-controls,
+body[data-ui='glass'] .release-rail {
+	backdrop-filter: blur(18px) saturate(1.2);
 }
 
 @media (max-width: 760px) {
