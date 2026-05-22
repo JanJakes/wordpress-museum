@@ -807,13 +807,20 @@ function createArtifact(release, index, slot, color) {
 }
 
 function createExhibitSlots(room, releaseCount) {
-	const walls = ['back', 'left', 'right'];
+	// Room-local x points toward the visitor's left when entering from the hub.
+	const walls = [
+		{ side: 'right', reverse: false },
+		{ side: 'back', reverse: true },
+		{ side: 'left', reverse: true },
+	];
 	const wallCounts = distributeCount(releaseCount, walls.length);
-	return walls.flatMap((side, wallIndex) =>
-		Array.from({ length: wallCounts[wallIndex] }, (_, slotIndex) =>
-			createWallSlot(room, side, slotIndex, wallCounts[wallIndex])
-		)
-	);
+	return walls.flatMap(({ side, reverse }, wallIndex) => {
+		const slotCount = wallCounts[wallIndex];
+		return Array.from({ length: slotCount }, (_, slotIndex) => {
+			const wallSlotIndex = reverse ? slotCount - slotIndex - 1 : slotIndex;
+			return createWallSlot(room, side, wallSlotIndex, slotCount);
+		});
+	});
 }
 
 function createWallSlot(room, side, slotIndex, slotCount) {
