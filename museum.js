@@ -5,6 +5,7 @@ const releases = [...window.WP_MUSEUM_RELEASES].sort(compareVersions);
 const eras = window.WP_MUSEUM_ERAS;
 const activeVariant = getActiveVariant();
 const isCurrentVariant = activeVariant.isCurrent;
+const shouldDecorateScene = !isCurrentVariant || activeVariant.decor === true;
 const eraColors = new Map(
 	eras.map((era, index) => [
 		era,
@@ -903,6 +904,13 @@ function createWordPressMuralTexture() {
 	canvas.width = 1024;
 	canvas.height = 640;
 	const ctx = canvas.getContext('2d');
+	if (activeVariant.muralStyle === 'ultimate') {
+		drawUltimateMural(ctx, canvas);
+		const texture = new THREE.CanvasTexture(canvas);
+		texture.colorSpace = THREE.SRGBColorSpace;
+		texture.anisotropy = 4;
+		return texture;
+	}
 	if (!isCurrentVariant) {
 		drawVariantMural(ctx, canvas);
 		const texture = new THREE.CanvasTexture(canvas);
@@ -947,6 +955,115 @@ function createWordPressMuralTexture() {
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
+}
+
+function drawUltimateMural(ctx, canvas) {
+	const color = activeVariant.eraColors[0];
+	const blue = activeVariant.eraColors[2];
+	const green = activeVariant.eraColors[3];
+	ctx.fillStyle = '#101827';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = color;
+	ctx.fillRect(0, 0, canvas.width, 28);
+	ctx.fillRect(0, canvas.height - 28, canvas.width, 28);
+
+	ctx.globalAlpha = 0.18;
+	ctx.strokeStyle = '#fff5df';
+	ctx.lineWidth = 5;
+	for (let radius = 74; radius < 390; radius += 42) {
+		ctx.beginPath();
+		ctx.arc(512, 320, radius, 0, Math.PI * 2);
+		ctx.stroke();
+	}
+	ctx.globalAlpha = 1;
+
+	drawMuralTimeline(ctx, canvas, color, blue, green);
+	drawMascotOnMural(ctx, 780, 318, 0.92, color, green);
+
+	ctx.fillStyle = '#fff5df';
+	ctx.textAlign = 'center';
+	fillFittedCanvasText(
+		ctx,
+		'WORDPRESS MUSEUM',
+		430,
+		235,
+		620,
+		96,
+		'900',
+		'Arial Black, Impact, sans-serif'
+	);
+	ctx.fillStyle = blue;
+	ctx.font = '900 42px system-ui, sans-serif';
+	ctx.fillText('2004 -> BLOCKS -> PLAYGROUND', 430, 308);
+	ctx.fillStyle = 'rgba(255, 245, 223, 0.78)';
+	ctx.font = '800 25px system-ui, sans-serif';
+	ctx.fillText('Permalinks, plugins, REST, blocks, and one tiny Hello Dolly record', 430, 358);
+	ctx.fillStyle = color;
+	ctx.font = '900 21px ui-monospace, SFMono-Regular, Menlo, monospace';
+	ctx.fillText('mind the $wpdb gap / the loop loops forever', 430, 408);
+}
+
+function drawMuralTimeline(ctx, canvas, color, blue, green) {
+	const y = 506;
+	const stops = [
+		['1.0', color],
+		['2.x', activeVariant.eraColors[1]],
+		['3.0', blue],
+		['4.x', green],
+		['5.0', activeVariant.eraColors[4]],
+		['6.x', activeVariant.eraColors[5]],
+	];
+	ctx.strokeStyle = 'rgba(255, 245, 223, 0.46)';
+	ctx.lineWidth = 9;
+	ctx.beginPath();
+	ctx.moveTo(130, y);
+	ctx.lineTo(876, y);
+	ctx.stroke();
+	stops.forEach(([label, stopColor], index) => {
+		const x = 150 + index * 142;
+		ctx.fillStyle = stopColor;
+		ctx.beginPath();
+		ctx.arc(x, y, 22, 0, Math.PI * 2);
+		ctx.fill();
+		ctx.fillStyle = '#101827';
+		ctx.font = '900 18px system-ui, sans-serif';
+		ctx.textAlign = 'center';
+		ctx.fillText(label, x, y + 6);
+	});
+}
+
+function drawMascotOnMural(ctx, x, y, scale, color, secondary) {
+	ctx.save();
+	ctx.translate(x, y);
+	ctx.scale(scale, scale);
+	ctx.fillStyle = secondary;
+	ctx.beginPath();
+	ctx.ellipse(0, 24, 88, 120, -0.08, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.fillStyle = color;
+	ctx.beginPath();
+	ctx.arc(-58, -42, 34, 0, Math.PI * 2);
+	ctx.arc(58, -42, 34, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.fillStyle = '#fff5df';
+	ctx.beginPath();
+	ctx.ellipse(0, 12, 50, 58, 0, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.fillStyle = '#101827';
+	ctx.beginPath();
+	ctx.arc(-20, -6, 6, 0, Math.PI * 2);
+	ctx.arc(20, -6, 6, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.strokeStyle = '#101827';
+	ctx.lineWidth = 5;
+	ctx.beginPath();
+	ctx.arc(0, 4, 24, 0.2, Math.PI - 0.2);
+	ctx.stroke();
+	ctx.fillStyle = '#fff5df';
+	ctx.font = '900 24px system-ui, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.fillText('WAPUU', 0, 172);
+	ctx.restore();
 }
 
 function drawVariantMural(ctx, canvas) {
@@ -1166,6 +1283,9 @@ function createRoom(room) {
 	group.add(createRoomWall('back'));
 	group.add(createRoomWall('left'));
 	group.add(createRoomWall('right'));
+	if (shouldDecorateScene) {
+		group.add(createRoomMural(room));
+	}
 	group.add(createFloorTrim('front', room.color));
 	group.add(createFloorTrim('back', room.color));
 	group.add(createFloorTrim('left', room.color));
@@ -1174,6 +1294,88 @@ function createRoom(room) {
 	group.add(createRoomLight(room.color));
 	group.add(createRoomDecor(room));
 	return group;
+}
+
+function createRoomMural(room) {
+	const mural = new THREE.Mesh(
+		new THREE.PlaneGeometry(roomWidth - 1.65, 0.68),
+		new THREE.MeshBasicMaterial({
+			map: createRoomMuralTexture(room),
+			transparent: true,
+			side: THREE.DoubleSide,
+		})
+	);
+	mural.position.set(0, 4.1, roomDepth / 2 - wallThickness / 2 - 0.055);
+	mural.rotation.y = Math.PI;
+	return mural;
+}
+
+function createRoomMuralTexture(room) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 1024;
+	canvas.height = 160;
+	const ctx = canvas.getContext('2d');
+	const copy = getEraMuralCopy(room.era);
+	ctx.fillStyle = 'rgba(12, 19, 32, 0.92)';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = room.color;
+	ctx.fillRect(0, 0, canvas.width, 12);
+	ctx.fillRect(0, canvas.height - 12, canvas.width, 12);
+	ctx.globalAlpha = 0.18;
+	ctx.fillStyle = '#fff5df';
+	for (let index = 0; index < 24; index++) {
+		ctx.fillRect(42 + index * 42, 38 + (index % 2) * 72, 18, 18);
+	}
+	ctx.globalAlpha = 1;
+	ctx.fillStyle = '#fff5df';
+	ctx.textAlign = 'left';
+	ctx.font = '900 24px Arial Black, Impact, sans-serif';
+	ctx.fillText(room.yearRange, 42, 45);
+	ctx.font = '900 38px Arial Black, Impact, sans-serif';
+	fillFittedCanvasText(ctx, room.era.toUpperCase(), 42, 86, 680, 38, '900', 'Arial Black, Impact, sans-serif');
+	ctx.fillStyle = room.color;
+	ctx.font = '900 23px system-ui, sans-serif';
+	fillFittedCanvasText(ctx, copy.title, 42, 119, 560, 23, '900', 'system-ui, sans-serif');
+	ctx.fillStyle = 'rgba(255, 245, 223, 0.74)';
+	ctx.font = '700 18px system-ui, sans-serif';
+	fillFittedCanvasText(ctx, copy.note, 42, 145, 760, 18, '700', 'system-ui, sans-serif');
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
+}
+
+function getEraMuralCopy(era) {
+	return {
+		'Blogging Roots': {
+			title: 'The Loop starts here',
+			note: 'Permalinks, comments, categories, and one very proud setup wizard.',
+		},
+		'Dashboard Foundations': {
+			title: 'The dashboard grows up',
+			note: 'Themes, widgets, media, trash, thumbnails, and fewer dramatic deletes.',
+		},
+		'CMS Toolkit': {
+			title: 'WordPress becomes a CMS toolkit',
+			note: 'Custom post types, taxonomies, multisite, menus, and the Customizer.',
+		},
+		'Modern Admin': {
+			title: 'The admin learns to breathe',
+			note: 'Responsive MP6, autosave, updates, media grids, and calmer writing.',
+		},
+		'API and Customizer': {
+			title: 'JSON finds the side door',
+			note: 'REST endpoints, responsive images, media widgets, and Customizer drafts.',
+		},
+		'Block Editor': {
+			title: 'Everything becomes movable',
+			note: 'Gutenberg lands; blocks, groups, Site Health, and bigger images follow.',
+		},
+		'Blocks Everywhere': {
+			title: 'The whole site turns into blocks',
+			note: 'Block themes, site editing, style variations, and the Style Book cabinet.',
+		},
+	}[era];
 }
 
 function createRoomCeiling() {
@@ -1291,7 +1493,7 @@ function createRoomLight(color) {
 
 function createAtriumDecor() {
 	const group = new THREE.Group();
-	if (isCurrentVariant) {
+	if (!shouldDecorateScene) {
 		return group;
 	}
 
@@ -1333,6 +1535,10 @@ function createAtriumFloorMedallion(color, secondary) {
 }
 
 function addAtriumFeature(group, feature, color, secondary) {
+	if (feature === 'ultimate-museum') {
+		addUltimateAtriumFeature(group, color, secondary);
+		return;
+	}
 	if (feature === 'listening-booth') {
 		addPlaced(group, createRecordBooth(color, secondary), 0, 4.1, Math.PI);
 		addPlaced(group, createLoadedModel('radio', { targetHeight: 0.62, fallback: 'radio' }), -1.05, 3.12, -0.35);
@@ -1396,6 +1602,19 @@ function addAtriumFeature(group, feature, color, secondary) {
 	addPlaced(group, createLoadedModel('columnThin', { targetHeight: 1.85, fallback: 'column' }), 2.2, 2.95, 0);
 }
 
+function addUltimateAtriumFeature(group, color, secondary) {
+	addPlaced(group, createMascotMonument(color, secondary), 0, 4.28, 0);
+	addPlaced(group, createBlockFountain(activeVariant.eraColors[5], 0.58), -3.25, 2.7, 0.28);
+	addPlaced(group, createApiPortal(activeVariant.eraColors[4], activeVariant.eraColors[6], 0.54), 3.25, 2.72, -0.28);
+	addPlaced(group, createRecordBooth(activeVariant.eraColors[0], activeVariant.eraColors[1]), -3.35, -3.35, 0.35);
+	addPlaced(group, createLoadedModel('radio', { targetHeight: 0.44, fallback: 'radio' }), -2.28, -3.15, -0.45);
+	addPlaced(group, createTerminalDesk(activeVariant.eraColors[3]), 3.18, -3.38, -0.35);
+	addPlaced(group, createLoadedModel('pottedPlant', { targetHeight: 1.05, fallback: 'plant' }), -5.1, -1.75, 0.35);
+	addPlaced(group, createLoadedModel('pottedPlant', { targetHeight: 1.05, fallback: 'plant' }), 5.1, -1.75, -0.35);
+	addPlaced(group, createSignpost(secondary, 'WP 1.0'), -1.85, 3.05, -0.32);
+	addPlaced(group, createSignpost(activeVariant.eraColors[6], 'WP 6.x'), 1.85, 3.05, 0.32);
+}
+
 function addAtriumBenches(group) {
 	const first = createLoadedModel('benchCushion', { targetHeight: 0.55, fallback: 'bench' });
 	addPlaced(group, first, -4.8, 1.2, Math.PI / 2);
@@ -1405,11 +1624,17 @@ function addAtriumBenches(group) {
 
 function createRoomDecor(room) {
 	const group = new THREE.Group();
-	if (isCurrentVariant) {
+	if (!shouldDecorateScene) {
 		return group;
 	}
 
 	const roomIndex = eras.indexOf(room.era);
+	if (activeVariant.roomFeature === 'era-vignettes') {
+		addRoomFeature(group, room, roomIndex);
+		group.add(createRoomFloorLabel(room, roomIndex));
+		return group;
+	}
+
 	const primaryProp = activeVariant.props[roomIndex % activeVariant.props.length];
 	const secondaryProp = activeVariant.props[(roomIndex + 3) % activeVariant.props.length];
 	const left = createMuseumProp(primaryProp, room.color);
@@ -1431,6 +1656,10 @@ function addRoomFeature(group, room, roomIndex) {
 	const feature = activeVariant.roomFeature;
 	const color = room.color;
 	const z = -roomDepth / 2 + 1.08;
+	if (feature === 'era-vignettes') {
+		addEraVignette(group, room, roomIndex);
+		return;
+	}
 	if (feature === 'record-crates') {
 		addLocal(group, createRecordStack(color), 0, z, 0);
 		addLocal(group, createLoadedModel('speakerSmall', { targetHeight: 0.58, fallback: 'speaker' }), -2.6, z + 0.3, 0.25);
@@ -1476,6 +1705,57 @@ function addRoomFeature(group, room, roomIndex) {
 	addLocal(group, createDisplayCase(color, 'monument'), 0, z + 0.2, 0);
 }
 
+function addEraVignette(group, room, roomIndex) {
+	const color = room.color;
+	const secondary = activeVariant.eraColors[(roomIndex + 2) % activeVariant.eraColors.length];
+	const frontZ = -roomDepth / 2 + 1.18;
+	const leftX = -roomWidth / 2 + 1.28;
+	const rightX = roomWidth / 2 - 1.28;
+	const centerZ = -roomDepth / 2 + 1.55;
+	const lamp = createMuseumLamp(color);
+	addLocal(group, lamp, 0, frontZ - 0.02, 0);
+
+	if (room.era === 'Blogging Roots') {
+		addLocal(group, createRecordStack(color), leftX + 0.3, frontZ + 0.24, Math.PI / 5);
+		addLocal(group, createCommentSculpture(secondary), rightX - 0.26, frontZ + 0.18, -Math.PI / 4);
+		addLocal(group, createSignpost(color, 'THE LOOP'), 0.05, centerZ + 0.3, 0);
+		return;
+	}
+	if (room.era === 'Dashboard Foundations') {
+		addLocal(group, createLoadedModel('computerScreen', { targetHeight: 0.58, fallback: 'screen' }), leftX + 0.42, frontZ + 0.2, Math.PI / 5);
+		addLocal(group, createPluginCrates(color), rightX - 0.42, frontZ + 0.2, -Math.PI / 5);
+		addLocal(group, createSignpost(secondary, '/wp-admin'), 0.05, centerZ + 0.26, 0);
+		return;
+	}
+	if (room.era === 'CMS Toolkit') {
+		addLocal(group, createLoadedModel('bookcaseOpenLow', { targetHeight: 0.78, fallback: 'bookcase' }), leftX + 0.42, frontZ + 0.2, Math.PI / 5);
+		addLocal(group, createKnobConsole(color), rightX - 0.38, frontZ + 0.2, -Math.PI / 5);
+		addLocal(group, createDisplayCase(secondary, 'CPT'), 0, centerZ + 0.36, 0);
+		return;
+	}
+	if (room.era === 'Modern Admin') {
+		addLocal(group, createTerminalDesk(color), leftX + 0.48, frontZ + 0.18, Math.PI / 5);
+		addLocal(group, createDisplayCase(secondary, 'MP6'), rightX - 0.42, frontZ + 0.22, -Math.PI / 5);
+		addLocal(group, createLoadedModel('detailBench', { targetHeight: 0.48, fallback: 'bench' }), 0, centerZ + 0.36, 0);
+		return;
+	}
+	if (room.era === 'API and Customizer') {
+		addLocal(group, createApiPortal(color, secondary, 0.62), leftX + 0.5, frontZ + 0.2, Math.PI / 6);
+		addLocal(group, createCommentAquarium(secondary, color, 0.54), rightX - 0.42, frontZ + 0.2, -Math.PI / 6);
+		addLocal(group, createSignpost(secondary, 'wp/v2'), 0.05, centerZ + 0.34, 0);
+		return;
+	}
+	if (room.era === 'Block Editor') {
+		addLocal(group, createBlockFountain(color, 0.62), leftX + 0.4, frontZ + 0.2, Math.PI / 5);
+		addLocal(group, createDisplayCase(secondary, 'GROUP'), rightX - 0.42, frontZ + 0.2, -Math.PI / 5);
+		addLocal(group, createDisplayCase(secondary, '5.0'), 0.05, centerZ + 0.34, 0);
+		return;
+	}
+	addLocal(group, createBlockFountain(color, 0.58), leftX + 0.4, frontZ + 0.2, Math.PI / 5);
+	addLocal(group, createLoadedModel('loungeDesignChair', { targetHeight: 0.58, fallback: 'bench' }), rightX - 0.45, frontZ + 0.2, -Math.PI / 5);
+	addLocal(group, createDisplayCase(secondary, 'FSE'), 0.05, centerZ + 0.34, 0);
+}
+
 function createRoomFloorLabel(room, roomIndex) {
 	const canvas = document.createElement('canvas');
 	canvas.width = 512;
@@ -1490,10 +1770,13 @@ function createRoomFloorLabel(room, roomIndex) {
 	ctx.fillStyle = '#fff5df';
 	ctx.font = '900 34px Arial Black, Impact, sans-serif';
 	ctx.textAlign = 'center';
-	ctx.fillText(activeVariant.shortName.replace(/^\d+\.\s*/, ''), 256, 64);
+	const labelText = activeVariant.roomFeature === 'era-vignettes'
+		? room.era.toUpperCase()
+		: activeVariant.shortName.replace(/^\d+\.\s*/, '').toUpperCase();
+	fillFittedCanvasText(ctx, labelText, 256, 64, 430, 34, '900', 'Arial Black, Impact, sans-serif');
 	ctx.fillStyle = 'rgba(255, 245, 223, 0.66)';
 	ctx.font = '700 16px system-ui, sans-serif';
-	ctx.fillText(`${room.yearRange} / room ${roomIndex + 1}`, 256, 92);
+	ctx.fillText(`${room.yearRange} / gallery ${roomIndex + 1}`, 256, 92);
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	const label = new THREE.Mesh(
@@ -1938,10 +2221,7 @@ function createSignpost(color, text = '404') {
 	);
 	post.position.y = 0.45;
 	group.add(post);
-	const sign = new THREE.Mesh(
-		new THREE.PlaneGeometry(0.82, 0.3),
-		new THREE.MeshBasicMaterial({ map: createSmallSignTexture(text, color), side: THREE.DoubleSide })
-	);
+	const sign = createReadableLabel(createSmallSignTexture(text, color), 0.82, 0.3);
 	sign.position.y = 0.82;
 	group.add(sign);
 	return group;
@@ -2001,17 +2281,30 @@ function createPedestal(width, height, color) {
 }
 
 function createPropLabel(text, color, y) {
-	const label = new THREE.Mesh(
-		new THREE.PlaneGeometry(1.18, 0.28),
-		new THREE.MeshBasicMaterial({
-			map: createSmallSignTexture(text, color),
-			transparent: true,
-			side: THREE.DoubleSide,
-		})
-	);
+	const label = createReadableLabel(createSmallSignTexture(text, color), 1.18, 0.28);
 	label.position.y = y;
 	label.position.z = -0.34;
 	return label;
+}
+
+function createReadableLabel(texture, width, height) {
+	const group = new THREE.Group();
+	const geometry = new THREE.PlaneGeometry(width, height);
+	const front = new THREE.Mesh(
+		geometry,
+		new THREE.MeshBasicMaterial({ map: texture, transparent: true })
+	);
+	front.position.z = 0.012;
+	group.add(front);
+
+	const back = new THREE.Mesh(
+		geometry,
+		new THREE.MeshBasicMaterial({ map: texture.clone(), transparent: true })
+	);
+	back.position.z = -0.012;
+	back.rotation.y = Math.PI;
+	group.add(back);
+	return group;
 }
 
 function createSmallSignTexture(text, color) {
@@ -2358,6 +2651,11 @@ function createFrameMaterial(color) {
 		material.metalness = 0.04;
 		material.roughness = 0.7;
 	}
+	if (style === 'museum-brass') {
+		material.color.set(0xc79b43);
+		material.metalness = 0.36;
+		material.roughness = 0.34;
+	}
 	if (style === 'neon' || style === 'bubble' || style === 'terminal-bezel' || style === 'arcade-cabinet') {
 		material.emissive = new THREE.Color(color);
 		material.emissiveIntensity = 0.18;
@@ -2376,11 +2674,11 @@ function createFrameMaterial(color) {
 }
 
 function addFrameAccents(group, color) {
-	if (isCurrentVariant) {
+	if (!shouldDecorateScene) {
 		return;
 	}
 	const style = activeVariant.frameStyle || activeVariant.frameBase;
-	if (['badge', 'knob', 'rail', 'capsule', 'bubble', 'record', 'monument'].includes(style)) {
+	if (['badge', 'knob', 'rail', 'capsule', 'bubble', 'record', 'monument', 'museum-brass'].includes(style)) {
 		addFrameCornerDots(group, color, style);
 	}
 	if (['block', 'maze', 'portal', 'arcade-cabinet', 'terminal-bezel'].includes(style)) {
@@ -2398,6 +2696,24 @@ function addFrameAccents(group, color) {
 	if (style === 'record') {
 		addFrameRecords(group);
 	}
+	if (style === 'museum-brass') {
+		addFrameNameplate(group, color);
+	}
+}
+
+function addFrameNameplate(group, color) {
+	const plate = new THREE.Mesh(
+		new THREE.BoxGeometry(0.76, 0.13, 0.045),
+		new THREE.MeshStandardMaterial({ color: 0xf2d48a, roughness: 0.28, metalness: 0.44 })
+	);
+	plate.position.set(0, -exhibitOuterHeight / 2 - 0.1, exhibitFrameDepth + 0.055);
+	group.add(plate);
+	const line = new THREE.Mesh(
+		new THREE.BoxGeometry(0.58, 0.018, 0.052),
+		new THREE.MeshBasicMaterial({ color })
+	);
+	line.position.set(0, plate.position.y, exhibitFrameDepth + 0.083);
+	group.add(line);
 }
 
 function addFrameCornerDots(group, color, style) {
@@ -2405,7 +2721,7 @@ function addFrameCornerDots(group, color, style) {
 	const geometry = new THREE.SphereGeometry(radius, 12, 8);
 	const material = new THREE.MeshStandardMaterial({
 		color: style === 'capsule' ? 0xf8efd9 : color,
-		metalness: style === 'rail' ? 0.55 : 0.08,
+		metalness: style === 'rail' || style === 'museum-brass' ? 0.55 : 0.08,
 		roughness: 0.38,
 	});
 	for (const x of [-1, 1]) {

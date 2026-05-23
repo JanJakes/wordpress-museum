@@ -500,6 +500,25 @@ body[data-ui='glass'] .release-rail {
 	backdrop-filter: blur(18px) saturate(1.2);
 }
 
+body[data-ui='glass'] .top-hud {
+	align-items: center;
+	padding: 12px 14px;
+	border: 1px solid rgba(255, 245, 223, 0.18);
+	border-radius: 8px;
+	background: rgba(17, 24, 39, 0.18);
+	backdrop-filter: blur(10px) saturate(1.1);
+}
+
+body[data-ui='glass'] h1 {
+	font-size: clamp(1.55rem, 3vw, 3.15rem);
+	line-height: 0.92;
+}
+
+body[data-ui='glass'] .kicker {
+	margin-bottom: 5px;
+	font-size: 0.7rem;
+}
+
 @media (max-width: 760px) {
 	.top-hud {
 		left: 14px;
