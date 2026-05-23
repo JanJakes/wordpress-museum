@@ -1,4 +1,5 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.171.0/build/three.module.min.js';
+import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.171.0/examples/jsm/loaders/GLTFLoader.js';
 
 const releases = [...window.WP_MUSEUM_RELEASES].sort(compareVersions);
 const eras = window.WP_MUSEUM_ERAS;
@@ -21,6 +22,38 @@ const textureCanvases = new Map();
 const museumTextures = new Map();
 const plaqueImageCache = new Map();
 const textureLoader = new THREE.TextureLoader();
+const gltfLoader = new GLTFLoader();
+const modelCache = new Map();
+const modelDefinitions = {
+	benchCushion: './assets/models/kenney/furniture/benchCushion.glb',
+	bookcaseOpenLow: './assets/models/kenney/furniture/bookcaseOpenLow.glb',
+	computerScreen: './assets/models/kenney/furniture/computerScreen.glb',
+	laptop: './assets/models/kenney/furniture/laptop.glb',
+	loungeDesignChair: './assets/models/kenney/furniture/loungeDesignChair.glb',
+	loungeDesignSofa: './assets/models/kenney/furniture/loungeDesignSofa.glb',
+	plantSmall2: './assets/models/kenney/furniture/plantSmall2.glb',
+	pottedPlant: './assets/models/kenney/furniture/pottedPlant.glb',
+	radio: './assets/models/kenney/furniture/radio.glb',
+	speakerSmall: './assets/models/kenney/furniture/speakerSmall.glb',
+	tableCoffee: './assets/models/kenney/furniture/tableCoffee.glb',
+	televisionVintage: './assets/models/kenney/furniture/televisionVintage.glb',
+	detailAwningWide: './assets/models/kenney/retro-urban/detail-awning-wide.glb',
+	detailBench: './assets/models/kenney/retro-urban/detail-bench.glb',
+	detailLightSingle: './assets/models/kenney/retro-urban/detail-light-single.glb',
+	detailLightTraffic: './assets/models/kenney/retro-urban/detail-light-traffic.glb',
+	pallet: './assets/models/kenney/retro-urban/pallet.glb',
+	scaffoldingStructure: './assets/models/kenney/retro-urban/scaffolding-structure.glb',
+	treeParkLarge: './assets/models/kenney/retro-urban/tree-park-large.glb',
+	treeSmall: './assets/models/kenney/retro-urban/tree-small.glb',
+	truckGreen: './assets/models/kenney/retro-urban/truck-green.glb',
+	borderHigh: './assets/models/kenney/building/border-high.glb',
+	columnThin: './assets/models/kenney/building/column-thin.glb',
+	doorRotateRoundA: './assets/models/kenney/building/door-rotate-round-a.glb',
+	doorRotateSquareA: './assets/models/kenney/building/door-rotate-square-a.glb',
+	platingDetailed: './assets/models/kenney/building/plating-detailed.glb',
+	stairsOpenShort: './assets/models/kenney/building/stairs-open-short.glb',
+	wallDoorwayRound: './assets/models/kenney/building/wall-doorway-round.glb',
+};
 const museumTextureSources = {
 	...(isCurrentVariant
 		? {
@@ -978,7 +1011,69 @@ function drawMuralMotif(ctx, canvas, color, second) {
 	const motif = activeVariant.muralStyle;
 	ctx.globalAlpha = 0.78;
 	ctx.fillStyle = second;
-	if (motif === 'blocks') {
+	if (motif === 'records') {
+		for (let index = 0; index < 10; index++) {
+			const x = 110 + (index % 5) * 200;
+			const y = index < 5 ? 126 : 486;
+			ctx.beginPath();
+			ctx.arc(x, y, 54, 0, Math.PI * 2);
+			ctx.fill();
+			ctx.fillStyle = activeVariant.scene.background;
+			ctx.beginPath();
+			ctx.arc(x, y, 18, 0, Math.PI * 2);
+			ctx.fill();
+			ctx.fillStyle = second;
+		}
+	} else if (motif === 'pinball') {
+		ctx.strokeStyle = second;
+		ctx.lineWidth = 18;
+		ctx.beginPath();
+		ctx.moveTo(180, 520);
+		ctx.quadraticCurveTo(512, 80, 844, 520);
+		ctx.stroke();
+		for (let index = 0; index < 7; index++) {
+			ctx.beginPath();
+			ctx.arc(220 + index * 96, 180 + (index % 2) * 260, 24, 0, Math.PI * 2);
+			ctx.fill();
+		}
+	} else if (motif === 'bazaar') {
+		for (let index = 0; index < 9; index++) {
+			const x = 110 + (index % 3) * 290;
+			const y = 110 + Math.floor(index / 3) * 155;
+			ctx.fillRect(x, y, 160, 80);
+			ctx.clearRect(x + 18, y + 18, 124, 44);
+		}
+	} else if (motif === 'botanical') {
+		ctx.strokeStyle = second;
+		ctx.lineWidth = 9;
+		for (let index = 0; index < 12; index++) {
+			const x = 80 + index * 78;
+			ctx.beginPath();
+			ctx.moveTo(x, 560);
+			ctx.bezierCurveTo(x - 30, 420, x + 70, 300, x + 4, 110);
+			ctx.stroke();
+			ctx.beginPath();
+			ctx.ellipse(x + 26, 300, 42, 16, 0.55, 0, Math.PI * 2);
+			ctx.fill();
+		}
+	} else if (motif === 'terminal') {
+		ctx.font = '800 28px ui-monospace, SFMono-Regular, Menlo, monospace';
+		ctx.textAlign = 'left';
+		for (let index = 0; index < 10; index++) {
+			ctx.fillText(`wp museum scan --era=${index + 1}`, 120, 110 + index * 48);
+		}
+		ctx.textAlign = 'center';
+	} else if (motif === 'fauxgo') {
+		ctx.strokeStyle = second;
+		ctx.lineWidth = 14;
+		ctx.beginPath();
+		ctx.arc(512, 320, 142, 0, Math.PI * 2);
+		ctx.stroke();
+		ctx.font = '900 158px Georgia, serif';
+		ctx.textAlign = 'center';
+		ctx.fillText('W', 512, 378);
+		ctx.fillRect(202, 476, 620, 18);
+	} else if (motif === 'blocks') {
 		for (let index = 0; index < 14; index++) {
 			ctx.fillRect(120 + (index % 7) * 112, 110 + Math.floor(index / 7) * 360, 62, 62);
 		}
@@ -1019,6 +1114,10 @@ function drawMuralMotif(ctx, canvas, color, second) {
 			ctx.fill();
 		}
 	}
+	ctx.fillStyle = 'rgba(255, 245, 223, 0.18)';
+	ctx.font = '900 30px Arial Black, Impact, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.fillText(activeVariant.accentWord || 'history with corners', 512, 606);
 	ctx.globalAlpha = 1;
 }
 
@@ -1198,28 +1297,110 @@ function createAtriumDecor() {
 
 	const color = activeVariant.eraColors[0];
 	const secondary = activeVariant.eraColors[3];
-	const mascot = createMascotStatue(color, secondary);
-	mascot.position.set(0, 0, 4.2);
-	mascot.rotation.y = Math.PI;
-	group.add(mascot);
-
-	const leftBench = createBench(activeVariant.eraColors[5]);
-	leftBench.position.set(-4.8, 0, 1.2);
-	leftBench.rotation.y = Math.PI / 2;
-	group.add(leftBench);
-
-	const rightBench = createBench(activeVariant.eraColors[2]);
-	rightBench.position.set(4.8, 0, 1.2);
-	rightBench.rotation.y = -Math.PI / 2;
-	group.add(rightBench);
-
-	if (activeVariant.props.includes('orbital') || activeVariant.props.includes('apiPortal')) {
-		const orbital = createOrbitalSculpture(activeVariant.eraColors[4]);
-		orbital.position.set(0, 0, -3.8);
-		group.add(orbital);
-	}
-
+	group.add(createAtriumFloorMedallion(color, secondary));
+	addAtriumFeature(group, activeVariant.atriumFeature, color, secondary);
+	addAtriumBenches(group);
 	return group;
+}
+
+function createAtriumFloorMedallion(color, secondary) {
+	const group = new THREE.Group();
+	const ring = new THREE.Mesh(
+		new THREE.RingGeometry(2.35, 2.65, 64),
+		new THREE.MeshBasicMaterial({
+			color,
+			transparent: true,
+			opacity: 0.55,
+			side: THREE.DoubleSide,
+		})
+	);
+	ring.rotation.x = -Math.PI / 2;
+	ring.position.y = 0.055;
+	group.add(ring);
+
+	const lineMaterial = new THREE.MeshBasicMaterial({
+		color: secondary,
+		transparent: true,
+		opacity: 0.36,
+	});
+	for (let index = 0; index < 8; index++) {
+		const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.03, 3.9), lineMaterial);
+		spoke.rotation.y = (Math.PI * 2 * index) / 8;
+		spoke.position.y = 0.065;
+		group.add(spoke);
+	}
+	return group;
+}
+
+function addAtriumFeature(group, feature, color, secondary) {
+	if (feature === 'listening-booth') {
+		addPlaced(group, createRecordBooth(color, secondary), 0, 4.1, Math.PI);
+		addPlaced(group, createLoadedModel('radio', { targetHeight: 0.62, fallback: 'radio' }), -1.05, 3.12, -0.35);
+		addPlaced(group, createLoadedModel('speakerSmall', { targetHeight: 0.72, fallback: 'speaker' }), 1.15, 3.18, 0.4);
+		addPlaced(group, createLoadedModel('loungeDesignSofa', { targetHeight: 0.64, fallback: 'bench' }), 0, -3.9, 0);
+		return;
+	}
+	if (feature === 'pinball-machine') {
+		addPlaced(group, createArcadeCabinet(color, secondary), 0, 4.05, Math.PI);
+		addPlaced(group, createLoadedModel('televisionVintage', { targetHeight: 0.95, fallback: 'screen' }), -2.15, 2.85, 0.45);
+		addPlaced(group, createBlockFountain(color), 0, -3.55, 0);
+		return;
+	}
+	if (feature === 'plugin-bazaar') {
+		addPlaced(group, createPluginMarket(color, secondary), 0, 3.65, Math.PI);
+		addPlaced(group, createLoadedModel('detailAwningWide', { targetHeight: 0.72, fallback: 'awning' }), 0, 2.55, Math.PI);
+		addPlaced(group, createLoadedModel('truckGreen', { targetHeight: 0.74, fallback: 'crate' }), 3.2, -3.2, -0.8);
+		return;
+	}
+	if (feature === 'greenhouse') {
+		addPlaced(group, createPlant(color, 1.55), 0, 3.85, 0);
+		addPlaced(group, createPlant(color, 1.35), -2.2, 3.1, 0.45);
+		addPlaced(group, createLoadedModel('pottedPlant', { targetHeight: 1.05, fallback: 'plant' }), 2.25, 3.15, -0.45);
+		addPlaced(group, createLoadedModel('detailBench', { targetHeight: 0.55, fallback: 'bench' }), 0, -4.0, 0);
+		return;
+	}
+	if (feature === 'server-oracle') {
+		addPlaced(group, createServerOracle(color, secondary), 0, 3.75, Math.PI);
+		addPlaced(group, createLoadedModel('laptop', { targetHeight: 0.54, fallback: 'screen' }), -1.45, -3.5, 0.25);
+		addPlaced(group, createOrbitalSculpture(activeVariant.eraColors[4]), 1.55, -3.4, -0.25);
+		return;
+	}
+	if (feature === 'api-portal') {
+		addPlaced(group, createApiPortal(color, secondary), 0, 3.85, Math.PI);
+		addPlaced(group, createLoadedModel('doorRotateRoundA', { targetHeight: 1.85, fallback: 'portal' }), 0, 2.85, Math.PI);
+		const orbital = createOrbitalSculpture(activeVariant.eraColors[4]);
+		orbital.scale.setScalar(0.72);
+		addPlaced(group, orbital, 0, -2.65, 0);
+		return;
+	}
+	if (feature === 'block-fountain') {
+		addPlaced(group, createBlockFountain(color), 0, 3.75, Math.PI);
+		addPlaced(group, createLoadedModel('platingDetailed', { targetHeight: 0.28, fallback: 'block' }), -2.6, -3.2, 0.4);
+		addPlaced(group, createLoadedModel('loungeDesignSofa', { targetHeight: 0.64, fallback: 'bench' }), 2.7, -3.1, -0.4);
+		return;
+	}
+	if (feature === 'time-capsule') {
+		addPlaced(group, createTimeCapsule(color), 0, 3.9, Math.PI / 2);
+		addPlaced(group, createLoadedModel('bookcaseOpenLow', { targetHeight: 1.18, fallback: 'bookcase' }), -2.5, 2.85, 0.45);
+		addPlaced(group, createLoadedModel('stairsOpenShort', { targetHeight: 0.75, fallback: 'stairs' }), 2.4, 2.85, -0.55);
+		return;
+	}
+	if (feature === 'comment-aquarium') {
+		addPlaced(group, createCommentAquarium(color, secondary), 0, 3.85, Math.PI);
+		addPlaced(group, createLoadedModel('detailLightTraffic', { targetHeight: 1.45, fallback: 'light' }), -2.6, -3.15, 0.55);
+		addPlaced(group, createLoadedModel('detailBench', { targetHeight: 0.55, fallback: 'bench' }), 2.55, -3.2, -0.55);
+		return;
+	}
+	addPlaced(group, createMascotMonument(color, secondary), 0, 3.85, Math.PI);
+	addPlaced(group, createLoadedModel('columnThin', { targetHeight: 1.85, fallback: 'column' }), -2.2, 2.95, 0);
+	addPlaced(group, createLoadedModel('columnThin', { targetHeight: 1.85, fallback: 'column' }), 2.2, 2.95, 0);
+}
+
+function addAtriumBenches(group) {
+	const first = createLoadedModel('benchCushion', { targetHeight: 0.55, fallback: 'bench' });
+	addPlaced(group, first, -4.8, 1.2, Math.PI / 2);
+	const second = createLoadedModel('benchCushion', { targetHeight: 0.55, fallback: 'bench' });
+	addPlaced(group, second, 4.8, 1.2, -Math.PI / 2);
 }
 
 function createRoomDecor(room) {
@@ -1241,16 +1422,125 @@ function createRoomDecor(room) {
 	right.rotation.y = -Math.PI / 4;
 	group.add(right);
 
-	if (roomIndex % 2 === 0) {
-		const bench = createBench(room.color);
-		bench.position.set(0, 0, -roomDepth / 2 + 1.1);
-		group.add(bench);
-	}
-
+	addRoomFeature(group, room, roomIndex);
+	group.add(createRoomFloorLabel(room, roomIndex));
 	return group;
 }
 
+function addRoomFeature(group, room, roomIndex) {
+	const feature = activeVariant.roomFeature;
+	const color = room.color;
+	const z = -roomDepth / 2 + 1.08;
+	if (feature === 'record-crates') {
+		addLocal(group, createRecordStack(color), 0, z, 0);
+		addLocal(group, createLoadedModel('speakerSmall', { targetHeight: 0.58, fallback: 'speaker' }), -2.6, z + 0.3, 0.25);
+		addLocal(group, createLoadedModel('radio', { targetHeight: 0.46, fallback: 'radio' }), 2.5, z + 0.3, -0.25);
+		return;
+	}
+	if (feature === 'arcade-corners') {
+		addLocal(group, createArcadeCabinet(color, activeVariant.eraColors[(roomIndex + 2) % 7]), 0, z + 0.2, 0);
+		return;
+	}
+	if (feature === 'crate-market') {
+		addLocal(group, createLoadedModel('pallet', { targetHeight: 0.28, fallback: 'crate' }), 0, z + 0.1, 0);
+		addLocal(group, createPluginCrates(color), 0.4, z + 0.1, -0.18);
+		return;
+	}
+	if (feature === 'plant-lab') {
+		addLocal(group, createPlant(color, 1.15), 0, z + 0.15, 0);
+		addLocal(group, createPlant(color, 0.9), -2.1, z + 0.1, 0);
+		addLocal(group, createLoadedModel('plantSmall2', { targetHeight: 0.72, fallback: 'plant' }), 2.1, z + 0.1, 0);
+		return;
+	}
+	if (feature === 'terminal-desks') {
+		addLocal(group, createTerminalDesk(color), 0, z + 0.2, 0);
+		return;
+	}
+	if (feature === 'portal-kiosks') {
+		addLocal(group, createApiPortal(color, activeVariant.eraColors[(roomIndex + 1) % 7], 0.58), 0, z + 0.2, 0);
+		return;
+	}
+	if (feature === 'block-stacks') {
+		addLocal(group, createBlockFountain(color, 0.64), 0, z + 0.2, 0);
+		return;
+	}
+	if (feature === 'archive-cases') {
+		addLocal(group, createDisplayCase(color, 'archive'), 0, z + 0.2, 0);
+		addLocal(group, createLoadedModel('bookcaseOpenLow', { targetHeight: 0.88, fallback: 'bookcase' }), 2.5, z + 0.15, -0.22);
+		return;
+	}
+	if (feature === 'moderation-tanks') {
+		addLocal(group, createCommentAquarium(color, activeVariant.eraColors[(roomIndex + 4) % 7], 0.58), 0, z + 0.2, 0);
+		return;
+	}
+	addLocal(group, createDisplayCase(color, 'monument'), 0, z + 0.2, 0);
+}
+
+function createRoomFloorLabel(room, roomIndex) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 128;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = room.color;
+	ctx.globalAlpha = 0.28;
+	ctx.fillRect(0, 36, canvas.width, 30);
+	ctx.globalAlpha = 1;
+	ctx.fillStyle = '#fff5df';
+	ctx.font = '900 34px Arial Black, Impact, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.fillText(activeVariant.shortName.replace(/^\d+\.\s*/, ''), 256, 64);
+	ctx.fillStyle = 'rgba(255, 245, 223, 0.66)';
+	ctx.font = '700 16px system-ui, sans-serif';
+	ctx.fillText(`${room.yearRange} / room ${roomIndex + 1}`, 256, 92);
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	const label = new THREE.Mesh(
+		new THREE.PlaneGeometry(4.9, 1.2),
+		new THREE.MeshBasicMaterial({
+			map: texture,
+			transparent: true,
+			side: THREE.DoubleSide,
+		})
+	);
+	label.position.set(0, 0.075, -roomDepth / 2 + 2.45);
+	label.rotation.x = -Math.PI / 2;
+	return label;
+}
+
 function createMuseumProp(type, color) {
+	const modelKey = getModelKeyForProp(type);
+	if (modelKey) {
+		return createLoadedModel(modelKey, {
+			targetHeight: getModelHeightForProp(type),
+			fallback: type,
+		});
+	}
+	if (type.includes('logoClinic')) {
+		return createLogoClinic(color);
+	}
+	if (type.includes('pluginCrates')) {
+		return createPluginCrates(color);
+	}
+	if (type.includes('recordStack')) {
+		return createRecordStack(color);
+	}
+	if (type.includes('jazzLamp') || type.includes('spotlight')) {
+		return createMuseumLamp(color);
+	}
+	if (type.includes('signpost')) {
+		return createSignpost(color);
+	}
+	if (type.includes('paperPile')) {
+		return createPaperPile(color);
+	}
+	if (type.includes('displayCase')) {
+		return createDisplayCase(color, 'block');
+	}
+	if (type.includes('terminalBench') || type.includes('concreteBench')) {
+		return createBench(color);
+	}
 	if (type.includes('plant')) {
 		return createPlant(color, type.includes('big') ? 1.25 : 0.9);
 	}
@@ -1276,6 +1566,472 @@ function createMuseumProp(type, color) {
 		return createKnobConsole(color);
 	}
 	return createBlockStack(color);
+}
+
+function getModelKeyForProp(type) {
+	return {
+		modelAwning: 'detailAwningWide',
+		modelBench: 'detailBench',
+		modelBookcase: 'bookcaseOpenLow',
+		modelColumn: 'columnThin',
+		modelComputer: 'computerScreen',
+		modelDoorRound: 'doorRotateRoundA',
+		modelLaptop: 'laptop',
+		modelLight: 'detailLightSingle',
+		modelPallet: 'pallet',
+		modelPlant: 'pottedPlant',
+		modelPlating: 'platingDetailed',
+		modelRadio: 'radio',
+		modelScreen: 'computerScreen',
+		modelSofa: 'loungeDesignSofa',
+		modelSpeaker: 'speakerSmall',
+		modelStairs: 'stairsOpenShort',
+		modelTelevision: 'televisionVintage',
+		modelTrafficLight: 'detailLightTraffic',
+		modelTree: 'pottedPlant',
+	}[type];
+}
+
+function getModelHeightForProp(type) {
+	return {
+		modelAwning: 0.62,
+		modelBench: 0.55,
+		modelBookcase: 0.92,
+		modelColumn: 1.42,
+		modelComputer: 0.62,
+		modelDoorRound: 1.25,
+		modelLaptop: 0.48,
+		modelLight: 1.35,
+		modelPallet: 0.24,
+		modelPlant: 0.72,
+		modelPlating: 0.24,
+		modelRadio: 0.46,
+		modelScreen: 0.6,
+		modelSofa: 0.58,
+		modelSpeaker: 0.56,
+		modelStairs: 0.55,
+		modelTelevision: 0.74,
+		modelTrafficLight: 1.35,
+		modelTree: 0.88,
+	}[type] || 0.78;
+}
+
+function addPlaced(group, object, x, z, rotationY = 0) {
+	object.position.set(x, 0, z);
+	object.rotation.y = rotationY;
+	group.add(object);
+	return object;
+}
+
+function addLocal(group, object, x, z, rotationY = 0) {
+	object.position.set(x, 0, z);
+	object.rotation.y = rotationY;
+	group.add(object);
+	return object;
+}
+
+function createLoadedModel(modelKey, options = {}) {
+	const anchor = new THREE.Group();
+	anchor.add(createModelPlaceholder(options.fallback || modelKey, options.targetHeight || 0.7));
+	loadModel(modelKey)
+		.then((template) => {
+			const instance = template.clone(true);
+			instance.traverse((child) => {
+				if (child.isMesh) {
+					child.frustumCulled = true;
+					if (child.material?.isMeshStandardMaterial) {
+						child.material.roughness = Math.max(child.material.roughness, 0.52);
+					}
+				}
+			});
+			normalizeModel(instance, options.targetHeight || 0.7);
+			anchor.clear();
+			anchor.add(instance);
+		})
+		.catch(() => {});
+	return anchor;
+}
+
+function loadModel(modelKey) {
+	if (!modelDefinitions[modelKey]) {
+		return Promise.reject(new Error(`Unknown model: ${modelKey}`));
+	}
+	if (!modelCache.has(modelKey)) {
+		modelCache.set(
+			modelKey,
+			new Promise((resolve, reject) => {
+				gltfLoader.load(
+					modelDefinitions[modelKey],
+					(gltf) => resolve(gltf.scene),
+					undefined,
+					reject
+				);
+			})
+		);
+	}
+	return modelCache.get(modelKey);
+}
+
+function createModelPlaceholder(type, targetHeight) {
+	if (type.includes('plant') || type.includes('tree')) {
+		return createPlant(activeVariant.eraColors[3], targetHeight > 1 ? 1 : 0.7);
+	}
+	if (type.includes('bench') || type.includes('Sofa')) {
+		return createBench(activeVariant.eraColors[5]);
+	}
+	if (type.includes('radio') || type.includes('screen') || type.includes('Computer') || type.includes('Television')) {
+		return createKnobConsole(activeVariant.eraColors[2]);
+	}
+	if (type.includes('light')) {
+		return createMuseumLamp(activeVariant.eraColors[0]);
+	}
+	if (type.includes('column')) {
+		const column = new THREE.Mesh(
+			new THREE.CylinderGeometry(0.14, 0.18, targetHeight, 14),
+			new THREE.MeshStandardMaterial({ color: 0xd7d0c4, roughness: 0.76 })
+		);
+		column.position.y = targetHeight / 2;
+		return column;
+	}
+	return createBlockStack(activeVariant.eraColors[0]);
+}
+
+function normalizeModel(object, targetHeight) {
+	const box = new THREE.Box3().setFromObject(object);
+	const size = box.getSize(new THREE.Vector3());
+	const scale = targetHeight / Math.max(size.y, 0.001);
+	object.scale.multiplyScalar(scale);
+	const scaledBox = new THREE.Box3().setFromObject(object);
+	const center = scaledBox.getCenter(new THREE.Vector3());
+	object.position.sub(new THREE.Vector3(center.x, scaledBox.min.y, center.z));
+}
+
+function createRecordBooth(color, secondary) {
+	const group = new THREE.Group();
+	group.add(createPedestal(1.4, 0.28, color));
+	const discMaterial = new THREE.MeshStandardMaterial({ color: 0x101014, roughness: 0.38 });
+	for (let index = 0; index < 4; index++) {
+		const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.04, 32), discMaterial);
+		disc.position.set(-0.45 + index * 0.3, 0.56 + index * 0.03, 0);
+		disc.rotation.z = Math.PI / 2;
+		group.add(disc);
+		const label = new THREE.Mesh(
+			new THREE.CylinderGeometry(0.1, 0.1, 0.046, 18),
+			new THREE.MeshBasicMaterial({ color: index % 2 ? color : secondary })
+		);
+		label.position.copy(disc.position);
+		label.rotation.z = disc.rotation.z;
+		group.add(label);
+	}
+	group.add(createPropLabel('HELLO DOLLY', secondary, 1.18));
+	return group;
+}
+
+function createArcadeCabinet(color, secondary) {
+	const group = new THREE.Group();
+	const body = new THREE.Mesh(
+		new THREE.BoxGeometry(0.88, 1.42, 0.52),
+		new THREE.MeshStandardMaterial({ color, roughness: 0.48 })
+	);
+	body.position.y = 0.82;
+	group.add(body);
+	const screen = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.58, 0.34),
+		new THREE.MeshBasicMaterial({ color: 0x07101d })
+	);
+	screen.position.set(0, 1.04, -0.265);
+	group.add(screen);
+	const glow = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.48, 0.05),
+		new THREE.MeshBasicMaterial({ color: secondary })
+	);
+	glow.position.set(0, 1.08, -0.271);
+	group.add(glow);
+	for (const x of [-0.18, 0.04, 0.26]) {
+		const button = new THREE.Mesh(
+			new THREE.SphereGeometry(0.045, 12, 8),
+			new THREE.MeshBasicMaterial({ color: activeVariant.eraColors[Math.abs(Math.round(x * 100)) % 7] })
+		);
+		button.position.set(x, 0.61, -0.28);
+		group.add(button);
+	}
+	return group;
+}
+
+function createPluginMarket(color, secondary) {
+	const group = new THREE.Group();
+	addLocal(group, createPluginCrates(color), -0.62, 0, -0.1);
+	addLocal(group, createSignpost(secondary, 'ZIP'), 0.76, 0.05, 0.12);
+	addLocal(group, createLoadedModel('pallet', { targetHeight: 0.24, fallback: 'crate' }), 0.04, 0.32, 0);
+	return group;
+}
+
+function createServerOracle(color, secondary) {
+	const group = new THREE.Group();
+	for (let index = 0; index < 3; index++) {
+		const server = createServerStack(index % 2 ? color : secondary);
+		server.position.set(-0.74 + index * 0.74, 0, 0);
+		group.add(server);
+	}
+	const halo = new THREE.Mesh(
+		new THREE.TorusGeometry(1.08, 0.035, 8, 54),
+		new THREE.MeshStandardMaterial({ color, metalness: 0.55, roughness: 0.26 })
+	);
+	halo.position.y = 1.72;
+	halo.rotation.x = Math.PI / 2;
+	group.add(halo);
+	return group;
+}
+
+function createApiPortal(color, secondary, scale = 1) {
+	const group = new THREE.Group();
+	const material = new THREE.MeshStandardMaterial({
+		color,
+		emissive: new THREE.Color(color),
+		emissiveIntensity: 0.14,
+		roughness: 0.32,
+		metalness: 0.2,
+	});
+	const left = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.55, 0.16), material);
+	const right = left.clone();
+	const top = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.16, 0.16), material);
+	left.position.set(-0.55, 0.82, 0);
+	right.position.set(0.55, 0.82, 0);
+	top.position.set(0, 1.52, 0);
+	group.add(left, right, top);
+	const core = new THREE.Mesh(
+		new THREE.RingGeometry(0.34, 0.46, 32),
+		new THREE.MeshBasicMaterial({ color: secondary, transparent: true, opacity: 0.86, side: THREE.DoubleSide })
+	);
+	core.position.y = 0.8;
+	group.add(core);
+	group.scale.setScalar(scale);
+	return group;
+}
+
+function createBlockFountain(color, scale = 1) {
+	const group = new THREE.Group();
+	group.add(createPedestal(1.1, 0.24, color));
+	for (let index = 0; index < 8; index++) {
+		const block = new THREE.Mesh(
+			new THREE.BoxGeometry(0.34, 0.34, 0.34),
+			new THREE.MeshStandardMaterial({
+				color: activeVariant.eraColors[index % activeVariant.eraColors.length],
+				roughness: 0.45,
+			})
+		);
+		const angle = index * 0.78;
+		block.position.set(Math.cos(angle) * 0.48, 0.44 + index * 0.12, Math.sin(angle) * 0.48);
+		block.rotation.y = angle;
+		group.add(block);
+	}
+	group.scale.setScalar(scale);
+	return group;
+}
+
+function createCommentAquarium(color, secondary, scale = 1) {
+	const group = new THREE.Group();
+	const glass = new THREE.Mesh(
+		new THREE.BoxGeometry(1.45, 0.86, 0.5),
+		new THREE.MeshStandardMaterial({
+			color: 0xbbe8ff,
+			transparent: true,
+			opacity: 0.24,
+			roughness: 0.05,
+			metalness: 0.05,
+		})
+	);
+	glass.position.y = 0.8;
+	group.add(glass);
+	for (let index = 0; index < 6; index++) {
+		const bubble = new THREE.Mesh(
+			new THREE.SphereGeometry(0.045 + (index % 3) * 0.012, 10, 8),
+			new THREE.MeshBasicMaterial({ color: index % 2 ? color : secondary })
+		);
+		bubble.position.set(-0.5 + index * 0.2, 0.45 + (index % 4) * 0.17, -0.1 + (index % 2) * 0.2);
+		group.add(bubble);
+	}
+	group.add(createPedestal(1.6, 0.2, color));
+	group.scale.setScalar(scale);
+	return group;
+}
+
+function createMascotMonument(color, secondary) {
+	const group = new THREE.Group();
+	group.add(createMascotStatue(color, secondary));
+	group.add(createPropLabel('OPEN SOURCE', secondary, 1.46));
+	return group;
+}
+
+function createTerminalDesk(color) {
+	const group = new THREE.Group();
+	group.add(createKnobConsole(color));
+	addLocal(group, createLoadedModel('computerScreen', { targetHeight: 0.52, fallback: 'screen' }), 0.1, -0.08, 0);
+	addLocal(group, createLoadedModel('laptop', { targetHeight: 0.38, fallback: 'screen' }), -0.52, 0.14, 0.12);
+	return group;
+}
+
+function createLogoClinic(color) {
+	const group = new THREE.Group();
+	group.add(createDisplayCase(color, 'W'));
+	group.add(createPropLabel('FAUXGO FIX', color, 1.34));
+	return group;
+}
+
+function createPluginCrates(color) {
+	const group = new THREE.Group();
+	const material = new THREE.MeshStandardMaterial({ color: 0x9a6536, roughness: 0.72 });
+	for (let index = 0; index < 5; index++) {
+		const crate = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.32, 0.42), material);
+		crate.position.set(-0.44 + (index % 3) * 0.42, 0.18 + Math.floor(index / 3) * 0.3, 0);
+		crate.rotation.y = index * 0.13;
+		group.add(crate);
+		const label = new THREE.Mesh(
+			new THREE.PlaneGeometry(0.26, 0.1),
+			new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide })
+		);
+		label.position.set(crate.position.x, crate.position.y + 0.02, -0.215);
+		group.add(label);
+	}
+	return group;
+}
+
+function createRecordStack(color) {
+	const group = new THREE.Group();
+	const material = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.42 });
+	for (let index = 0; index < 6; index++) {
+		const record = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.035, 28), material);
+		record.position.set(-0.45 + index * 0.18, 0.32 + index * 0.035, 0);
+		record.rotation.z = Math.PI / 2;
+		group.add(record);
+	}
+	group.add(createPropLabel('JAZZ', color, 0.72));
+	return group;
+}
+
+function createMuseumLamp(color) {
+	const group = new THREE.Group();
+	const pole = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.035, 0.05, 1.1, 12),
+		new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.38, metalness: 0.25 })
+	);
+	pole.position.y = 0.55;
+	group.add(pole);
+	const shade = new THREE.Mesh(
+		new THREE.ConeGeometry(0.22, 0.22, 16),
+		new THREE.MeshBasicMaterial({ color })
+	);
+	shade.position.y = 1.16;
+	shade.rotation.x = Math.PI;
+	group.add(shade);
+	const light = new THREE.PointLight(new THREE.Color(color), 0.9, 5);
+	light.position.y = 1.05;
+	group.add(light);
+	return group;
+}
+
+function createSignpost(color, text = '404') {
+	const group = new THREE.Group();
+	const post = new THREE.Mesh(
+		new THREE.BoxGeometry(0.08, 0.9, 0.08),
+		new THREE.MeshStandardMaterial({ color: 0x2d2418, roughness: 0.7 })
+	);
+	post.position.y = 0.45;
+	group.add(post);
+	const sign = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.82, 0.3),
+		new THREE.MeshBasicMaterial({ map: createSmallSignTexture(text, color), side: THREE.DoubleSide })
+	);
+	sign.position.y = 0.82;
+	group.add(sign);
+	return group;
+}
+
+function createPaperPile(color) {
+	const group = new THREE.Group();
+	const material = new THREE.MeshBasicMaterial({ color: 0xf8efd9 });
+	for (let index = 0; index < 7; index++) {
+		const sheet = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.018, 0.48), material);
+		sheet.position.y = 0.18 + index * 0.022;
+		sheet.rotation.y = -0.18 + index * 0.06;
+		group.add(sheet);
+	}
+	group.add(createPropLabel('README', color, 0.54));
+	return group;
+}
+
+function createDisplayCase(color, label) {
+	const group = new THREE.Group();
+	group.add(createPedestal(1.15, 0.32, color));
+	const glass = new THREE.Mesh(
+		new THREE.BoxGeometry(0.9, 0.62, 0.52),
+		new THREE.MeshStandardMaterial({
+			color: 0xdff8ff,
+			transparent: true,
+			opacity: 0.24,
+			roughness: 0.04,
+		})
+	);
+	glass.position.y = 0.74;
+	group.add(glass);
+	const artifact = new THREE.Mesh(
+		new THREE.TorusGeometry(0.18, 0.04, 8, 24),
+		new THREE.MeshStandardMaterial({ color: 0x101827, roughness: 0.35, metalness: 0.22 })
+	);
+	artifact.position.y = 0.72;
+	group.add(artifact);
+	group.add(createPropLabel(label.toUpperCase(), color, 1.18));
+	return group;
+}
+
+function createPedestal(width, height, color) {
+	const pedestal = new THREE.Mesh(
+		new THREE.CylinderGeometry(width / 2, width / 2 + 0.08, height, 18),
+		new THREE.MeshStandardMaterial({ color: 0xf8efd9, roughness: 0.74 })
+	);
+	pedestal.position.y = height / 2;
+	const band = new THREE.Mesh(
+		new THREE.CylinderGeometry(width / 2 + 0.09, width / 2 + 0.09, 0.035, 18),
+		new THREE.MeshBasicMaterial({ color })
+	);
+	band.position.y = height + 0.02;
+	const group = new THREE.Group();
+	group.add(pedestal, band);
+	return group;
+}
+
+function createPropLabel(text, color, y) {
+	const label = new THREE.Mesh(
+		new THREE.PlaneGeometry(1.18, 0.28),
+		new THREE.MeshBasicMaterial({
+			map: createSmallSignTexture(text, color),
+			transparent: true,
+			side: THREE.DoubleSide,
+		})
+	);
+	label.position.y = y;
+	label.position.z = -0.34;
+	return label;
+}
+
+function createSmallSignTexture(text, color) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 256;
+	canvas.height = 80;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#fff5df';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = color;
+	ctx.fillRect(0, 0, canvas.width, 8);
+	ctx.fillRect(0, canvas.height - 8, canvas.width, 8);
+	ctx.fillStyle = '#111827';
+	ctx.font = '900 26px Arial Black, Impact, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	fillFittedCanvasText(ctx, text, 128, 42, 218, 26, '900', 'Arial Black, Impact, sans-serif');
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	return texture;
 }
 
 function createMascotStatue(color, secondary) {
@@ -1597,20 +2353,24 @@ function createFrameMaterial(color) {
 		material.metalness = 0.78;
 		material.roughness = 0.22;
 	}
-	if (style === 'wood' || style === 'market') {
+	if (style === 'wood' || style === 'market' || style === 'crate' || style === 'record') {
 		material.color.set(0x8f5a2d);
 		material.metalness = 0.04;
 		material.roughness = 0.7;
 	}
-	if (style === 'neon' || style === 'bubble') {
+	if (style === 'neon' || style === 'bubble' || style === 'terminal-bezel' || style === 'arcade-cabinet') {
 		material.emissive = new THREE.Color(color);
 		material.emissiveIntensity = 0.18;
 		material.roughness = 0.3;
 	}
-	if (style === 'concrete') {
+	if (style === 'concrete' || style === 'monument') {
 		material.color.set(0x9b9b91);
 		material.metalness = 0.02;
 		material.roughness = 0.92;
+	}
+	if (style === 'vine') {
+		material.color.set(0x5d7d4d);
+		material.roughness = 0.78;
 	}
 	return material;
 }
@@ -1620,14 +2380,23 @@ function addFrameAccents(group, color) {
 		return;
 	}
 	const style = activeVariant.frameStyle || activeVariant.frameBase;
-	if (['badge', 'knob', 'rail', 'capsule', 'bubble'].includes(style)) {
+	if (['badge', 'knob', 'rail', 'capsule', 'bubble', 'record', 'monument'].includes(style)) {
 		addFrameCornerDots(group, color, style);
 	}
-	if (['block', 'maze', 'portal'].includes(style)) {
+	if (['block', 'maze', 'portal', 'arcade-cabinet', 'terminal-bezel'].includes(style)) {
 		addFrameEdgeBlocks(group, color);
 	}
 	if (style === 'tape' || style === 'porcelain') {
 		addFrameTape(group);
+	}
+	if (style === 'crate') {
+		addFrameWoodSlats(group);
+	}
+	if (style === 'vine') {
+		addFrameVines(group, color);
+	}
+	if (style === 'record') {
+		addFrameRecords(group);
 	}
 }
 
@@ -1673,6 +2442,34 @@ function addFrameTape(group) {
 		tape.position.set(x * 1.25, exhibitOuterHeight / 2 + 0.04, exhibitFrameDepth + 0.055);
 		tape.rotation.z = x * 0.18;
 		group.add(tape);
+	}
+}
+
+function addFrameWoodSlats(group) {
+	const material = new THREE.MeshBasicMaterial({ color: 0x5d321a });
+	for (const y of [-1, 1]) {
+		const slat = new THREE.Mesh(new THREE.BoxGeometry(exhibitOuterWidth + 0.14, 0.045, 0.08), material);
+		slat.position.set(0, y * (exhibitOuterHeight / 2 - 0.28), exhibitFrameDepth + 0.07);
+		group.add(slat);
+	}
+}
+
+function addFrameVines(group, color) {
+	const material = new THREE.MeshBasicMaterial({ color });
+	for (let index = 0; index < 6; index++) {
+		const leaf = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.08), material);
+		leaf.position.set(-exhibitOuterWidth / 2 - 0.03, -0.78 + index * 0.32, exhibitFrameDepth + 0.075);
+		leaf.rotation.z = index % 2 ? 0.5 : -0.5;
+		group.add(leaf);
+	}
+}
+
+function addFrameRecords(group) {
+	const material = new THREE.MeshBasicMaterial({ color: 0x101014 });
+	for (const x of [-1, 1]) {
+		const record = new THREE.Mesh(new THREE.RingGeometry(0.09, 0.16, 28), material);
+		record.position.set(x * (exhibitOuterWidth / 2 - 0.2), exhibitOuterHeight / 2 - 0.24, exhibitFrameDepth + 0.08);
+		group.add(record);
 	}
 }
 

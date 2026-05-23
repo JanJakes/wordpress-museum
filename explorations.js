@@ -33,7 +33,7 @@ function createVariantCard(variant) {
 	const meta = document.createElement('dl');
 	meta.innerHTML = `
 		<div><dt>UI</dt><dd>${variant.uiStyle}</dd></div>
-		<div><dt>Texture</dt><dd>${variant.textureStyle}</dd></div>
+		<div><dt>Scene</dt><dd>${variant.atriumFeature}</dd></div>
 		<div><dt>Frame</dt><dd>${variant.frameStyle}</dd></div>
 	`;
 
