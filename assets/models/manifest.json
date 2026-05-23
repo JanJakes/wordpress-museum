@@ -26,6 +26,7 @@
 			"pack": "Retro Urban Kit",
 			"sourceUrl": "https://kenney.nl/assets/retro-urban-kit",
 			"downloadUrl": "https://kenney.nl/media/pages/assets/retro-urban-kit/8314d4db22-1738147509/kenney_retro-urban-kit.zip",
+			"textureDirectory": "kenney/retro-urban/Textures",
 			"files": [
 				"kenney/retro-urban/detail-awning-wide.glb",
 				"kenney/retro-urban/detail-bench.glb",
@@ -42,6 +43,7 @@
 			"pack": "Building Kit",
 			"sourceUrl": "https://kenney.nl/assets/building-kit",
 			"downloadUrl": "https://kenney.nl/media/pages/assets/building-kit/0de7aaa492-1743244741/kenney_building-kit.zip",
+			"textureDirectory": "kenney/building/Textures",
 			"files": [
 				"kenney/building/border-high.glb",
 				"kenney/building/column-thin.glb",
