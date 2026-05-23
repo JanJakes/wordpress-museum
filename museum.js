@@ -1708,52 +1708,137 @@ function addRoomFeature(group, room, roomIndex) {
 function addEraVignette(group, room, roomIndex) {
 	const color = room.color;
 	const secondary = activeVariant.eraColors[(roomIndex + 2) % activeVariant.eraColors.length];
-	const frontZ = -roomDepth / 2 + 1.18;
-	const leftX = -roomWidth / 2 + 1.28;
-	const rightX = roomWidth / 2 - 1.28;
-	const centerZ = -roomDepth / 2 + 1.55;
-	const lamp = createMuseumLamp(color);
-	addLocal(group, lamp, 0, frontZ - 0.02, 0);
+	const stations = getEraVignetteStations();
+	getEraVignetteItems(room, color, secondary).forEach((item, index) => {
+		const station = stations[index];
+		addLocal(
+			group,
+			createVignetteStation(color, item.label, item.object, item),
+			station.x,
+			station.z,
+			station.rotation
+		);
+	});
+	addRoomVignetteLights(group, color);
+}
 
-	if (room.era === 'Blogging Roots') {
-		addLocal(group, createRecordStack(color), leftX + 0.3, frontZ + 0.24, Math.PI / 5);
-		addLocal(group, createCommentSculpture(secondary), rightX - 0.26, frontZ + 0.18, -Math.PI / 4);
-		addLocal(group, createSignpost(color, 'THE LOOP'), 0.05, centerZ + 0.3, 0);
-		return;
-	}
-	if (room.era === 'Dashboard Foundations') {
-		addLocal(group, createLoadedModel('computerScreen', { targetHeight: 0.58, fallback: 'screen' }), leftX + 0.42, frontZ + 0.2, Math.PI / 5);
-		addLocal(group, createPluginCrates(color), rightX - 0.42, frontZ + 0.2, -Math.PI / 5);
-		addLocal(group, createSignpost(secondary, '/wp-admin'), 0.05, centerZ + 0.26, 0);
-		return;
-	}
-	if (room.era === 'CMS Toolkit') {
-		addLocal(group, createLoadedModel('bookcaseOpenLow', { targetHeight: 0.78, fallback: 'bookcase' }), leftX + 0.42, frontZ + 0.2, Math.PI / 5);
-		addLocal(group, createKnobConsole(color), rightX - 0.38, frontZ + 0.2, -Math.PI / 5);
-		addLocal(group, createDisplayCase(secondary, 'CPT'), 0, centerZ + 0.36, 0);
-		return;
-	}
-	if (room.era === 'Modern Admin') {
-		addLocal(group, createTerminalDesk(color), leftX + 0.48, frontZ + 0.18, Math.PI / 5);
-		addLocal(group, createDisplayCase(secondary, 'MP6'), rightX - 0.42, frontZ + 0.22, -Math.PI / 5);
-		addLocal(group, createLoadedModel('detailBench', { targetHeight: 0.48, fallback: 'bench' }), 0, centerZ + 0.36, 0);
-		return;
-	}
-	if (room.era === 'API and Customizer') {
-		addLocal(group, createApiPortal(color, secondary, 0.62), leftX + 0.5, frontZ + 0.2, Math.PI / 6);
-		addLocal(group, createCommentAquarium(secondary, color, 0.54), rightX - 0.42, frontZ + 0.2, -Math.PI / 6);
-		addLocal(group, createSignpost(secondary, 'wp/v2'), 0.05, centerZ + 0.34, 0);
-		return;
-	}
-	if (room.era === 'Block Editor') {
-		addLocal(group, createBlockFountain(color, 0.62), leftX + 0.4, frontZ + 0.2, Math.PI / 5);
-		addLocal(group, createDisplayCase(secondary, 'GROUP'), rightX - 0.42, frontZ + 0.2, -Math.PI / 5);
-		addLocal(group, createDisplayCase(secondary, '5.0'), 0.05, centerZ + 0.34, 0);
-		return;
-	}
-	addLocal(group, createBlockFountain(color, 0.58), leftX + 0.4, frontZ + 0.2, Math.PI / 5);
-	addLocal(group, createLoadedModel('loungeDesignChair', { targetHeight: 0.58, fallback: 'bench' }), rightX - 0.45, frontZ + 0.2, -Math.PI / 5);
-	addLocal(group, createDisplayCase(secondary, 'FSE'), 0.05, centerZ + 0.34, 0);
+function getEraVignetteStations() {
+	return [
+		{ x: -3.65, z: -roomDepth / 2 + 2.15, rotation: 0.18 },
+		{ x: 0, z: -roomDepth / 2 + 2.55, rotation: 0 },
+		{ x: 3.65, z: -roomDepth / 2 + 2.15, rotation: -0.18 },
+	];
+}
+
+function getEraVignetteItems(room, color, secondary) {
+	return {
+		'Blogging Roots': [
+			{ label: 'HELLO DOLLY', object: createRecordStack(color), width: 1.6 },
+			{ label: 'THE LOOP', object: createLoopSculpture(color, secondary), width: 1.5 },
+			{ label: 'COMMENTS', object: createCommentSculpture(secondary), width: 1.45 },
+		],
+		'Dashboard Foundations': [
+			{ label: 'DASHBOARD', object: createLoadedModel('computerScreen', { targetHeight: 0.58, fallback: 'screen' }), width: 1.55 },
+			{ label: '/WP-ADMIN', object: createKnobConsole(color), width: 1.55 },
+			{ label: 'PLUGINS', object: createPluginCrates(color), width: 1.55 },
+		],
+		'CMS Toolkit': [
+			{ label: 'MENUS', object: createLoadedModel('bookcaseOpenLow', { targetHeight: 0.72, fallback: 'bookcase' }), width: 1.6 },
+			{ label: 'POST TYPES', object: createDisplayCase(secondary, 'CPT'), width: 1.5 },
+			{ label: 'CUSTOMIZER', object: createKnobConsole(color), width: 1.55 },
+		],
+		'Modern Admin': [
+			{ label: 'MP6 DESK', object: createTerminalDesk(color), width: 1.7 },
+			{ label: 'AUTOSAVE', object: createDisplayCase(secondary, 'SAVE'), width: 1.5 },
+			{ label: 'RESPONSIVE', object: createLoadedModel('detailBench', { targetHeight: 0.5, fallback: 'bench' }), width: 1.55 },
+		],
+		'API and Customizer': [
+			{ label: 'REST API', object: createApiPortal(color, secondary, 0.62), width: 1.55 },
+			{ label: 'JSON', object: createOrbitalSculpture(secondary), width: 1.45 },
+			{ label: 'MEDIA', object: createCommentAquarium(secondary, color, 0.54), width: 1.65 },
+		],
+		'Block Editor': [
+			{ label: 'BLOCKS', object: createBlockFountain(color, 0.62), width: 1.55 },
+			{ label: 'GUTENBERG', object: createDisplayCase(secondary, '5.0'), width: 1.55 },
+			{ label: 'GROUPS', object: createDisplayCase(secondary, 'GROUP'), width: 1.55 },
+		],
+		'Blocks Everywhere': [
+			{ label: 'PATTERNS', object: createBlockFountain(color, 0.58), width: 1.55 },
+			{ label: 'SITE EDITOR', object: createDisplayCase(secondary, 'FSE'), width: 1.55 },
+			{ label: 'STYLE BOOK', object: createStyleBookLounge(color), width: 1.7 },
+		],
+	}[room.era];
+}
+
+function createVignetteStation(color, labelText, object, options = {}) {
+	const group = new THREE.Group();
+	const width = options.width || 1.5;
+	const depth = options.depth || 1.02;
+	const baseHeight = 0.1;
+	const base = new THREE.Mesh(
+		new THREE.BoxGeometry(width, baseHeight, depth),
+		new THREE.MeshStandardMaterial({ color: 0xf8efd9, roughness: 0.66 })
+	);
+	base.position.y = baseHeight / 2;
+	group.add(base);
+
+	const accent = new THREE.Mesh(
+		new THREE.BoxGeometry(width + 0.04, 0.035, 0.09),
+		new THREE.MeshBasicMaterial({ color })
+	);
+	accent.position.set(0, baseHeight + 0.018, -depth / 2 + 0.045);
+	group.add(accent);
+
+	const objectAnchor = new THREE.Group();
+	object.position.y += baseHeight;
+	objectAnchor.add(object);
+	group.add(objectAnchor);
+
+	const label = createReadableLabel(createSmallSignTexture(labelText, color), Math.min(width * 0.78, 1.18), 0.24);
+	label.position.set(0, 0.34, -depth / 2 - 0.045);
+	group.add(label);
+	return group;
+}
+
+function addRoomVignetteLights(group, color) {
+	const leftLamp = createMuseumLamp(color);
+	leftLamp.scale.setScalar(0.72);
+	addLocal(group, leftLamp, -roomWidth / 2 + 0.75, -roomDepth / 2 + 1.2, 0);
+	const rightLamp = createMuseumLamp(color);
+	rightLamp.scale.setScalar(0.72);
+	addLocal(group, rightLamp, roomWidth / 2 - 0.75, -roomDepth / 2 + 1.2, 0);
+}
+
+function createLoopSculpture(color, secondary) {
+	const group = new THREE.Group();
+	group.add(createPedestal(1.05, 0.22, color));
+	const ring = new THREE.Mesh(
+		new THREE.TorusGeometry(0.34, 0.055, 12, 48),
+		new THREE.MeshStandardMaterial({ color: secondary, metalness: 0.28, roughness: 0.32 })
+	);
+	ring.position.y = 0.72;
+	ring.rotation.x = Math.PI / 2;
+	group.add(ring);
+	const post = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.035, 0.05, 0.58, 12),
+		new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.48 })
+	);
+	post.position.y = 0.48;
+	group.add(post);
+	const dot = new THREE.Mesh(
+		new THREE.SphereGeometry(0.08, 14, 10),
+		new THREE.MeshBasicMaterial({ color })
+	);
+	dot.position.set(0.34, 0.72, 0);
+	group.add(dot);
+	return group;
+}
+
+function createStyleBookLounge(color) {
+	const group = new THREE.Group();
+	addLocal(group, createLoadedModel('loungeDesignChair', { targetHeight: 0.52, fallback: 'bench' }), -0.18, 0, 0.15);
+	addLocal(group, createPlant(color, 0.52), 0.45, 0.02, -0.2);
+	return group;
 }
 
 function createRoomFloorLabel(room, roomIndex) {
@@ -1787,7 +1872,7 @@ function createRoomFloorLabel(room, roomIndex) {
 			side: THREE.DoubleSide,
 		})
 	);
-	label.position.set(0, 0.075, -roomDepth / 2 + 2.45);
+	label.position.set(0, 0.075, -roomDepth / 2 + 1.12);
 	label.rotation.x = -Math.PI / 2;
 	return label;
 }
