@@ -11,13 +11,14 @@
 
 ## Design Exploration Assets
 
-The 100 additional design explorations do not introduce new downloaded image or
-model files. Their murals, texture treatments, frames, benches, plants, mascot-
-style sculptures, blocks, servers, trains, portals, lamps, and other props are
-procedural canvas textures and Three.js geometry authored in this repository.
+The additional design explorations use procedural canvas textures and Three.js
+geometry authored in this repository, plus a small subset of CC0 Kenney GLB
+models vendored in `assets/models/kenney`. See `assets/models/manifest.json`.
 
-That keeps the explorations license-clean and deployable as a static GitHub
-Pages site without extra attribution requirements beyond the existing manifests.
+The model subset includes lightweight benches, plants, computers, lights,
+structural pieces, and other museum props from Kenney's Furniture Kit, Retro
+Urban Kit, and Building Kit. Each original pack declares Creative Commons Zero
+(CC0), and the copied license text is stored next to each subset.
 
 ## Research Notes
 
@@ -27,3 +28,5 @@ Pages site without extra attribution requirements beyond the existing manifests.
   official logo files.
 - Mascot-like figures are procedural decorative sculptures, not bundled external
   Wapuu artwork.
+- Kenney publishes the selected 3D packs under Creative Commons Zero (CC0):
+  Furniture Kit, Retro Urban Kit, and Building Kit.
