@@ -1603,23 +1603,16 @@ function addAtriumFeature(group, feature, color, secondary) {
 }
 
 function addUltimateAtriumFeature(group, color, secondary) {
-	addPlaced(group, createMascotMonument(color, secondary), 0, 4.28, 0);
-	addPlaced(group, createBlockFountain(activeVariant.eraColors[5], 0.58), -3.25, 2.7, 0.28);
-	addPlaced(group, createApiPortal(activeVariant.eraColors[4], activeVariant.eraColors[6], 0.54), 3.25, 2.72, -0.28);
-	addPlaced(group, createRecordBooth(activeVariant.eraColors[0], activeVariant.eraColors[1]), -3.35, -3.35, 0.35);
-	addPlaced(group, createLoadedModel('radio', { targetHeight: 0.44, fallback: 'radio' }), -2.28, -3.15, -0.45);
-	addPlaced(group, createTerminalDesk(activeVariant.eraColors[3]), 3.18, -3.38, -0.35);
-	addPlaced(group, createLoadedModel('pottedPlant', { targetHeight: 1.05, fallback: 'plant' }), -5.1, -1.75, 0.35);
-	addPlaced(group, createLoadedModel('pottedPlant', { targetHeight: 1.05, fallback: 'plant' }), 5.1, -1.75, -0.35);
-	addPlaced(group, createSignpost(secondary, 'WP 1.0'), -1.85, 3.05, -0.32);
-	addPlaced(group, createSignpost(activeVariant.eraColors[6], 'WP 6.x'), 1.85, 3.05, 0.32);
+	addPlaced(group, createLoadedModel('pottedPlant', { targetHeight: 1.05, fallback: 'plant' }), -8.7, 11.7, 0.3);
+	addPlaced(group, createLoadedModel('pottedPlant', { targetHeight: 1.05, fallback: 'plant' }), 8.7, 11.7, -0.3);
+	addPlaced(group, createLoadedModel('pottedPlant', { targetHeight: 0.95, fallback: 'plant' }), -10.8, -3.8, 0.8);
+	addPlaced(group, createLoadedModel('pottedPlant', { targetHeight: 0.95, fallback: 'plant' }), 10.8, -3.8, -0.8);
 }
 
 function addAtriumBenches(group) {
-	const first = createLoadedModel('benchCushion', { targetHeight: 0.55, fallback: 'bench' });
-	addPlaced(group, first, -4.8, 1.2, Math.PI / 2);
-	const second = createLoadedModel('benchCushion', { targetHeight: 0.55, fallback: 'bench' });
-	addPlaced(group, second, 4.8, 1.2, -Math.PI / 2);
+	const color = activeVariant.eraColors[2];
+	addPlaced(group, createBench(color), -5.05, 13.95, 0);
+	addPlaced(group, createBench(color), 5.05, 13.95, 0);
 }
 
 function createRoomDecor(room) {
@@ -1723,11 +1716,12 @@ function addEraVignette(group, room, roomIndex) {
 }
 
 function getEraVignetteStations(roomIndex) {
+	const sideStationZ = -roomDepth / 2 + 2.25;
 	const rearX = roomIndex % 2 === 0 ? -4.78 : 4.78;
 	const rearRotation = roomIndex % 2 === 0 ? Math.PI / 2.8 : -Math.PI / 2.8;
 	return [
-		{ x: -4.92, z: -roomDepth / 2 + 1.22, rotation: 0.36 },
-		{ x: 4.92, z: -roomDepth / 2 + 1.22, rotation: -0.36 },
+		{ x: -5.05, z: sideStationZ, rotation: 0.42 },
+		{ x: 5.05, z: sideStationZ, rotation: -0.42 },
 		{ x: rearX, z: roomDepth / 2 - 1.42, rotation: rearRotation },
 	];
 }
@@ -1752,7 +1746,7 @@ function getEraVignetteItems(room, color, secondary) {
 		'Modern Admin': [
 			{ label: 'MP6 DESK', object: createTerminalDesk(color), width: 1.7 },
 			{ label: 'AUTOSAVE', object: createDisplayCase(secondary, 'SAVE'), width: 1.5 },
-			{ label: 'RESPONSIVE', object: createLoadedModel('detailBench', { targetHeight: 0.5, fallback: 'bench' }), width: 1.55 },
+			{ label: 'RESPONSIVE', object: createResponsivePreview(color, secondary), width: 1.6 },
 		],
 		'API and Customizer': [
 			{ label: 'REST API', object: createApiPortal(color, secondary, 0.62), width: 1.55 },
@@ -1767,7 +1761,7 @@ function getEraVignetteItems(room, color, secondary) {
 		'Blocks Everywhere': [
 			{ label: 'PATTERNS', object: createBlockFountain(color, 0.58), width: 1.55 },
 			{ label: 'SITE EDITOR', object: createDisplayCase(secondary, 'FSE'), width: 1.55 },
-			{ label: 'STYLE BOOK', object: createStyleBookLounge(color), width: 1.7 },
+			{ label: 'STYLE BOOK', object: createStyleBookDisplay(color, secondary), width: 1.7 },
 		],
 	}[room.era];
 }
@@ -1796,8 +1790,8 @@ function createVignetteStation(color, labelText, object, options = {}) {
 	objectAnchor.add(object);
 	group.add(objectAnchor);
 
-	const label = createReadableLabel(createSmallSignTexture(labelText, color), Math.min(width * 0.78, 1.18), 0.24);
-	label.position.set(0, 0.34, -depth / 2 - 0.045);
+	const label = createReadableLabel(createSmallSignTexture(labelText, color), Math.min(width * 1.05, 1.72), 0.42);
+	label.position.set(0, 0.58, -depth / 2 - 0.055);
 	group.add(label);
 	return group;
 }
@@ -1836,10 +1830,59 @@ function createLoopSculpture(color, secondary) {
 	return group;
 }
 
-function createStyleBookLounge(color) {
+function createResponsivePreview(color, secondary) {
 	const group = new THREE.Group();
-	addLocal(group, createLoadedModel('loungeDesignChair', { targetHeight: 0.52, fallback: 'bench' }), -0.18, 0, 0.15);
-	addLocal(group, createPlant(color, 0.52), 0.45, 0.02, -0.2);
+	group.add(createPedestal(1.05, 0.2, color));
+	const material = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.42, metalness: 0.14 });
+	const screenMaterial = new THREE.MeshBasicMaterial({ color: 0xdceeff });
+	[
+		{ x: -0.33, y: 0.67, width: 0.26, height: 0.46 },
+		{ x: 0.02, y: 0.72, width: 0.44, height: 0.32 },
+		{ x: 0.43, y: 0.62, width: 0.18, height: 0.28 },
+	].forEach(({ x, y, width, height }) => {
+		const screen = new THREE.Mesh(new THREE.BoxGeometry(width, height, 0.06), material);
+		screen.position.set(x, y, 0);
+		group.add(screen);
+		const face = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.78, height * 0.68), screenMaterial);
+		face.position.set(x, y, -0.034);
+		group.add(face);
+	});
+	const dot = new THREE.Mesh(
+		new THREE.SphereGeometry(0.045, 12, 8),
+		new THREE.MeshBasicMaterial({ color: secondary })
+	);
+	dot.position.set(0.43, 0.82, -0.05);
+	group.add(dot);
+	return group;
+}
+
+function createStyleBookDisplay(color, secondary) {
+	const group = new THREE.Group();
+	group.add(createPedestal(1.1, 0.2, color));
+	for (let index = 0; index < 6; index++) {
+		const swatch = new THREE.Mesh(
+			new THREE.BoxGeometry(0.24, 0.045, 0.34),
+			new THREE.MeshStandardMaterial({
+				color: activeVariant.eraColors[index % activeVariant.eraColors.length],
+				roughness: 0.46,
+			})
+		);
+		swatch.position.set(-0.42 + (index % 3) * 0.42, 0.42 + Math.floor(index / 3) * 0.13, -0.1);
+		swatch.rotation.y = -0.22 + index * 0.08;
+		group.add(swatch);
+	}
+	const book = new THREE.Mesh(
+		new THREE.BoxGeometry(0.76, 0.08, 0.48),
+		new THREE.MeshStandardMaterial({ color: 0xf8efd9, roughness: 0.56 })
+	);
+	book.position.set(0, 0.34, 0.08);
+	group.add(book);
+	const stripe = new THREE.Mesh(
+		new THREE.BoxGeometry(0.08, 0.085, 0.5),
+		new THREE.MeshBasicMaterial({ color: secondary })
+	);
+	stripe.position.set(0, 0.35, 0.08);
+	group.add(stripe);
 	return group;
 }
 
@@ -2396,19 +2439,19 @@ function createReadableLabel(texture, width, height) {
 
 function createSmallSignTexture(text, color) {
 	const canvas = document.createElement('canvas');
-	canvas.width = 256;
-	canvas.height = 80;
+	canvas.width = 512;
+	canvas.height = 160;
 	const ctx = canvas.getContext('2d');
 	ctx.fillStyle = '#fff5df';
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 	ctx.fillStyle = color;
-	ctx.fillRect(0, 0, canvas.width, 8);
-	ctx.fillRect(0, canvas.height - 8, canvas.width, 8);
+	ctx.fillRect(0, 0, canvas.width, 16);
+	ctx.fillRect(0, canvas.height - 16, canvas.width, 16);
 	ctx.fillStyle = '#111827';
-	ctx.font = '900 26px Arial Black, Impact, sans-serif';
+	ctx.font = '900 52px Arial Black, Impact, sans-serif';
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-	fillFittedCanvasText(ctx, text, 128, 42, 218, 26, '900', 'Arial Black, Impact, sans-serif');
+	fillFittedCanvasText(ctx, text, 256, 84, 436, 52, '900', 'Arial Black, Impact, sans-serif');
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	return texture;
