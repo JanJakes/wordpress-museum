@@ -1708,7 +1708,7 @@ function addRoomFeature(group, room, roomIndex) {
 function addEraVignette(group, room, roomIndex) {
 	const color = room.color;
 	const secondary = activeVariant.eraColors[(roomIndex + 2) % activeVariant.eraColors.length];
-	const stations = getEraVignetteStations();
+	const stations = getEraVignetteStations(roomIndex);
 	getEraVignetteItems(room, color, secondary).forEach((item, index) => {
 		const station = stations[index];
 		addLocal(
@@ -1722,11 +1722,13 @@ function addEraVignette(group, room, roomIndex) {
 	addRoomVignetteLights(group, color);
 }
 
-function getEraVignetteStations() {
+function getEraVignetteStations(roomIndex) {
+	const rearX = roomIndex % 2 === 0 ? -4.78 : 4.78;
+	const rearRotation = roomIndex % 2 === 0 ? Math.PI / 2.8 : -Math.PI / 2.8;
 	return [
-		{ x: -3.65, z: -roomDepth / 2 + 2.15, rotation: 0.18 },
-		{ x: 0, z: -roomDepth / 2 + 2.55, rotation: 0 },
-		{ x: 3.65, z: -roomDepth / 2 + 2.15, rotation: -0.18 },
+		{ x: -4.92, z: -roomDepth / 2 + 1.22, rotation: 0.36 },
+		{ x: 4.92, z: -roomDepth / 2 + 1.22, rotation: -0.36 },
+		{ x: rearX, z: roomDepth / 2 - 1.42, rotation: rearRotation },
 	];
 }
 
