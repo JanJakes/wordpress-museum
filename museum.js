@@ -1603,10 +1603,32 @@ function addAtriumFeature(group, feature, color, secondary) {
 }
 
 function addUltimateAtriumFeature(group, color, secondary) {
-	addPlaced(group, createLoadedModel('pottedPlant', { targetHeight: 1.05, fallback: 'plant' }), -8.7, 11.7, 0.3);
-	addPlaced(group, createLoadedModel('pottedPlant', { targetHeight: 1.05, fallback: 'plant' }), 8.7, 11.7, -0.3);
-	addPlaced(group, createLoadedModel('pottedPlant', { targetHeight: 0.95, fallback: 'plant' }), -10.8, -3.8, 0.8);
-	addPlaced(group, createLoadedModel('pottedPlant', { targetHeight: 0.95, fallback: 'plant' }), 10.8, -3.8, -0.8);
+	addPlaced(group, createAtriumPlanter(color, secondary), -6.7, 14.62, 0);
+	addPlaced(group, createAtriumPlanter(secondary, color), 6.7, 14.62, 0);
+}
+
+function createAtriumPlanter(color, secondary) {
+	const group = new THREE.Group();
+	const planter = new THREE.Mesh(
+		new THREE.BoxGeometry(1.55, 0.34, 0.58),
+		new THREE.MeshStandardMaterial({ color: 0xf8efd9, roughness: 0.72 })
+	);
+	planter.position.y = 0.17;
+	group.add(planter);
+
+	const accent = new THREE.Mesh(
+		new THREE.BoxGeometry(1.61, 0.06, 0.62),
+		new THREE.MeshBasicMaterial({ color })
+	);
+	accent.position.y = 0.37;
+	group.add(accent);
+
+	for (const [index, x] of [-0.46, 0, 0.46].entries()) {
+		const plant = createPlant(index === 1 ? secondary : color, 0.56);
+		plant.position.set(x, 0.24, 0);
+		group.add(plant);
+	}
+	return group;
 }
 
 function addAtriumBenches(group) {
@@ -1701,7 +1723,7 @@ function addRoomFeature(group, room, roomIndex) {
 function addEraVignette(group, room, roomIndex) {
 	const color = room.color;
 	const secondary = activeVariant.eraColors[(roomIndex + 2) % activeVariant.eraColors.length];
-	const stations = getEraVignetteStations(roomIndex);
+	const stations = getEraVignetteStations();
 	getEraVignetteItems(room, color, secondary).forEach((item, index) => {
 		const station = stations[index];
 		addLocal(
@@ -1715,37 +1737,35 @@ function addEraVignette(group, room, roomIndex) {
 	addRoomVignetteLights(group, color);
 }
 
-function getEraVignetteStations(roomIndex) {
-	const sideStationZ = -roomDepth / 2 + 2.25;
-	const rearX = roomIndex % 2 === 0 ? -4.78 : 4.78;
-	const rearRotation = roomIndex % 2 === 0 ? Math.PI / 2.8 : -Math.PI / 2.8;
+function getEraVignetteStations() {
+	const sideStationZ = -roomDepth / 2 + 2.9;
 	return [
-		{ x: -5.05, z: sideStationZ, rotation: 0.42 },
-		{ x: 5.05, z: sideStationZ, rotation: -0.42 },
-		{ x: rearX, z: roomDepth / 2 - 1.42, rotation: rearRotation },
+		{ x: -5.35, z: sideStationZ, rotation: -Math.PI / 2 },
+		{ x: 5.35, z: sideStationZ, rotation: Math.PI / 2 },
+		{ x: 0, z: roomDepth / 2 - 1.32, rotation: 0 },
 	];
 }
 
 function getEraVignetteItems(room, color, secondary) {
 	return {
 		'Blogging Roots': [
-			{ label: 'HELLO DOLLY', object: createRecordStack(color), width: 1.6 },
+			{ label: 'HELLO DOLLY', object: createRecordStack(color, { showLabel: false }), width: 1.6 },
 			{ label: 'THE LOOP', object: createLoopSculpture(color, secondary), width: 1.5 },
 			{ label: 'COMMENTS', object: createCommentSculpture(secondary), width: 1.45 },
 		],
 		'Dashboard Foundations': [
-			{ label: 'DASHBOARD', object: createLoadedModel('computerScreen', { targetHeight: 0.58, fallback: 'screen' }), width: 1.55 },
+			{ label: 'DASHBOARD', object: createDashboardDisplay(color, secondary), width: 1.55 },
 			{ label: '/WP-ADMIN', object: createKnobConsole(color), width: 1.55 },
 			{ label: 'PLUGINS', object: createPluginCrates(color), width: 1.55 },
 		],
 		'CMS Toolkit': [
-			{ label: 'MENUS', object: createLoadedModel('bookcaseOpenLow', { targetHeight: 0.72, fallback: 'bookcase' }), width: 1.6 },
-			{ label: 'POST TYPES', object: createDisplayCase(secondary, 'CPT'), width: 1.5 },
+			{ label: 'MENUS', object: createMenuShelf(color, secondary), width: 1.6 },
+			{ label: 'POST TYPES', object: createDisplayCase(secondary, 'CPT', { showLabel: false }), width: 1.5 },
 			{ label: 'CUSTOMIZER', object: createKnobConsole(color), width: 1.55 },
 		],
 		'Modern Admin': [
 			{ label: 'MP6 DESK', object: createTerminalDesk(color), width: 1.7 },
-			{ label: 'AUTOSAVE', object: createDisplayCase(secondary, 'SAVE'), width: 1.5 },
+			{ label: 'AUTOSAVE', object: createDisplayCase(secondary, 'SAVE', { showLabel: false }), width: 1.5 },
 			{ label: 'RESPONSIVE', object: createResponsivePreview(color, secondary), width: 1.6 },
 		],
 		'API and Customizer': [
@@ -1755,12 +1775,12 @@ function getEraVignetteItems(room, color, secondary) {
 		],
 		'Block Editor': [
 			{ label: 'BLOCKS', object: createBlockFountain(color, 0.62), width: 1.55 },
-			{ label: 'GUTENBERG', object: createDisplayCase(secondary, '5.0'), width: 1.55 },
-			{ label: 'GROUPS', object: createDisplayCase(secondary, 'GROUP'), width: 1.55 },
+			{ label: 'GUTENBERG', object: createDisplayCase(secondary, '5.0', { showLabel: false }), width: 1.55 },
+			{ label: 'GROUPS', object: createDisplayCase(secondary, 'GROUP', { showLabel: false }), width: 1.55 },
 		],
 		'Blocks Everywhere': [
 			{ label: 'PATTERNS', object: createBlockFountain(color, 0.58), width: 1.55 },
-			{ label: 'SITE EDITOR', object: createDisplayCase(secondary, 'FSE'), width: 1.55 },
+			{ label: 'SITE EDITOR', object: createDisplayCase(secondary, 'FSE', { showLabel: false }), width: 1.55 },
 			{ label: 'STYLE BOOK', object: createStyleBookDisplay(color, secondary), width: 1.7 },
 		],
 	}[room.era];
@@ -1790,9 +1810,47 @@ function createVignetteStation(color, labelText, object, options = {}) {
 	objectAnchor.add(object);
 	group.add(objectAnchor);
 
-	const label = createReadableLabel(createSmallSignTexture(labelText, color), Math.min(width * 1.05, 1.72), 0.42);
-	label.position.set(0, 0.58, -depth / 2 - 0.055);
+	const label = createReadableLabel(createSmallSignTexture(labelText, color), Math.min(width * 0.84, 1.22), 0.24);
+	label.position.set(0, 0.22, -depth / 2 - 0.16);
 	group.add(label);
+	return group;
+}
+
+function createDashboardDisplay(color, secondary) {
+	const group = new THREE.Group();
+	group.add(createPedestal(1.08, 0.18, color));
+	const screen = createAdminScreenPanel(color, secondary, 0.88, 0.5);
+	screen.position.y = 0.74;
+	group.add(screen);
+	const stand = new THREE.Mesh(
+		new THREE.BoxGeometry(0.16, 0.3, 0.1),
+		new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.5 })
+	);
+	stand.position.y = 0.46;
+	group.add(stand);
+	return group;
+}
+
+function createMenuShelf(color, secondary) {
+	const group = new THREE.Group();
+	group.add(createPedestal(1.06, 0.18, color));
+	const frameMaterial = new THREE.MeshStandardMaterial({ color: 0xf8efd9, roughness: 0.6 });
+	const accentMaterial = new THREE.MeshBasicMaterial({ color: secondary });
+	for (const x of [-0.42, 0.42]) {
+		const side = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.72, 0.08), frameMaterial);
+		side.position.set(x, 0.64, 0);
+		group.add(side);
+	}
+	for (let index = 0; index < 4; index++) {
+		const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.055, 0.18), frameMaterial);
+		shelf.position.set(0, 0.34 + index * 0.16, 0);
+		group.add(shelf);
+	}
+	['POSTS', 'PAGES', 'TAGS'].forEach((_, index) => {
+		const tab = new THREE.Mesh(new THREE.BoxGeometry(0.52 - index * 0.06, 0.055, 0.08), accentMaterial);
+		tab.position.set(-0.12 + index * 0.08, 0.42 + index * 0.16, -0.12);
+		group.add(tab);
+	});
 	return group;
 }
 
@@ -2279,9 +2337,67 @@ function createMascotMonument(color, secondary) {
 function createTerminalDesk(color) {
 	const group = new THREE.Group();
 	group.add(createKnobConsole(color));
-	addLocal(group, createLoadedModel('computerScreen', { targetHeight: 0.52, fallback: 'screen' }), 0.1, -0.08, 0);
-	addLocal(group, createLoadedModel('laptop', { targetHeight: 0.38, fallback: 'screen' }), -0.52, 0.14, 0.12);
+	const screen = createAdminScreenPanel(color, 0xdceeff, 0.62, 0.36);
+	screen.position.set(0.16, 0.72, -0.13);
+	group.add(screen);
+
+	const laptopBase = new THREE.Mesh(
+		new THREE.BoxGeometry(0.42, 0.045, 0.28),
+		new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.46 })
+	);
+	laptopBase.position.set(-0.45, 0.48, -0.02);
+	group.add(laptopBase);
+	const laptopLid = createAdminScreenPanel(color, 0xeaf6ff, 0.36, 0.24);
+	laptopLid.position.set(-0.45, 0.66, -0.16);
+	laptopLid.rotation.x = -0.18;
+	group.add(laptopLid);
 	return group;
+}
+
+function createAdminScreenPanel(color, secondary, width, height) {
+	const group = new THREE.Group();
+	const casing = new THREE.Mesh(
+		new THREE.BoxGeometry(width, height, 0.055),
+		new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.42, metalness: 0.08 })
+	);
+	group.add(casing);
+
+	const face = new THREE.Mesh(
+		new THREE.PlaneGeometry(width * 0.82, height * 0.72),
+		new THREE.MeshBasicMaterial({
+			map: createAdminScreenTexture(color, secondary),
+			side: THREE.DoubleSide,
+		})
+	);
+	face.position.z = -0.031;
+	group.add(face);
+	return group;
+}
+
+function createAdminScreenTexture(color, secondary) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 320;
+	canvas.height = 200;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#f5f7fb';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#172033';
+	ctx.fillRect(0, 0, 58, canvas.height);
+	ctx.fillStyle = color;
+	ctx.fillRect(0, 0, canvas.width, 16);
+	ctx.fillStyle = '#d8e0ea';
+	for (let index = 0; index < 6; index++) {
+		ctx.fillRect(72, 34 + index * 24, 92 + index * 12, 9);
+	}
+	ctx.fillStyle = `#${new THREE.Color(secondary).getHexString()}`;
+	ctx.fillRect(194, 42, 74, 44);
+	ctx.fillStyle = '#ffffff';
+	ctx.fillRect(204, 53, 54, 8);
+	ctx.fillRect(204, 69, 38, 6);
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
 }
 
 function createLogoClinic(color) {
@@ -2309,16 +2425,24 @@ function createPluginCrates(color) {
 	return group;
 }
 
-function createRecordStack(color) {
+function createRecordStack(color, options = {}) {
 	const group = new THREE.Group();
 	const material = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.42 });
+	const labelMaterial = new THREE.MeshBasicMaterial({ color });
 	for (let index = 0; index < 6; index++) {
 		const record = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.035, 28), material);
 		record.position.set(-0.45 + index * 0.18, 0.32 + index * 0.035, 0);
-		record.rotation.z = Math.PI / 2;
+		record.rotation.x = Math.PI / 2;
 		group.add(record);
+		const label = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.04, 18), labelMaterial);
+		label.position.copy(record.position);
+		label.position.z -= 0.004;
+		label.rotation.x = record.rotation.x;
+		group.add(label);
 	}
-	group.add(createPropLabel('JAZZ', color, 0.72));
+	if (options.showLabel !== false) {
+		group.add(createPropLabel('JAZZ', color, 0.72));
+	}
 	return group;
 }
 
@@ -2370,7 +2494,7 @@ function createPaperPile(color) {
 	return group;
 }
 
-function createDisplayCase(color, label) {
+function createDisplayCase(color, label, options = {}) {
 	const group = new THREE.Group();
 	group.add(createPedestal(1.15, 0.32, color));
 	const glass = new THREE.Mesh(
@@ -2390,7 +2514,9 @@ function createDisplayCase(color, label) {
 	);
 	artifact.position.y = 0.72;
 	group.add(artifact);
-	group.add(createPropLabel(label.toUpperCase(), color, 1.18));
+	if (options.showLabel !== false) {
+		group.add(createPropLabel(label.toUpperCase(), color, 1.18));
+	}
 	return group;
 }
 
