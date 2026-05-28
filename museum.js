@@ -120,13 +120,15 @@ const roomDoorHalfWidth = 2.9;
 const exhibitMountOffset = wallThickness / 2 + 0.035;
 const exhibitFrameDepth = 0.13;
 const exhibitPlaqueRecess = 0.065;
-const exhibitOuterWidth = 3.38;
-const exhibitOuterHeight = 2.48;
-const exhibitPlaqueWidth = 3.02;
-const exhibitPlaqueHeight = 2.16;
-const exhibitWallMargin = 0.75;
-const exhibitPreferredSpacing = exhibitOuterWidth + 0.65;
-const sideExhibitMinZ = -roomDepth / 2 + exhibitOuterWidth / 2 + 2.55;
+const exhibitOuterWidth = 2.72;
+const exhibitOuterHeight = 2.2;
+const exhibitPlaqueWidth = 2.42;
+const exhibitPlaqueHeight = 1.9;
+const exhibitWallMargin = 0.7;
+const exhibitPreferredSpacing = exhibitOuterWidth + 0.62;
+// Side-wall art uses most of the wall length but leaves the entrance bay
+// clear; three frames now fit with even gaps.
+const sideExhibitMinZ = -roomDepth / 2 + 2.9;
 const sideExhibitMaxZ = roomDepth / 2 - exhibitOuterWidth / 2 - exhibitWallMargin;
 const entryDistanceFromCenter = 5.2;
 const shellPadding = 1.4;
