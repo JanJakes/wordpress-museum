@@ -8,6 +8,8 @@
   credit metadata in `assets/musicians/manifest.json`.
 - WordPress admin screenshots: captured from WordPress Playground. See
   `assets/wp-screenshots/manifest.json`.
+- Wapuu original SVG and PNG: official Wapuu artwork, GPLv2 or later. See
+  `assets/wapuu/manifest.json`.
 
 ## Design Exploration Assets
 
@@ -25,8 +27,7 @@ Urban Kit, and Building Kit. Each original pack declares Creative Commons Zero
 - ambientCG publishes its materials under CC0 1.0 Universal.
 - WordPress logo assets have trademark usage guidance, so the explorations use
   WordPress text and procedural museum marks rather than downloaded or modified
-  official logo files.
-- Mascot-like figures are procedural decorative sculptures, not bundled external
-  Wapuu artwork.
+  official logo files. The default museum now uses the original Wapuu SVG as
+  mascot artwork with source and license metadata.
 - Kenney publishes the selected 3D packs under Creative Commons Zero (CC0):
   Furniture Kit, Retro Urban Kit, and Building Kit.

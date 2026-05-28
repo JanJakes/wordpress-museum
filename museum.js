@@ -18,6 +18,7 @@ const renderer = new THREE.WebGLRenderer({
 	canvas,
 	antialias: true,
 	powerPreference: 'low-power',
+	preserveDrawingBuffer: new URLSearchParams(window.location.search).has('debug'),
 });
 const textureCanvases = new Map();
 const museumTextures = new Map();
@@ -25,6 +26,8 @@ const plaqueImageCache = new Map();
 const textureLoader = new THREE.TextureLoader();
 const gltfLoader = new GLTFLoader();
 const modelCache = new Map();
+let wapuuTexture = null;
+let deferredAssetTaskIndex = 0;
 const modelDefinitions = {
 	benchCushion: './assets/models/kenney/furniture/benchCushion.glb',
 	bookcaseOpenLow: './assets/models/kenney/furniture/bookcaseOpenLow.glb',
@@ -85,13 +88,14 @@ const mobileMotion = {
 	left: false,
 	right: false,
 };
+const animatedObjects = [];
 
 const hubApothem = 15.5;
 const hubCircumradius = hubApothem / Math.cos(Math.PI / 8);
 const hubSideLength = 2 * hubApothem * Math.tan(Math.PI / 8);
 const roomWidth = hubSideLength;
 const roomDepth = 13;
-const wallHeight = 5.2;
+const wallHeight = 6.75;
 const wallThickness = 0.26;
 const roomDoorHalfWidth = 2.9;
 const exhibitMountOffset = wallThickness / 2 + 0.035;
@@ -107,7 +111,7 @@ const sideExhibitMinZ = -roomDepth / 2 + exhibitOuterWidth / 2 + 1.65;
 const sideExhibitMaxZ = roomDepth / 2 - exhibitOuterWidth / 2 - exhibitWallMargin;
 const entryDistanceFromCenter = 5.2;
 const shellPadding = 1.4;
-const shellHeight = 5.45;
+const shellHeight = 8.25;
 const walkSpeed = 7.2;
 const arrowWalkSpeed = 9.2;
 const mobileWalkSpeed = 8.8;
@@ -163,8 +167,10 @@ function initRenderer() {
 	applyVariantUi();
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.35));
 	renderer.outputColorSpace = THREE.SRGBColorSpace;
+	renderer.toneMapping = THREE.ACESFilmicToneMapping;
+	renderer.toneMappingExposure = isCurrentVariant ? 1.08 : 1;
 	scene.background = new THREE.Color(activeVariant.scene.background);
-	scene.fog = new THREE.Fog(activeVariant.scene.fog, 42, 95);
+	scene.fog = new THREE.Fog(activeVariant.scene.fog, 52, 118);
 
 	scene.add(
 		new THREE.HemisphereLight(
@@ -309,6 +315,7 @@ function createBuildingShell() {
 	group.add(createShellWall(bounds.minX, centerZ, depth, false));
 	group.add(createShellWall(bounds.maxX, centerZ, depth, false));
 	group.add(createCeiling(bounds));
+	group.add(createCeilingDetails(bounds));
 	return group;
 }
 
@@ -347,6 +354,15 @@ function configureMuseumTexture(texture, repeatX, repeatY) {
 	texture.repeat.set(repeatX, repeatY);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+}
+
+function getWapuuTexture() {
+	if (!wapuuTexture) {
+		wapuuTexture = textureLoader.load('./assets/wapuu/wapuu-original.png');
+		wapuuTexture.colorSpace = THREE.SRGBColorSpace;
+		wapuuTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+	}
+	return wapuuTexture;
 }
 
 function getTextureCanvas(name) {
@@ -807,6 +823,66 @@ function createCeiling(bounds) {
 	return group;
 }
 
+function createCeilingDetails(bounds) {
+	const group = new THREE.Group();
+	const width = bounds.maxX - bounds.minX;
+	const depth = bounds.maxZ - bounds.minZ;
+	const centerX = (bounds.minX + bounds.maxX) / 2;
+	const centerZ = (bounds.minZ + bounds.maxZ) / 2;
+	const beamMaterial = new THREE.MeshStandardMaterial({
+		color: isCurrentVariant ? 0xd8d2c4 : 0x273247,
+		roughness: 0.38,
+		metalness: isCurrentVariant ? 0.34 : 0.18,
+	});
+	const skylightMaterial = new THREE.MeshBasicMaterial({
+		color: isCurrentVariant ? 0xbfeaff : activeVariant.eraColors[2],
+		transparent: true,
+		opacity: isCurrentVariant ? 0.24 : 0.13,
+		side: THREE.DoubleSide,
+		depthWrite: false,
+	});
+	const railY = shellHeight - 0.12;
+
+	[-width * 0.28, 0, width * 0.28].forEach((xOffset) => {
+		const skylight = new THREE.Mesh(
+			new THREE.PlaneGeometry(Math.min(width * 0.18, 9), depth * 0.72),
+			skylightMaterial
+		);
+		skylight.rotation.x = Math.PI / 2;
+		skylight.position.set(centerX + xOffset, shellHeight - 0.035, centerZ);
+		group.add(skylight);
+	});
+
+	for (let index = -3; index <= 3; index++) {
+		const z = centerZ + (index * depth) / 7;
+		const crossBeam = new THREE.Mesh(
+			new THREE.BoxGeometry(width * 0.92, 0.12, 0.16),
+			beamMaterial
+		);
+		crossBeam.position.set(centerX, railY, z);
+		group.add(crossBeam);
+	}
+	for (let index = -2; index <= 2; index++) {
+		const x = centerX + (index * width) / 6;
+		const longBeam = new THREE.Mesh(
+			new THREE.BoxGeometry(0.16, 0.1, depth * 0.88),
+			beamMaterial
+		);
+		longBeam.position.set(x, railY + 0.02, centerZ);
+		group.add(longBeam);
+	}
+
+	if (isCurrentVariant) {
+		const warmLight = new THREE.PointLight(0xfff1cc, 1.35, 36);
+		warmLight.position.set(centerX, shellHeight - 1.1, centerZ);
+		group.add(warmLight);
+		registerAnimation(warmLight, (light, elapsed) => {
+			light.intensity = 1.18 + Math.sin(elapsed * 0.8) * 0.12;
+		});
+	}
+	return group;
+}
+
 function createAtrium() {
 	const group = new THREE.Group();
 	group.add(createHubFloor());
@@ -853,6 +929,9 @@ function createHubWalls() {
 		if (side.kind === 'mural') {
 			group.add(createHubWallSegment(side, hubSideLength, 0));
 			group.add(createWordPressMural(side));
+			if (isCurrentVariant) {
+				group.add(createWapuuMuralCutout(side));
+			}
 		} else {
 			const segmentLength = (roomWidth - roomDoorHalfWidth * 2) / 2;
 			const segmentOffset = roomDoorHalfWidth + segmentLength / 2;
@@ -897,6 +976,77 @@ function createWordPressMural(side) {
 		side.normal.clone().multiplyScalar(-1)
 	);
 	return mural;
+}
+
+function createWapuuMuralCutout(side) {
+	const wapuu = createWapuuCutout(3.25, {
+		accent: activeVariant.eraColors[0],
+		glow: activeVariant.eraColors[3],
+		shadow: true,
+	});
+	wapuu.position
+		.copy(side.midpoint)
+		.add(side.tangent.clone().multiplyScalar(3.85))
+		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.13));
+	wapuu.position.y = 1.78;
+	wapuu.rotation.y = getRotationForNormal(
+		side.normal.clone().multiplyScalar(-1)
+	);
+	wapuu.scale.setScalar(1);
+	return wapuu;
+}
+
+function createWapuuCutout(height, options = {}) {
+	const group = new THREE.Group();
+	const width = height * (60 / 66);
+	if (options.shadow) {
+		const shadow = new THREE.Mesh(
+			new THREE.PlaneGeometry(width * 1.08, height * 1.08),
+			new THREE.MeshBasicMaterial({
+				color: 0x08101d,
+				transparent: true,
+				opacity: 0.32,
+				side: THREE.DoubleSide,
+				depthWrite: false,
+			})
+		);
+		shadow.position.set(0.08, height / 2 - 0.06, -0.024);
+		group.add(shadow);
+	}
+
+	const wapuu = new THREE.Mesh(
+		new THREE.PlaneGeometry(width, height),
+		new THREE.MeshBasicMaterial({
+			map: getWapuuTexture(),
+			transparent: true,
+			alphaTest: 0.04,
+			side: THREE.DoubleSide,
+			depthWrite: false,
+		})
+	);
+	wapuu.position.y = height / 2;
+	wapuu.position.z = 0.012;
+	group.add(wapuu);
+
+	if (options.glow) {
+		const halo = new THREE.Mesh(
+			new THREE.RingGeometry(width * 0.52, width * 0.58, 48),
+			new THREE.MeshBasicMaterial({
+				color: options.glow,
+				transparent: true,
+				opacity: 0.38,
+				side: THREE.DoubleSide,
+				depthWrite: false,
+			})
+		);
+		halo.position.set(0, height * 0.48, -0.035);
+		registerAnimation(halo, (object, elapsed) => {
+			object.rotation.z = elapsed * 0.22;
+			object.material.opacity = 0.25 + Math.sin(elapsed * 1.8) * 0.08;
+		});
+		group.add(halo);
+	}
+	return group;
 }
 
 function createWordPressMuralTexture() {
@@ -978,7 +1128,6 @@ function drawUltimateMural(ctx, canvas) {
 	ctx.globalAlpha = 1;
 
 	drawMuralTimeline(ctx, canvas, color, blue, green);
-	drawMascotOnMural(ctx, 780, 318, 0.92, color, green);
 
 	ctx.fillStyle = '#fff5df';
 	ctx.textAlign = 'center';
@@ -1283,6 +1432,9 @@ function createRoom(room) {
 	group.add(createRoomWall('back'));
 	group.add(createRoomWall('left'));
 	group.add(createRoomWall('right'));
+	if (isCurrentVariant) {
+		group.add(createRoomMuseumArchitecture(room));
+	}
 	if (shouldDecorateScene) {
 		group.add(createRoomMural(room));
 	}
@@ -1305,7 +1457,7 @@ function createRoomMural(room) {
 			side: THREE.DoubleSide,
 		})
 	);
-	mural.position.set(0, 4.1, roomDepth / 2 - wallThickness / 2 - 0.055);
+	mural.position.set(0, wallHeight - 1.15, roomDepth / 2 - wallThickness / 2 - 0.055);
 	mural.rotation.y = Math.PI;
 	return mural;
 }
@@ -1451,7 +1603,7 @@ function createDoorFrame(room) {
 	const gap = roomDoorHalfWidth;
 	first.position.set(-gap, wallHeight / 2, -roomDepth / 2);
 	second.position.set(gap, wallHeight / 2, -roomDepth / 2);
-	beam.position.set(0, 3.55, -roomDepth / 2);
+	beam.position.set(0, 4.35, -roomDepth / 2);
 	group.add(first, second, beam);
 	const signMaterial = new THREE.MeshBasicMaterial({
 		map: createEraTexture(room.era, room.color, room.yearRange),
@@ -1467,27 +1619,127 @@ function createDoorSign(material, z, rotationY) {
 		new THREE.PlaneGeometry(5.6, 0.7),
 		material
 	);
-	sign.position.set(0, 3.05, z);
+	sign.position.set(0, 3.68, z);
 	sign.rotation.y = rotationY;
 	return sign;
 }
 
 function createRoomLight(color) {
 	const group = new THREE.Group();
-	const light = new THREE.PointLight(new THREE.Color(color), 1.6, 18);
-	light.position.set(0, 3.35, 0);
+	const light = new THREE.PointLight(new THREE.Color(color), 1.35, 22);
+	light.position.set(0, wallHeight - 1.05, 0);
+	registerAnimation(light, (object, elapsed) => {
+		object.intensity = 1.2 + Math.sin(elapsed * 1.2) * 0.14;
+	});
 	group.add(light);
 
 	const fixture = new THREE.Mesh(
-		new THREE.BoxGeometry(3.4, 0.08, 0.32),
+		new THREE.BoxGeometry(4.4, 0.09, 0.36),
+		new THREE.MeshStandardMaterial({
+			color,
+			emissive: new THREE.Color(color),
+			emissiveIntensity: 0.45,
+			roughness: 0.24,
+			metalness: 0.22,
+		})
+	);
+	fixture.position.set(0, wallHeight - 0.42, 0);
+	group.add(fixture);
+	for (const x of [-3.2, 3.2]) {
+		group.add(createLightCone(color, 1.95, 4.6, 0.075, x, -0.55));
+	}
+	return group;
+}
+
+function createLightCone(color, radius, height, opacity, x, z) {
+	const cone = new THREE.Mesh(
+		new THREE.ConeGeometry(radius, height, 32, 1, true),
 		new THREE.MeshBasicMaterial({
 			color,
 			transparent: true,
-			opacity: 0.9,
+			opacity,
+			side: THREE.DoubleSide,
+			depthWrite: false,
 		})
 	);
-	fixture.position.set(0, 4.48, 0);
-	group.add(fixture);
+	cone.position.set(x, wallHeight - height / 2 - 0.55, z);
+	cone.rotation.x = 0.1;
+	registerAnimation(cone, (object, elapsed) => {
+		object.material.opacity = opacity + Math.sin(elapsed * 1.6 + x) * 0.018;
+	});
+	return cone;
+}
+
+function createRoomMuseumArchitecture(room) {
+	const group = new THREE.Group();
+	const brass = new THREE.MeshStandardMaterial({
+		color: 0xc79b43,
+		roughness: 0.31,
+		metalness: 0.46,
+	});
+	const marble = new THREE.MeshStandardMaterial({
+		color: 0xf4ecda,
+		roughness: 0.68,
+		metalness: 0.03,
+	});
+	['back', 'left', 'right'].forEach((side) => {
+		group.add(createWallRail(side, 0.72, marble, 0.12));
+		group.add(createWallRail(side, 3.04, brass, 0.045));
+		group.add(createWallRail(side, wallHeight - 0.58, brass, 0.12));
+	});
+	for (const side of ['left', 'right']) {
+		for (const z of [-2.8, 2.35]) {
+			const sconce = createWallSconce(room.color);
+			sconce.position.copy(getLocalWallPosition(side, z));
+			sconce.position.y = 3.85;
+			sconce.position.x += side === 'left' ? 0.09 : -0.09;
+			sconce.rotation.y = side === 'left' ? Math.PI / 2 : -Math.PI / 2;
+			group.add(sconce);
+		}
+	}
+	return group;
+}
+
+function createWallRail(side, y, material, thickness) {
+	const isWidthWall = side === 'front' || side === 'back';
+	const rail = new THREE.Mesh(
+		new THREE.BoxGeometry(
+			isWidthWall ? roomWidth : thickness,
+			thickness,
+			isWidthWall ? thickness : roomDepth
+		),
+		material
+	);
+	rail.position.copy(getLocalWallPosition(side, 0));
+	rail.position.y = y;
+	if (side === 'back') {
+		rail.position.z -= wallThickness / 2 + 0.012;
+	}
+	if (side === 'left') {
+		rail.position.x += wallThickness / 2 + 0.012;
+	}
+	if (side === 'right') {
+		rail.position.x -= wallThickness / 2 + 0.012;
+	}
+	return rail;
+}
+
+function createWallSconce(color) {
+	const group = new THREE.Group();
+	const back = new THREE.Mesh(
+		new THREE.BoxGeometry(0.16, 0.56, 0.08),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.32, metalness: 0.5 })
+	);
+	group.add(back);
+	const lamp = new THREE.Mesh(
+		new THREE.SphereGeometry(0.16, 16, 10),
+		new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 })
+	);
+	lamp.position.z = -0.08;
+	registerAnimation(lamp, (object, elapsed) => {
+		object.material.opacity = 0.78 + Math.sin(elapsed * 1.7) * 0.1;
+	});
+	group.add(lamp);
 	return group;
 }
 
@@ -1499,6 +1751,10 @@ function createAtriumDecor() {
 
 	const color = activeVariant.eraColors[0];
 	const secondary = activeVariant.eraColors[3];
+	if (isCurrentVariant) {
+		group.add(createAtriumMuseumArchitecture(color, secondary));
+		group.add(createAtriumLightRig(color, secondary));
+	}
 	group.add(createAtriumFloorMedallion(color, secondary));
 	addAtriumFeature(group, activeVariant.atriumFeature, color, secondary);
 	addAtriumBenches(group);
@@ -1531,6 +1787,146 @@ function createAtriumFloorMedallion(color, secondary) {
 		spoke.position.y = 0.065;
 		group.add(spoke);
 	}
+	return group;
+}
+
+function createAtriumMuseumArchitecture(color, secondary) {
+	const group = new THREE.Group();
+	const crownMaterial = new THREE.MeshStandardMaterial({
+		color: 0xc79b43,
+		roughness: 0.32,
+		metalness: 0.46,
+	});
+	const lintelMaterial = new THREE.MeshStandardMaterial({
+		color: 0xf4ecda,
+		roughness: 0.72,
+		metalness: 0.04,
+	});
+	for (const side of hubSides) {
+		const isMural = side.kind === 'mural';
+		const columnOffset = isMural
+			? hubSideLength / 2 - 0.58
+			: roomDoorHalfWidth + 0.34;
+		for (const offset of [-columnOffset, columnOffset]) {
+			const position = side.midpoint.clone().add(side.tangent.clone().multiplyScalar(offset));
+			const column = createLoadedModel('columnThin', {
+				targetHeight: 4.25,
+				fallback: 'column',
+			});
+			column.position.set(position.x, 0, position.z);
+			column.rotation.y = getRotationForNormal(side.normal);
+			group.add(column);
+		}
+		const lintel = new THREE.Mesh(
+			new THREE.BoxGeometry(isMural ? hubSideLength * 0.84 : roomDoorHalfWidth * 1.65, 0.18, 0.18),
+			isMural ? crownMaterial : lintelMaterial
+		);
+		lintel.position.copy(side.midpoint);
+		lintel.position.y = isMural ? wallHeight - 0.54 : 4.55;
+		lintel.rotation.y = getRotationForNormal(side.normal);
+		group.add(lintel);
+	}
+
+	for (let index = 0; index < 8; index++) {
+		const angle = (Math.PI * 2 * index) / 8 + Math.PI / 8;
+		const radius = hubApothem - 1.15;
+		const lamp = createLoadedModel('detailLightSingle', {
+			targetHeight: 1.55,
+			fallback: 'light',
+		});
+		lamp.position.set(Math.sin(angle) * radius, 0, -Math.cos(angle) * radius);
+		lamp.rotation.y = angle + Math.PI;
+		group.add(lamp);
+
+		if (index % 4 === 0) {
+			const glow = new THREE.PointLight(index % 2 ? secondary : color, 0.5, 8.5);
+			glow.position.set(lamp.position.x, 2.75, lamp.position.z);
+			registerAnimation(glow, (object, elapsed) => {
+				object.intensity = 0.42 + Math.sin(elapsed * 1.35 + index) * 0.06;
+			});
+			group.add(glow);
+		}
+	}
+	return group;
+}
+
+function createAtriumLightRig(color, secondary) {
+	const group = new THREE.Group();
+	group.add(createKineticChangelogMobile(color, secondary));
+	for (let index = 0; index < 8; index++) {
+		const angle = (Math.PI * 2 * index) / 8;
+		const beamColor = index % 2 ? secondary : color;
+		const beam = new THREE.Mesh(
+			new THREE.ConeGeometry(1.45, 4.6, 36, 1, true),
+			new THREE.MeshBasicMaterial({
+				color: beamColor,
+				transparent: true,
+				opacity: 0.045,
+				side: THREE.DoubleSide,
+				depthWrite: false,
+			})
+		);
+		beam.position.set(Math.sin(angle) * 5.2, 4.0, -Math.cos(angle) * 5.2);
+		beam.rotation.z = Math.sin(angle) * 0.18;
+		beam.rotation.x = Math.cos(angle) * 0.18;
+		registerAnimation(beam, (object, elapsed) => {
+			object.rotation.y = elapsed * 0.16 + angle;
+			object.material.opacity = 0.04 + Math.sin(elapsed * 1.4 + index) * 0.012;
+		});
+		group.add(beam);
+	}
+	return group;
+}
+
+function createKineticChangelogMobile(color, secondary) {
+	const group = new THREE.Group();
+	const ringMaterial = new THREE.MeshStandardMaterial({
+		color: 0xf6d48b,
+		emissive: new THREE.Color(color),
+		emissiveIntensity: 0.08,
+		roughness: 0.24,
+		metalness: 0.55,
+	});
+	[2.1, 2.9, 3.7].forEach((radius, index) => {
+		const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.026, 8, 96), ringMaterial);
+		ring.position.y = 5.42 + index * 0.28;
+		ring.rotation.x = Math.PI / 2;
+		registerAnimation(ring, (object, elapsed) => {
+			object.rotation.z = elapsed * (0.2 + index * 0.08) * (index % 2 ? -1 : 1);
+		});
+		group.add(ring);
+	});
+
+	for (let index = 0; index < 14; index++) {
+		const chip = new THREE.Mesh(
+			new THREE.BoxGeometry(0.38, 0.16, 0.38),
+			new THREE.MeshStandardMaterial({
+				color: activeVariant.eraColors[index % activeVariant.eraColors.length],
+				emissive: new THREE.Color(activeVariant.eraColors[index % activeVariant.eraColors.length]),
+				emissiveIntensity: 0.08,
+				roughness: 0.42,
+				metalness: 0.1,
+			})
+		);
+		const radius = 2.15 + (index % 3) * 0.62;
+		const baseAngle = (Math.PI * 2 * index) / 14;
+		chip.userData.mobile = { radius, baseAngle, y: 5.58 + (index % 4) * 0.18 };
+		registerAnimation(chip, (object, elapsed) => {
+			const mobile = object.userData.mobile;
+			const angle = mobile.baseAngle + elapsed * (0.34 + (index % 4) * 0.04);
+			object.position.set(Math.cos(angle) * mobile.radius, mobile.y + Math.sin(elapsed * 1.5 + index) * 0.08, Math.sin(angle) * mobile.radius);
+			object.rotation.x += 0.008;
+			object.rotation.y += 0.012;
+		});
+		group.add(chip);
+	}
+
+	const core = new THREE.PointLight(0xfff4cf, 1.25, 18);
+	core.position.y = 5.55;
+	registerAnimation(core, (object, elapsed) => {
+		object.intensity = 1.08 + Math.sin(elapsed * 0.9) * 0.12;
+	});
+	group.add(core);
 	return group;
 }
 
@@ -1605,6 +2001,36 @@ function addAtriumFeature(group, feature, color, secondary) {
 function addUltimateAtriumFeature(group, color, secondary) {
 	addPlaced(group, createAtriumPlanter(color, secondary), -6.7, 14.62, 0);
 	addPlaced(group, createAtriumPlanter(secondary, color), 6.7, 14.62, 0);
+	addPlaced(group, createWapuuDocent(color, secondary), -3.35, -1.95, Math.PI);
+	addPlaced(group, createMuseumInfoDesk(color, secondary), 0, -2.85, 0);
+	addPlaced(group, createLoadedModel('scaffoldingStructure', {
+		targetHeight: 2.55,
+		fallback: 'column',
+	}), -8.45, 8.7, Math.PI / 4);
+	addPlaced(group, createLoadedModel('wallDoorwayRound', {
+		targetHeight: 2.25,
+		fallback: 'portal',
+	}), 8.55, 8.35, -Math.PI / 4);
+	addPlaced(group, createLoadedModel('televisionVintage', {
+		targetHeight: 0.82,
+		fallback: 'screen',
+	}), -5.1, -3.7, 0.34);
+	addPlaced(group, createLoadedModel('loungeDesignChair', {
+		targetHeight: 0.68,
+		fallback: 'bench',
+	}), 5.05, -3.8, -0.45);
+	addPlaced(group, createLoadedModel('tableCoffee', {
+		targetHeight: 0.34,
+		fallback: 'block',
+	}), 3.72, -3.15, -0.12);
+	addPlaced(group, createLoadedModel('treeParkLarge', {
+		targetHeight: 1.7,
+		fallback: 'plant',
+	}), -10.25, -1.35, 0.3);
+	addPlaced(group, createLoadedModel('truckGreen', {
+		targetHeight: 0.72,
+		fallback: 'crate',
+	}), 10.2, -1.5, -0.45);
 }
 
 function createAtriumPlanter(color, secondary) {
@@ -1631,10 +2057,75 @@ function createAtriumPlanter(color, secondary) {
 	return group;
 }
 
+function createWapuuDocent(color, secondary) {
+	const group = new THREE.Group();
+	const pedestal = createPedestal(2.05, 0.42, color);
+	group.add(pedestal);
+	const cutout = createWapuuCutout(3.05, {
+		glow: secondary,
+		shadow: true,
+	});
+	cutout.position.y = 0.4;
+	registerAnimation(cutout, (object, elapsed) => {
+		object.position.y = 0.4 + Math.sin(elapsed * 1.15) * 0.035;
+		object.rotation.z = Math.sin(elapsed * 0.75) * 0.018;
+	});
+	group.add(cutout);
+
+	const label = createReadableLabel(createSmallSignTexture('WAPUU', color), 1.34, 0.3);
+	label.position.set(0, 0.66, -0.84);
+	group.add(label);
+
+	const glow = new THREE.PointLight(new THREE.Color(secondary), 1.05, 8);
+	glow.position.set(0, 1.75, -0.45);
+	registerAnimation(glow, (object, elapsed) => {
+		object.intensity = 0.92 + Math.sin(elapsed * 1.8) * 0.13;
+	});
+	group.add(glow);
+	return group;
+}
+
+function createMuseumInfoDesk(color, secondary) {
+	const group = new THREE.Group();
+	const desk = new THREE.Mesh(
+		new THREE.BoxGeometry(2.35, 0.58, 0.82),
+		new THREE.MeshStandardMaterial({ color: 0xf8efd9, roughness: 0.62, metalness: 0.04 })
+	);
+	desk.position.y = 0.29;
+	group.add(desk);
+	const stripe = new THREE.Mesh(
+		new THREE.BoxGeometry(2.42, 0.08, 0.86),
+		new THREE.MeshBasicMaterial({ color })
+	);
+	stripe.position.y = 0.62;
+	group.add(stripe);
+	const screen = createAdminScreenPanel(color, secondary, 0.82, 0.48);
+	screen.position.set(-0.58, 0.96, -0.44);
+	screen.rotation.x = -0.06;
+	group.add(screen);
+	const laptop = createLoadedModel('laptop', {
+		targetHeight: 0.42,
+		fallback: 'screen',
+	});
+	laptop.position.set(0.58, 0.64, -0.18);
+	laptop.rotation.y = -0.24;
+	group.add(laptop);
+	const sign = createReadableLabel(createSmallSignTexture('PLAYGROUND', secondary), 1.58, 0.3);
+	sign.position.set(0, 0.78, -0.48);
+	group.add(sign);
+	return group;
+}
+
 function addAtriumBenches(group) {
 	const color = activeVariant.eraColors[2];
-	addPlaced(group, createBench(color), -5.05, 13.95, 0);
-	addPlaced(group, createBench(color), 5.05, 13.95, 0);
+	addPlaced(group, createLoadedModel('detailBench', {
+		targetHeight: 0.58,
+		fallback: 'bench',
+	}), -5.05, 13.95, 0);
+	addPlaced(group, createLoadedModel('detailBench', {
+		targetHeight: 0.58,
+		fallback: 'bench',
+	}), 5.05, 13.95, 0);
 }
 
 function createRoomDecor(room) {
@@ -1734,7 +2225,54 @@ function addEraVignette(group, room, roomIndex) {
 			station.rotation
 		);
 	});
+	if (isCurrentVariant) {
+		addEraModelProps(group, room, roomIndex, color, secondary);
+	}
 	addRoomVignetteLights(group, color);
+}
+
+function addEraModelProps(group, room, roomIndex, color, secondary) {
+	const modelSets = {
+		'Blogging Roots': [
+			['radio', -3.45, -5.05, 0.36, 0.46, 'radio'],
+			['bookcaseOpenLow', 3.45, -5.0, -0.34, 0.86, 'bookcase'],
+		],
+		'Dashboard Foundations': [
+			['computerScreen', -3.45, -5.04, 0.3, 0.62, 'screen'],
+			['loungeDesignChair', 3.45, -5.08, -0.36, 0.62, 'bench'],
+		],
+		'CMS Toolkit': [
+			['wallDoorwayRound', -3.65, -5.0, 0.45, 1.35, 'portal'],
+			['doorRotateSquareA', 3.55, -5.04, -0.4, 1.18, 'portal'],
+		],
+		'Modern Admin': [
+			['laptop', -3.5, -5.1, 0.35, 0.46, 'screen'],
+			['televisionVintage', 3.55, -5.06, -0.34, 0.72, 'screen'],
+		],
+		'API and Customizer': [
+			['doorRotateRoundA', -3.6, -5.0, 0.46, 1.2, 'portal'],
+			['columnThin', 3.55, -5.03, -0.2, 1.6, 'column'],
+		],
+		'Block Editor': [
+			['platingDetailed', -3.55, -5.05, 0.26, 0.28, 'block'],
+			['loungeDesignSofa', 3.5, -5.08, -0.32, 0.58, 'bench'],
+		],
+		'Blocks Everywhere': [
+			['tableCoffee', -3.45, -5.05, 0.28, 0.34, 'block'],
+			['pottedPlant', 3.45, -5.08, -0.28, 0.88, 'plant'],
+		],
+	};
+	const entries = modelSets[room.era] || [];
+	entries.forEach(([modelKey, x, z, rotation, height, fallback]) => {
+		const model = createLoadedModel(modelKey, {
+			targetHeight: height,
+			fallback,
+		});
+		addLocal(group, model, x, z, rotation);
+	});
+	const floorLight = createMuseumLamp(roomIndex % 2 ? color : secondary);
+	floorLight.scale.setScalar(0.8);
+	addLocal(group, floorLight, roomIndex % 2 ? -4.75 : 4.75, -5.05, 0);
 }
 
 function getEraVignetteStations() {
@@ -2104,23 +2642,31 @@ function addLocal(group, object, x, z, rotationY = 0) {
 function createLoadedModel(modelKey, options = {}) {
 	const anchor = new THREE.Group();
 	anchor.add(createModelPlaceholder(options.fallback || modelKey, options.targetHeight || 0.7));
-	loadModel(modelKey)
-		.then((template) => {
-			const instance = template.clone(true);
-			instance.traverse((child) => {
-				if (child.isMesh) {
-					child.frustumCulled = true;
-					if (child.material?.isMeshStandardMaterial) {
-						child.material.roughness = Math.max(child.material.roughness, 0.52);
+	scheduleDeferredAssetTask(() => {
+		loadModel(modelKey)
+			.then((template) => {
+				const instance = template.clone(true);
+				instance.traverse((child) => {
+					if (child.isMesh) {
+						child.frustumCulled = true;
+						if (child.material?.isMeshStandardMaterial) {
+							child.material.roughness = Math.max(child.material.roughness, 0.52);
+						}
 					}
-				}
-			});
-			normalizeModel(instance, options.targetHeight || 0.7);
-			anchor.clear();
-			anchor.add(instance);
-		})
-		.catch(() => {});
+				});
+				normalizeModel(instance, options.targetHeight || 0.7);
+				anchor.clear();
+				anchor.add(instance);
+			})
+			.catch(() => {});
+	});
 	return anchor;
+}
+
+function scheduleDeferredAssetTask(task) {
+	const delay = 5000 + Math.min(deferredAssetTaskIndex * 85, 9000);
+	deferredAssetTaskIndex += 1;
+	window.setTimeout(task, delay);
 }
 
 function loadModel(modelKey) {
@@ -2275,6 +2821,10 @@ function createApiPortal(color, secondary, scale = 1) {
 		new THREE.MeshBasicMaterial({ color: secondary, transparent: true, opacity: 0.86, side: THREE.DoubleSide })
 	);
 	core.position.y = 0.8;
+	registerAnimation(core, (object, elapsed) => {
+		object.rotation.z = elapsed * 0.8;
+		object.material.opacity = 0.68 + Math.sin(elapsed * 2.2) * 0.16;
+	});
 	group.add(core);
 	group.scale.setScalar(scale);
 	return group;
@@ -2294,6 +2844,12 @@ function createBlockFountain(color, scale = 1) {
 		const angle = index * 0.78;
 		block.position.set(Math.cos(angle) * 0.48, 0.44 + index * 0.12, Math.sin(angle) * 0.48);
 		block.rotation.y = angle;
+		block.userData.baseY = block.position.y;
+		registerAnimation(block, (object, elapsed, delta) => {
+			object.rotation.x += delta * 0.42;
+			object.rotation.y += delta * 0.62;
+			object.position.y = object.userData.baseY + Math.sin(elapsed * 1.45 + index) * 0.045;
+		});
 		group.add(block);
 	}
 	group.scale.setScalar(scale);
@@ -2320,6 +2876,12 @@ function createCommentAquarium(color, secondary, scale = 1) {
 			new THREE.MeshBasicMaterial({ color: index % 2 ? color : secondary })
 		);
 		bubble.position.set(-0.5 + index * 0.2, 0.45 + (index % 4) * 0.17, -0.1 + (index % 2) * 0.2);
+		bubble.userData.baseX = bubble.position.x;
+		bubble.userData.baseY = bubble.position.y;
+		registerAnimation(bubble, (object, elapsed) => {
+			object.position.y = object.userData.baseY + Math.sin(elapsed * 1.8 + index) * 0.055;
+			object.position.x = object.userData.baseX + Math.sin(elapsed * 0.7 + index) * 0.035;
+		});
 		group.add(bubble);
 	}
 	group.add(createPedestal(1.6, 0.2, color));
@@ -2456,14 +3018,14 @@ function createMuseumLamp(color) {
 	group.add(pole);
 	const shade = new THREE.Mesh(
 		new THREE.ConeGeometry(0.22, 0.22, 16),
-		new THREE.MeshBasicMaterial({ color })
+		new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 })
 	);
 	shade.position.y = 1.16;
 	shade.rotation.x = Math.PI;
+	registerAnimation(shade, (object, elapsed) => {
+		object.material.opacity = 0.84 + Math.sin(elapsed * 1.4) * 0.08;
+	});
 	group.add(shade);
-	const light = new THREE.PointLight(new THREE.Color(color), 0.9, 5);
-	light.position.y = 1.05;
-	group.add(light);
 	return group;
 }
 
@@ -2714,6 +3276,11 @@ function createOrbitalSculpture(color) {
 		ring.position.y = 0.9;
 		ring.rotation.x = Math.PI / 2;
 		ring.rotation.z = rotation;
+		ring.userData.spinBase = rotation;
+		registerAnimation(ring, (object, elapsed) => {
+			object.rotation.z = object.userData.spinBase + elapsed * 0.42;
+			object.rotation.y = Math.sin(elapsed * 0.55 + object.userData.spinBase) * 0.18;
+		});
 		group.add(ring);
 	}
 	return group;
@@ -2780,6 +3347,9 @@ function createActiveExhibitMarker() {
 		})
 	);
 	wallGlow.name = 'activeWallGlow';
+	registerAnimation(wallGlow, (object, elapsed) => {
+		object.material.opacity = 0.13 + Math.sin(elapsed * 2.4) * 0.035;
+	});
 	group.add(wallGlow);
 
 	const floorRing = new THREE.Mesh(
@@ -2794,6 +3364,12 @@ function createActiveExhibitMarker() {
 	);
 	floorRing.name = 'activeFloorRing';
 	floorRing.rotation.x = -Math.PI / 2;
+	registerAnimation(floorRing, (object, elapsed) => {
+		const scale = 1 + Math.sin(elapsed * 3) * 0.045;
+		object.scale.set(scale, scale, scale);
+		object.rotation.z = elapsed * 0.9;
+		object.material.opacity = 0.64 + Math.sin(elapsed * 2.1) * 0.14;
+	});
 	group.add(floorRing);
 	return group;
 }
@@ -3262,15 +3838,17 @@ function createPlaqueTexture(release, color) {
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 
-	Promise.all([
-		loadPlaqueImage(getMusicianImagePath(release)),
-		loadPlaqueImage(getScreenshotImagePath(release)),
-	]).then(([musicianImage, screenshotImage]) => {
-		drawPlaqueTexture(ctx, canvas, release, color, {
-			musicianImage,
-			screenshotImage,
+	scheduleDeferredAssetTask(() => {
+		Promise.all([
+			loadPlaqueImage(getMusicianImagePath(release)),
+			loadPlaqueImage(getScreenshotImagePath(release)),
+		]).then(([musicianImage, screenshotImage]) => {
+			drawPlaqueTexture(ctx, canvas, release, color, {
+				musicianImage,
+				screenshotImage,
+			});
+			texture.needsUpdate = true;
 		});
-		texture.needsUpdate = true;
 	});
 
 	return texture;
@@ -3808,8 +4386,23 @@ function animate(timestamp = 0) {
 
 	const delta = Math.min(clock.getDelta(), 0.05);
 	updateCamera(delta);
+	updateSceneAnimations(delta, clock.elapsedTime);
 	renderer.render(scene, camera);
 	renderedFrameCount += 1;
+}
+
+function registerAnimation(object, update) {
+	object.userData.museumAnimation = update;
+	animatedObjects.push(object);
+	return object;
+}
+
+function updateSceneAnimations(delta, elapsed) {
+	for (const object of animatedObjects) {
+		if (object.parent || object.isLight) {
+			object.userData.museumAnimation?.(object, elapsed, delta);
+		}
+	}
 }
 
 function getFrameInterval() {

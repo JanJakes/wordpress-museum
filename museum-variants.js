@@ -341,6 +341,11 @@
 				note: 'Existing texture files in assets/textures are CC0 1.0 Universal.',
 			},
 			{
+				name: 'Wapuu original SVG',
+				url: 'https://jawordpressorg.github.io/wapuu/',
+				note: 'Official Wapuu artwork used in the default museum as GPLv2-or-later mascot art.',
+			},
+			{
 				name: 'WordPress graphics and trademark guidance',
 				url: 'https://wordpress.org/about/logos/',
 				note: 'The variants use text and procedural marks rather than downloading or modifying official logo assets.',
