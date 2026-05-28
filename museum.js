@@ -143,8 +143,6 @@ const sprintSpeed = 12;
 const keyboardTurnSpeed = 520;
 const mobileTurnSpeed = 320;
 const maxMovementStep = 0.16;
-const activeFrameInterval = 1000 / 60;
-const idleFrameInterval = 1000 / 15;
 const hubSides = createHubSides();
 const muralSide = hubSides.find((side) => side.kind === 'mural');
 const roomSides = hubSides.filter((side) => side.era);
@@ -172,7 +170,6 @@ let lastPointer = { x: 0, y: 0 };
 let programmaticRailScroll = false;
 let programmaticRailScrollTimer = 0;
 let railScrollFrame = 0;
-let lastFrameTime = 0;
 let renderedFrameCount = 0;
 
 camera.rotation.order = 'YXZ';
@@ -447,12 +444,16 @@ function createMercantileCorridor() {
 		);
 		bulb.position.set(0, corridorHeight - 0.32, z);
 		group.add(bulb);
-		const lamp = new THREE.PointLight(0xffe2a0, 0.65, 6.5);
-		lamp.position.set(0, corridorHeight - 0.4, z);
-		registerAnimation(lamp, (object, elapsed) => {
-			object.intensity = 0.55 + Math.sin(elapsed * 1.6 + index * 0.7) * 0.08;
-		});
-		group.add(lamp);
+		// One shared lamp (middle bulb) lights the corridor; the others glow
+		// via their emissive bulbs only.
+		if (index === 2) {
+			const lamp = new THREE.PointLight(0xffe2a0, 1.0, 9);
+			lamp.position.set(0, corridorHeight - 0.4, z);
+			registerAnimation(lamp, (object, elapsed) => {
+				object.intensity = 0.86 + Math.sin(elapsed * 1.6) * 0.1;
+			});
+			group.add(lamp);
+		}
 	}
 
 	group.add(createMercantileEndWall(zEnd, corridorHeight));
@@ -2316,7 +2317,7 @@ function createCathedralDustMotes(bounds) {
 		depthWrite: false,
 		blending: THREE.AdditiveBlending,
 	});
-	const motes = 28;
+	const motes = 18;
 	for (let index = 0; index < motes; index++) {
 		const angle = (Math.PI * 2 * index) / motes + Math.random();
 		const radius = 3 + (index % 4) * 1.8;
@@ -3575,19 +3576,12 @@ function createRoomLight(color) {
 	const group = new THREE.Group();
 	// Warm-white fill keeps the marble reading as warm stone; the era
 	// colour stays an accent rather than flooding the whole room.
-	const fill = new THREE.PointLight(0xfff1d6, 1.0, 24);
+	const fill = new THREE.PointLight(0xfff1d6, 1.18, 26);
 	fill.position.set(0, wallHeight - 1.05, 0);
 	registerAnimation(fill, (object, elapsed) => {
-		object.intensity = 0.92 + Math.sin(elapsed * 1.2) * 0.08;
+		object.intensity = 1.08 + Math.sin(elapsed * 1.2) * 0.08;
 	});
 	group.add(fill);
-
-	const accent = new THREE.PointLight(new THREE.Color(color), 0.5, 16);
-	accent.position.set(0, wallHeight - 1.8, -1.4);
-	registerAnimation(accent, (object, elapsed) => {
-		object.intensity = 0.42 + Math.sin(elapsed * 1.5) * 0.1;
-	});
-	group.add(accent);
 
 	const fixture = new THREE.Mesh(
 		new THREE.BoxGeometry(4.4, 0.09, 0.36),
@@ -4240,13 +4234,6 @@ function createOpenSourcePylon(item, index) {
 	const label = createReadableLabel(createOpenSourceSignTexture(item.title, item.note, item.color), 0.84, 0.34);
 	label.position.set(0, 0.76, -0.15);
 	group.add(label);
-
-	const glow = new THREE.PointLight(new THREE.Color(item.color), 0.18, 3.2);
-	glow.position.y = 1.16;
-	registerAnimation(glow, (object, elapsed) => {
-		object.intensity = 0.13 + Math.sin(elapsed * 1.4 + index) * 0.04;
-	});
-	group.add(glow);
 	return group;
 }
 
@@ -4492,13 +4479,6 @@ function createCathedralColumn(height, accentColor, secondaryColor) {
 	const capPlate = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.18, 1.05), marbleMaterial);
 	capPlate.position.y = height - 0.2;
 	group.add(capPlate);
-
-	const smallLight = new THREE.PointLight(new THREE.Color(secondaryColor), 0.16, 3.6);
-	smallLight.position.y = wallHeight + 0.2;
-	registerAnimation(smallLight, (object, elapsed) => {
-		object.intensity = 0.12 + Math.sin(elapsed * 1.35) * 0.035;
-	});
-	group.add(smallLight);
 	return group;
 }
 
@@ -4542,13 +4522,6 @@ function createAtriumGalleryBeacon(side, color) {
 	const label = createReadableLabel(createSmallSignTexture(side.era.split(' ')[0].toUpperCase(), color), 0.86, 0.2);
 	label.position.set(0, 0.52, -0.17);
 	group.add(label);
-
-	const light = new THREE.PointLight(new THREE.Color(color), 0.28, 4.6);
-	light.position.y = 1.35;
-	registerAnimation(light, (object, elapsed) => {
-		object.intensity = 0.22 + Math.sin(elapsed * 1.6 + sideIndex) * 0.05;
-	});
-	group.add(light);
 	return group;
 }
 
@@ -4838,13 +4811,6 @@ function createOpenSourceEngineRoom(color, secondary) {
 	portal.position.set(0.96, 0.3, 0.38);
 	portal.rotation.y = Math.PI;
 	group.add(portal);
-
-	const pulse = new THREE.PointLight(new THREE.Color(secondary), 0.55, 6.5);
-	pulse.position.set(0, 1.12, -0.18);
-	registerAnimation(pulse, (object, elapsed) => {
-		object.intensity = 0.42 + Math.sin(elapsed * 1.7) * 0.1;
-	});
-	group.add(pulse);
 	return group;
 }
 
@@ -5183,12 +5149,6 @@ function createVisitorCounter() {
 	);
 	screen.position.set(0, 1.04, 0.062);
 	group.add(screen);
-	const glow = new THREE.PointLight(0x39ff6a, 0.22, 2.4);
-	glow.position.set(0, 1.04, 0.4);
-	registerAnimation(glow, (object, elapsed) => {
-		object.intensity = 0.16 + Math.sin(elapsed * 3.1) * 0.06;
-	});
-	group.add(glow);
 	return group;
 }
 
@@ -5393,12 +5353,6 @@ function createEraCatchphraseSign(room, color, secondary) {
 		cable.position.set(xSign * 1.95, wallHeight - 0.9, signZ);
 		group.add(cable);
 	}
-	const pointLight = new THREE.PointLight(new THREE.Color(secondary), 0.42, 6);
-	pointLight.position.set(0, baseY, signZ - 0.6);
-	registerAnimation(pointLight, (object, elapsed) => {
-		object.intensity = 0.34 + Math.sin(elapsed * 2.2) * 0.08;
-	});
-	group.add(pointLight);
 	return group;
 }
 
@@ -5460,7 +5414,7 @@ function createRoomDustMotes(color) {
 		depthWrite: false,
 		blending: THREE.AdditiveBlending,
 	});
-	for (let index = 0; index < 16; index++) {
+	for (let index = 0; index < 7; index++) {
 		const mote = new THREE.Mesh(
 			new THREE.SphereGeometry(0.035 + (index % 3) * 0.01, 6, 6),
 			material.clone()
@@ -6224,9 +6178,6 @@ function createArtifactStand(color, label, height) {
 	const tag = createReadableLabel(createSmallSignTexture(label, color), 0.86, 0.2);
 	tag.position.set(0, height * 0.5, -0.46);
 	group.add(tag);
-	const glow = new THREE.PointLight(new THREE.Color(color), 0.3, 3);
-	glow.position.set(0, height + 0.6, 0.1);
-	group.add(glow);
 	return group;
 }
 
@@ -7936,11 +7887,8 @@ function getActiveRailItemIndex() {
 
 function animate(timestamp = 0) {
 	requestAnimationFrame(animate);
-	if (lastFrameTime && timestamp - lastFrameTime < getFrameInterval()) {
-		return;
-	}
-	lastFrameTime = timestamp;
-
+	// The scene always has ambient motion, so render every frame for a
+	// fluid feel; rAF already caps to the display refresh rate.
 	const delta = Math.min(clock.getDelta(), 0.05);
 	updateCamera(delta);
 	updateSceneAnimations(delta, clock.elapsedTime);
@@ -7960,26 +7908,6 @@ function updateSceneAnimations(delta, elapsed) {
 			object.userData.museumAnimation?.(object, elapsed, delta);
 		}
 	}
-}
-
-function getFrameInterval() {
-	return guidedTarget || guidedTour || dragging || hasActiveMovementInput()
-		? activeFrameInterval
-		: idleFrameInterval;
-}
-
-function hasActiveMovementInput() {
-	for (const code of keys) {
-		if (isMovementKey(code)) {
-			return true;
-		}
-	}
-	return (
-		mobileMotion.forward ||
-		mobileMotion.back ||
-		mobileMotion.left ||
-		mobileMotion.right
-	);
 }
 
 function updateCamera(delta) {
