@@ -7865,17 +7865,24 @@ function updateCamera(delta) {
 	}
 
 	if (guidedTarget) {
-		camera.position.lerp(guidedTarget.position, 1 - Math.pow(0.002, delta));
-		yaw = lerpAngle(yaw, guidedTarget.yaw, 1 - Math.pow(0.004, delta));
+		// When crossing between galleries, glide through a raised waypoint in
+		// the rotunda so the camera arcs out of one room and into the next
+		// instead of slicing through marble walls.
+		const aimPos = guidedTarget.via || guidedTarget.position;
+		camera.position.lerp(aimPos, 1 - Math.pow(0.055, delta));
+		yaw = lerpAngle(yaw, guidedTarget.yaw, 1 - Math.pow(0.02, delta));
 		pitch = THREE.MathUtils.lerp(
 			pitch,
 			guidedTarget.pitch,
-			1 - Math.pow(0.004, delta)
+			1 - Math.pow(0.02, delta)
 		);
 		setCameraRotation();
-		if (camera.position.distanceTo(guidedTarget.position) < 0.035) {
+		if (guidedTarget.via && camera.position.distanceTo(guidedTarget.via) < 1.3) {
+			guidedTarget.via = null;
+		}
+		if (!guidedTarget.via && camera.position.distanceTo(guidedTarget.position) < 0.06) {
 			guidedTarget = null;
-			tourHoldUntil = performance.now() + 1700;
+			tourHoldUntil = performance.now() + 3000;
 			updateNearestRelease();
 			updateRail();
 		}
@@ -8016,6 +8023,7 @@ function getRoomLookPoint(era) {
 }
 
 function focusRelease(index, immediate = false, options = {}) {
+	const previousEra = releases[activeIndex]?.era;
 	activeIndex = wrapIndex(index);
 	const release = releases[activeIndex];
 	const target = exhibitPositions[activeIndex];
@@ -8034,6 +8042,9 @@ function focusRelease(index, immediate = false, options = {}) {
 			yaw: view.yaw,
 			pitch: view.pitch,
 		};
+		if (previousEra && previousEra !== release.era) {
+			guidedTarget.via = atriumCenterPosition.clone().setY(2.4);
+		}
 	}
 	updatePanel(release);
 	updateRail(options.syncRail !== false);
