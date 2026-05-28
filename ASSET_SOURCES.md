@@ -31,3 +31,7 @@ Urban Kit, and Building Kit. Each original pack declares Creative Commons Zero
   mascot artwork with source and license metadata.
 - Kenney publishes the selected 3D packs under Creative Commons Zero (CC0):
   Furniture Kit, Retro Urban Kit, and Building Kit.
+- The cathedral ceiling, full-height columns, vault ribs, chandelier, room
+  pilasters, and open-source exhibit structures are procedural Three.js
+  geometry authored in this repository. No additional third-party binary models
+  were imported for this pass.
