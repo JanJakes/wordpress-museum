@@ -3786,19 +3786,25 @@ function createRoomPilasterGrid(color, marbleMaterial, brassMaterial) {
 		opacity: 0.2,
 		depthWrite: false,
 	});
+	// Side-wall pilasters sit only in the front and back corners; the
+	// middle of each side wall is reserved for the framed exhibits, so no
+	// pilaster ever crosses a picture.
 	for (const side of ['left', 'right']) {
 		const x = side === 'left'
 			? -roomWidth / 2 + wallThickness / 2 + 0.035
 			: roomWidth / 2 - wallThickness / 2 - 0.035;
-		for (const z of [-4.75, -1.65, 1.45, 4.55]) {
-			const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.14, wallHeight - 0.78, 0.28), marbleMaterial);
+		for (const z of [-roomDepth / 2 + 0.62, roomDepth / 2 - 0.62]) {
+			const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.16, wallHeight - 0.78, 0.2), marbleMaterial);
 			shaft.position.set(x, wallHeight / 2 + 0.08, z);
 			group.add(shaft);
-			const innerLine = new THREE.Mesh(new THREE.BoxGeometry(0.032, wallHeight - 1.4, 0.31), shadowMaterial);
-			innerLine.position.set(x + (side === 'left' ? 0.071 : -0.071), wallHeight / 2 + 0.16, z);
+			const innerLine = new THREE.Mesh(new THREE.BoxGeometry(0.034, wallHeight - 1.4, 0.22), shadowMaterial);
+			innerLine.position.set(x + (side === 'left' ? 0.07 : -0.07), wallHeight / 2 + 0.16, z);
 			group.add(innerLine);
-			const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.5, 0.34), glowMaterial.clone());
-			lamp.position.set(x + (side === 'left' ? 0.078 : -0.078), 4.9, z);
+			const cap = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.12, 0.28), brassMaterial);
+			cap.position.set(x + (side === 'left' ? 0.04 : -0.04), wallHeight - 0.44, z);
+			group.add(cap);
+			const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.5, 0.24), glowMaterial.clone());
+			lamp.position.set(x + (side === 'left' ? 0.09 : -0.09), 4.9, z);
 			group.add(lamp);
 		}
 	}
