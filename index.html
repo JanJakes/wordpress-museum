@@ -8,6 +8,12 @@
 			rel="icon"
 			href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23111827'/%3E%3Ccircle cx='32' cy='32' r='22' fill='%23ffd166'/%3E%3Cpath fill='%23111827' d='M18 20h7l4 18 5-18h6l5 18 4-18h7l-8 28h-6l-5-17-5 17h-6z'/%3E%3C/svg%3E"
 		/>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Special+Elite&display=swap"
+			rel="stylesheet"
+		/>
 		<link rel="stylesheet" href="./style.css" />
 	</head>
 	<body>
@@ -20,25 +26,38 @@
 		</div>
 
 		<header class="hud top-hud">
-			<div>
-				<p class="kicker">Plain Three.js prototype</p>
-				<h1>WordPress Museum</h1>
+			<div class="title-block">
+				<p class="kicker">— Now Open · Est. 2004 · Free Admission —</p>
+				<h1>
+					<span class="title-word">WordPress</span>
+					<span class="title-stamp" aria-hidden="true">est. 2004</span>
+					<span class="title-word title-museum">Museum</span>
+				</h1>
+				<p class="subhead">A self-hosted history of the web, from 1.0 to today</p>
 			</div>
 			<div class="hud-actions">
-				<button type="button" id="walk-button">Walk</button>
-				<button type="button" id="tour-button">Guided tour</button>
+				<button type="button" id="walk-button">▶ Walk</button>
+				<button type="button" id="tour-button">⛬ Guided tour</button>
 			</div>
 		</header>
 
 		<aside class="release-panel" aria-live="polite">
+			<div class="ticket-stub" aria-hidden="true">
+				<span class="ticket-stub-line">ADMIT</span>
+				<span class="ticket-stub-line">ONE</span>
+			</div>
+			<div class="panel-corner panel-corner-tl" aria-hidden="true"></div>
+			<div class="panel-corner panel-corner-tr" aria-hidden="true"></div>
+			<div class="panel-corner panel-corner-bl" aria-hidden="true"></div>
+			<div class="panel-corner panel-corner-br" aria-hidden="true"></div>
 			<p class="panel-kicker" id="release-era">Blogging Roots</p>
 			<h2 id="release-title">WordPress 1.0 Miles</h2>
-			<p id="release-date">January 3, 2004</p>
-			<p id="release-known-for">Permalinks and moderation</p>
+			<p class="panel-date" id="release-date">January 3, 2004</p>
+			<p class="panel-tagline" id="release-known-for">Permalinks and moderation</p>
 			<p id="release-detail"></p>
 			<div class="panel-links">
-				<a id="open-playground" href="#">Open in Playground</a>
-				<a id="open-blueprint" href="#">Blueprint JSON</a>
+				<a id="open-playground" href="#">▶ Boot in Playground</a>
+				<a id="open-blueprint" href="#">▤ Blueprint JSON</a>
 			</div>
 		</aside>
 
@@ -70,10 +89,12 @@
 		</div>
 
 		<div class="help-card">
-			<strong>Controls</strong>
+			<span class="help-stamp" aria-hidden="true">Visitors' Guide</span>
+			<strong>Walk this way</strong>
 			<span
-				>Arrow keys to move and turn, mouse to look, click exhibits or
-				use the rail.</span
+				>Arrow keys to move and turn · Mouse to look · Click any plaque
+				or use the rail to inspect a release · ➜ Try the Mercantile
+				exit beyond the mural.</span
 			>
 		</div>
 
