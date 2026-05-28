@@ -62,14 +62,19 @@ const modelDefinitions = {
 const museumTextureSources = {
 	...(isCurrentVariant
 		? {
-				atriumFloor: './assets/textures/floor-paving-stones.jpg',
+				// Floors are drawn procedurally as large warm marble slabs.
 				ceiling: './assets/textures/ceiling-tiles.jpg',
-				roomFloor: './assets/textures/floor-paving-stones.jpg',
 				roomWall: './assets/textures/wall-marble.jpg',
 				shellWall: './assets/textures/wall-marble.jpg',
 			}
 		: {}),
 };
+// Each procedural floor canvas holds a 2x2 block of slabs; this span sets
+// the real-world size of that block so individual slabs read ~2.6m.
+const floorTileSpan = 5.2;
+// Warm tint multiplied over the cool marble photo to bring the walls
+// closer to the cream limestone columns.
+const wallWarmTint = 0xe9dcc0;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(68, 1, 0.1, 420);
 const clock = new THREE.Clock();
@@ -354,10 +359,10 @@ function createMercantileCorridor() {
 	const floor = new THREE.Mesh(
 		new THREE.PlaneGeometry(width, mercantileCorridorDepth),
 		createMuseumMaterial('roomFloor', {
-			repeatX: width / 4,
-			repeatY: mercantileCorridorDepth / 4,
-			roughness: 0.78,
-			metalness: 0.06,
+			repeatX: width / floorTileSpan,
+			repeatY: mercantileCorridorDepth / floorTileSpan,
+			roughness: 0.6,
+			metalness: 0.1,
 		})
 	);
 	floor.rotation.x = -Math.PI / 2;
@@ -392,8 +397,9 @@ function createMercantileCorridor() {
 	const wallMaterial = createMuseumMaterial('roomWall', {
 		repeatX: mercantileCorridorDepth / 4.6,
 		repeatY: corridorHeight / 2.4,
-		roughness: 0.92,
-		metalness: 0.02,
+		color: wallWarmTint,
+		roughness: 0.9,
+		metalness: 0.03,
 	});
 	for (const sideSign of [-1, 1]) {
 		const wall = new THREE.Mesh(
@@ -523,6 +529,7 @@ function createMercantileEndWall(zEnd, corridorHeight) {
 	const wallMaterial = createMuseumMaterial('roomWall', {
 		repeatX: mercantileCorridorHalfWidth,
 		repeatY: corridorHeight / 2.4,
+		color: wallWarmTint,
 	});
 	const wall = new THREE.Mesh(
 		new THREE.BoxGeometry(mercantileCorridorHalfWidth * 2 + wallThickness * 2, corridorHeight, wallThickness),
@@ -824,8 +831,9 @@ function getTextureCanvas(name) {
 	}
 
 	const canvas = document.createElement('canvas');
-	canvas.width = 512;
-	canvas.height = 512;
+	const isFloor = name === 'atriumFloor' || name === 'roomFloor';
+	canvas.width = isFloor ? 1024 : 512;
+	canvas.height = isFloor ? 1024 : 512;
 	const ctx = canvas.getContext('2d');
 	const draw = {
 		atriumFloor: drawAtriumFloorTexture,
@@ -844,15 +852,7 @@ function drawRoomFloorTexture(ctx, width, height) {
 		drawVariantTexture(ctx, width, height, activeVariant.floor, 'floor');
 		return;
 	}
-	ctx.fillStyle = '#2f3f5f';
-	ctx.fillRect(0, 0, width, height);
-	drawTileGrid(ctx, width, height, 48, '#1f2b44', '#405373');
-	drawSpeckles(ctx, width, height, 220, [
-		'#7f90ad',
-		'#ffcf6a',
-		'#ed6b78',
-		'#26324d',
-	]);
+	drawMonumentalFloor(ctx, width, height);
 }
 
 function drawAtriumFloorTexture(ctx, width, height) {
@@ -861,6 +861,81 @@ function drawAtriumFloorTexture(ctx, width, height) {
 		drawAtriumRings(ctx, width, height, activeVariant.eraColors[0]);
 		return;
 	}
+	drawMonumentalFloor(ctx, width, height);
+}
+
+// Large polished marble slabs in two warm cream tones, laid as a 2x2
+// checkerboard that tiles seamlessly. Thin warm grout separates the
+// slabs; faint veining and a soft sheen keep each slab from reading flat.
+function drawMonumentalFloor(ctx, width, height) {
+	const grout = '#cabb98';
+	const tones = ['#efe7d4', '#e4d9bf'];
+	ctx.fillStyle = grout;
+	ctx.fillRect(0, 0, width, height);
+
+	const cell = width / 2;
+	const gap = Math.max(4, width * 0.008);
+	for (let row = 0; row < 2; row++) {
+		for (let col = 0; col < 2; col++) {
+			const tone = tones[(row + col) % 2];
+			const x = col * cell + gap / 2;
+			const y = row * cell + gap / 2;
+			const size = cell - gap;
+			drawMarbleSlab(ctx, x, y, size, tone);
+		}
+	}
+}
+
+function drawMarbleSlab(ctx, x, y, size, tone) {
+	ctx.save();
+	ctx.beginPath();
+	ctx.rect(x, y, size, size);
+	ctx.clip();
+
+	const base = new THREE.Color(tone);
+	ctx.fillStyle = `#${base.getHexString()}`;
+	ctx.fillRect(x, y, size, size);
+
+	// Soft diagonal sheen.
+	const sheen = ctx.createLinearGradient(x, y, x + size, y + size);
+	sheen.addColorStop(0, 'rgba(255, 252, 240, 0.5)');
+	sheen.addColorStop(0.5, 'rgba(255, 252, 240, 0)');
+	sheen.addColorStop(1, 'rgba(120, 104, 74, 0.14)');
+	ctx.fillStyle = sheen;
+	ctx.fillRect(x, y, size, size);
+
+	// Faint marble veins.
+	const veinCount = 5;
+	for (let index = 0; index < veinCount; index++) {
+		const seed = x * 0.013 + y * 0.017 + index * 1.7;
+		const startX = x + (pseudoRandom(seed) * 0.9 + 0.05) * size;
+		const startY = y + (index / veinCount) * size;
+		ctx.beginPath();
+		ctx.moveTo(startX, startY);
+		let cx = startX;
+		let cy = startY;
+		for (let step = 0; step < 4; step++) {
+			cx += (pseudoRandom(seed + step) - 0.5) * size * 0.5;
+			cy += size * 0.22;
+			ctx.lineTo(cx, cy);
+		}
+		ctx.strokeStyle = index % 2
+			? 'rgba(118, 102, 72, 0.1)'
+			: 'rgba(255, 250, 236, 0.32)';
+		ctx.lineWidth = 1.4;
+		ctx.stroke();
+	}
+
+	// Subtle inner bevel highlight + shadow for a cut-stone edge.
+	ctx.strokeStyle = 'rgba(255, 252, 242, 0.55)';
+	ctx.lineWidth = 2;
+	ctx.strokeRect(x + 2, y + 2, size - 4, size - 4);
+	ctx.strokeStyle = 'rgba(120, 104, 74, 0.18)';
+	ctx.strokeRect(x + 5, y + 5, size - 10, size - 10);
+	ctx.restore();
+}
+
+function drawAtriumFloorTextureLegacy(ctx, width, height) {
 	const center = width / 2;
 	ctx.fillStyle = '#31415f';
 	ctx.fillRect(0, 0, width, height);
@@ -1250,8 +1325,9 @@ function createShellWallMaterial(length) {
 	return createMuseumMaterial('shellWall', {
 		repeatX: length / 6,
 		repeatY: shellHeight / 2,
-		roughness: 0.92,
-		metalness: 0.02,
+		color: wallWarmTint,
+		roughness: 0.9,
+		metalness: 0.03,
 	});
 }
 
@@ -2232,10 +2308,10 @@ function createHubFloor() {
 	const floor = new THREE.Mesh(
 		new THREE.CircleGeometry(hubCircumradius, 8, Math.PI / 8),
 		createMuseumMaterial('atriumFloor', {
-			repeatX: hubCircumradius / 3,
-			repeatY: hubCircumradius / 3,
-			roughness: 0.78,
-			metalness: 0.08,
+			repeatX: (hubCircumradius * 2) / floorTileSpan,
+			repeatY: (hubCircumradius * 2) / floorTileSpan,
+			roughness: 0.58,
+			metalness: 0.12,
 		})
 	);
 	floor.rotation.x = -Math.PI / 2;
@@ -2916,10 +2992,10 @@ function createRoom(room) {
 	const floor = new THREE.Mesh(
 		new THREE.PlaneGeometry(roomWidth, roomDepth),
 		createMuseumMaterial('roomFloor', {
-			repeatX: roomWidth / 4,
-			repeatY: roomDepth / 4,
-			roughness: 0.82,
-			metalness: 0.08,
+			repeatX: roomWidth / floorTileSpan,
+			repeatY: roomDepth / floorTileSpan,
+			roughness: 0.6,
+			metalness: 0.12,
 		})
 	);
 	floor.rotation.x = -Math.PI / 2;
@@ -3283,8 +3359,9 @@ function createRoomWallMaterial(length) {
 	return createMuseumMaterial('roomWall', {
 		repeatX: length / 4.8,
 		repeatY: wallHeight / 2.2,
-		roughness: 0.94,
-		metalness: 0.02,
+		color: wallWarmTint,
+		roughness: 0.9,
+		metalness: 0.03,
 	});
 }
 
