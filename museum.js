@@ -4091,6 +4091,8 @@ function createAtriumMuseumArchitecture(color, secondary) {
 		}
 	}
 
+	group.add(createHubCornerPilasters());
+
 	for (let index = 0; index < 8; index++) {
 		const angle = (Math.PI * 2 * index) / 8 + Math.PI / 8;
 		const radius = hubApothem - 1.15;
@@ -4110,6 +4112,55 @@ function createAtriumMuseumArchitecture(color, secondary) {
 			});
 			group.add(glow);
 		}
+	}
+	return group;
+}
+
+function createHubCornerPilasters() {
+	const group = new THREE.Group();
+	const marble = new THREE.MeshStandardMaterial({ color: 0xf2eadc, roughness: 0.74, metalness: 0.03 });
+	const shade = new THREE.MeshStandardMaterial({ color: 0xd9cdb4, roughness: 0.78 });
+	const brass = new THREE.MeshStandardMaterial({
+		color: 0xc79b43,
+		emissive: 0x2a1c06,
+		emissiveIntensity: 0.1,
+		roughness: 0.32,
+		metalness: 0.52,
+	});
+	const innerVertexRadius = (hubApothem - wallThickness / 2) / Math.cos(Math.PI / 8) - 0.16;
+	for (let k = 0; k < 8; k++) {
+		const angle = Math.PI / 8 + (k * Math.PI) / 4;
+		const outward = new THREE.Vector3(Math.sin(angle), 0, -Math.cos(angle));
+		const pos = outward.clone().multiplyScalar(innerVertexRadius);
+		const rotY = getRotationForNormal(outward.clone().multiplyScalar(-1));
+
+		const pilaster = new THREE.Mesh(new THREE.BoxGeometry(0.66, wallHeight, 0.46), marble);
+		pilaster.position.set(pos.x, wallHeight / 2, pos.z);
+		pilaster.rotation.y = rotY;
+		group.add(pilaster);
+
+		const reveal = new THREE.Mesh(new THREE.BoxGeometry(0.18, wallHeight - 0.4, 0.5), shade);
+		reveal.position.set(pos.x, wallHeight / 2, pos.z);
+		reveal.rotation.y = rotY;
+		group.add(reveal);
+
+		// Cornice corner blocks bridge the gap between adjacent wall cornices.
+		for (const spec of [
+			{ y: wallHeight + 0.12, h: 0.3, d: 0.56, material: marble },
+			{ y: wallHeight + 0.42, h: 0.06, d: 0.62, material: brass },
+			{ y: shellHeight - 2.74, h: 0.2, d: 0.5, material: marble },
+			{ y: shellHeight - 2.52, h: 0.05, d: 0.56, material: brass },
+		]) {
+			const cap = new THREE.Mesh(new THREE.BoxGeometry(0.78, spec.h, spec.d), spec.material);
+			cap.position.set(pos.x, spec.y, pos.z);
+			cap.rotation.y = rotY;
+			group.add(cap);
+		}
+
+		const capital = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.16, 0.6), brass);
+		capital.position.set(pos.x, wallHeight - 0.18, pos.z);
+		capital.rotation.y = rotY;
+		group.add(capital);
 	}
 	return group;
 }
@@ -4139,25 +4190,33 @@ function createCathedralColumn(height, accentColor, secondaryColor) {
 		opacity: 0.62,
 	});
 
-	const base = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.62, 0.28, 28), marbleMaterial);
-	base.position.y = 0.14;
-	group.add(base);
-	const baseBand = new THREE.Mesh(new THREE.CylinderGeometry(0.39, 0.46, 0.16, 28), brassMaterial);
-	baseBand.position.y = 0.36;
+	// Attic base: square plinth, torus, then the shaft rises directly off it
+	// so there is no gap between base and column.
+	const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.2, 0.92), marbleMaterial);
+	plinth.position.y = 0.1;
+	group.add(plinth);
+	const torus = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.46, 0.22, 28), marbleMaterial);
+	torus.position.y = 0.31;
+	group.add(torus);
+	const baseBand = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.35, 0.07, 28), brassMaterial);
+	baseBand.position.y = 0.45;
 	group.add(baseBand);
 
-	const shaftHeight = height - 1.25;
-	const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, shaftHeight, 32), marbleMaterial);
-	shaft.position.y = 0.58 + shaftHeight / 2;
+	const shaftBottom = 0.48;
+	const shaftTop = height - 0.62;
+	const shaftHeight = shaftTop - shaftBottom;
+	const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.33, shaftHeight, 32), marbleMaterial);
+	shaft.position.y = shaftBottom + shaftHeight / 2;
 	group.add(shaft);
 
 	for (let index = 0; index < 16; index++) {
 		const angle = (Math.PI * 2 * index) / 16;
-		const flute = new THREE.Mesh(new THREE.BoxGeometry(0.026, shaftHeight * 0.86, 0.035), shadowMaterial);
+		const flute = new THREE.Mesh(new THREE.BoxGeometry(0.026, shaftHeight * 0.9, 0.035), shadowMaterial);
+		const radius = 0.3;
 		flute.position.set(
-			Math.cos(angle) * 0.312,
-			0.72 + shaftHeight * 0.43,
-			Math.sin(angle) * 0.312
+			Math.cos(angle) * radius,
+			shaftBottom + shaftHeight / 2,
+			Math.sin(angle) * radius
 		);
 		flute.rotation.y = -angle;
 		group.add(flute);
@@ -4608,191 +4667,131 @@ function createWapuuDocent(color, secondary) {
 }
 
 function createWapuu3D(options = {}) {
+	// Canonical Wapuu: a round yellow body with the WordPress logo on its
+	// belly, two orange fox ears, an orange tail, black eyes and a small
+	// accent bow-tie that picks up the room/era colour.
 	const height = options.height ?? 2;
 	const unit = height / 2.4;
-	const accent = options.accent ?? 0xffd166;
-	const tailColor = options.tailColor ?? 0xff8a3c;
+	const accent = options.accent ?? 0x2bb7ff;
 	const group = new THREE.Group();
 
-	const bodyMat = new THREE.MeshStandardMaterial({
-		color: 0x108fbf,
-		roughness: 0.46,
-		metalness: 0.05,
-	});
-	const bodyShadowMat = new THREE.MeshStandardMaterial({
-		color: 0x046790,
-		roughness: 0.5,
-	});
-	const cheekMat = new THREE.MeshBasicMaterial({
-		color: 0xffb1bc,
-		transparent: true,
-		opacity: 0.78,
-		depthWrite: false,
-	});
-	const bellyMat = new THREE.MeshStandardMaterial({
-		color: 0xfff4d8,
-		roughness: 0.58,
-	});
-	const accentMat = new THREE.MeshStandardMaterial({
-		color: accent,
-		emissive: new THREE.Color(accent),
-		emissiveIntensity: 0.05,
-		roughness: 0.4,
-	});
-	const tailMat = new THREE.MeshStandardMaterial({
-		color: tailColor,
-		roughness: 0.45,
-	});
-	const blackMat = new THREE.MeshStandardMaterial({
-		color: 0x14121a,
-		roughness: 0.36,
-		metalness: 0.06,
-	});
-	const whiteMat = new THREE.MeshStandardMaterial({
-		color: 0xfdfcf4,
-		roughness: 0.28,
-	});
-	const logoMat = new THREE.MeshStandardMaterial({
-		color: 0xfff7e0,
-		roughness: 0.5,
-		emissive: 0x123546,
-		emissiveIntensity: 0.04,
-	});
+	const yellow = new THREE.MeshStandardMaterial({ color: 0xffce3b, roughness: 0.52, metalness: 0.03 });
+	const yellowShade = new THREE.MeshStandardMaterial({ color: 0xf2b417, roughness: 0.56 });
+	const orange = new THREE.MeshStandardMaterial({ color: 0xff8a2b, roughness: 0.48 });
+	const orangeShade = new THREE.MeshStandardMaterial({ color: 0xe9721a, roughness: 0.5 });
+	const black = new THREE.MeshStandardMaterial({ color: 0x191320, roughness: 0.34, metalness: 0.04 });
+	const white = new THREE.MeshStandardMaterial({ color: 0xfdfdf4, roughness: 0.3 });
+	const cheekMat = new THREE.MeshBasicMaterial({ color: 0xff9bb0, transparent: true, opacity: 0.6, depthWrite: false });
+	const accentMat = new THREE.MeshStandardMaterial({ color: accent, roughness: 0.4, metalness: 0.05 });
 
-	const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 32, 24), bodyMat);
-	body.scale.set(0.98 * unit, 1.08 * unit, 0.88 * unit);
-	body.position.y = 0.55 * unit;
-	group.add(body);
+	// Feet sit on the ground and do not bob with the body.
+	const footGeom = new THREE.SphereGeometry(0.16, 22, 16);
+	for (const sx of [-1, 1]) {
+		const foot = new THREE.Mesh(footGeom, yellowShade);
+		foot.scale.set(0.74 * unit, 0.5 * unit, 1.15 * unit);
+		foot.position.set(sx * 0.2 * unit, 0.085 * unit, 0.16 * unit);
+		group.add(foot);
+	}
 
-	const bottom = new THREE.Mesh(new THREE.SphereGeometry(0.36, 22, 16), bodyShadowMat);
-	bottom.scale.set(1.05 * unit, 0.62 * unit, 0.95 * unit);
-	bottom.position.y = 0.16 * unit;
-	group.add(bottom);
+	// Everything above the feet gently bobs together.
+	const bob = new THREE.Group();
+	group.add(bob);
 
-	const belly = new THREE.Mesh(new THREE.SphereGeometry(0.34, 24, 18), bellyMat);
-	belly.scale.set(0.9 * unit, 1.1 * unit, 0.6 * unit);
-	belly.position.set(0, 0.46 * unit, 0.34 * unit);
-	group.add(belly);
+	const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 40, 30), yellow);
+	body.scale.set(1.0 * unit, 1.16 * unit, 0.95 * unit);
+	body.position.y = 0.64 * unit;
+	bob.add(body);
+	const belly = new THREE.Mesh(new THREE.SphereGeometry(0.46, 32, 24), yellow);
+	belly.scale.set(1.02 * unit, 0.82 * unit, 1.0 * unit);
+	belly.position.set(0, 0.42 * unit, 0.02 * unit);
+	bob.add(belly);
 
-	const wDisc = new THREE.Mesh(
-		new THREE.CylinderGeometry(0.13 * unit, 0.13 * unit, 0.025 * unit, 32),
-		logoMat
+	// WordPress logo emblem on the belly.
+	const emblem = new THREE.Mesh(
+		new THREE.CircleGeometry(0.21 * unit, 48),
+		new THREE.MeshBasicMaterial({ map: createWapuuWordmarkTexture(), transparent: true })
 	);
-	wDisc.rotation.x = Math.PI / 2;
-	wDisc.position.set(0, 0.52 * unit, 0.5 * unit);
-	group.add(wDisc);
-	const wMark = new THREE.Mesh(
-		new THREE.PlaneGeometry(0.22 * unit, 0.22 * unit),
-		new THREE.MeshBasicMaterial({
-			map: createWapuuWordmarkTexture(),
-			transparent: true,
-			depthWrite: false,
-		})
-	);
-	wMark.position.set(0, 0.52 * unit, 0.515 * unit);
-	group.add(wMark);
+	emblem.position.set(0, 0.5 * unit, 0.475 * unit);
+	bob.add(emblem);
 
-	const earGeom = new THREE.ConeGeometry(0.13, 0.42, 22);
-	const earL = new THREE.Mesh(earGeom, accentMat);
-	earL.position.set(-0.3 * unit, 1.08 * unit, -0.08 * unit);
-	earL.scale.setScalar(unit);
-	earL.rotation.set(-0.18, 0, -0.34);
-	group.add(earL);
-	const earR = new THREE.Mesh(earGeom, accentMat);
-	earR.position.set(0.3 * unit, 1.08 * unit, -0.08 * unit);
-	earR.scale.setScalar(unit);
-	earR.rotation.set(-0.18, 0, 0.34);
-	group.add(earR);
+	// Fox ears: flattened orange cones tilted outward, with a lighter inner.
+	const earGeom = new THREE.ConeGeometry(0.2, 0.56, 20);
+	const earInnerGeom = new THREE.ConeGeometry(0.11, 0.34, 16);
+	const ears = [];
+	for (const sx of [-1, 1]) {
+		const ear = new THREE.Mesh(earGeom, orange);
+		ear.scale.set(unit, unit, 0.42 * unit);
+		ear.position.set(sx * 0.28 * unit, 1.18 * unit, -0.04 * unit);
+		ear.rotation.z = sx * -0.42;
+		ear.rotation.x = -0.16;
+		bob.add(ear);
+		ears.push(ear);
+		const inner = new THREE.Mesh(earInnerGeom, orangeShade);
+		inner.scale.set(unit, unit, 0.42 * unit);
+		inner.position.set(sx * 0.28 * unit, 1.14 * unit, 0.03 * unit);
+		inner.rotation.z = sx * -0.42;
+		inner.rotation.x = -0.16;
+		bob.add(inner);
+	}
 
-	const earTipMat = new THREE.MeshStandardMaterial({ color: tailColor, roughness: 0.42 });
-	const earTipGeom = new THREE.ConeGeometry(0.082, 0.24, 18);
-	const earTipL = new THREE.Mesh(earTipGeom, earTipMat);
-	earTipL.position.set(-0.345 * unit, 1.18 * unit, -0.085 * unit);
-	earTipL.scale.setScalar(unit);
-	earTipL.rotation.set(-0.18, 0, -0.34);
-	group.add(earTipL);
-	const earTipR = new THREE.Mesh(earTipGeom, earTipMat);
-	earTipR.position.set(0.345 * unit, 1.18 * unit, -0.085 * unit);
-	earTipR.scale.setScalar(unit);
-	earTipR.rotation.set(-0.18, 0, 0.34);
-	group.add(earTipR);
+	// Eyes (tall black ovals) with highlights and a small nose.
+	const eyeGeom = new THREE.SphereGeometry(0.082, 20, 16);
+	for (const sx of [-1, 1]) {
+		const eye = new THREE.Mesh(eyeGeom, black);
+		eye.scale.set(0.8 * unit, 1.12 * unit, 0.62 * unit);
+		eye.position.set(sx * 0.165 * unit, 0.86 * unit, 0.44 * unit);
+		bob.add(eye);
+		const hl = new THREE.Mesh(new THREE.SphereGeometry(0.028, 12, 10), white);
+		hl.position.set(sx * 0.165 * unit + 0.035 * unit, 0.91 * unit, 0.5 * unit);
+		hl.scale.setScalar(unit);
+		bob.add(hl);
+		const cheek = new THREE.Mesh(new THREE.CircleGeometry(0.07 * unit, 20), cheekMat);
+		cheek.position.set(sx * 0.31 * unit, 0.74 * unit, 0.42 * unit);
+		cheek.rotation.y = sx * -0.5;
+		bob.add(cheek);
+	}
+	const nose = new THREE.Mesh(new THREE.SphereGeometry(0.04, 14, 12), black);
+	nose.scale.set(1.2 * unit, 0.85 * unit, unit);
+	nose.position.set(0, 0.75 * unit, 0.49 * unit);
+	bob.add(nose);
 
-	const eyeGeom = new THREE.SphereGeometry(0.075, 18, 14);
-	const eyeL = new THREE.Mesh(eyeGeom, blackMat);
-	eyeL.position.set(-0.14 * unit, 0.78 * unit, 0.43 * unit);
-	eyeL.scale.setScalar(unit);
-	group.add(eyeL);
-	const eyeR = new THREE.Mesh(eyeGeom, blackMat);
-	eyeR.position.set(0.14 * unit, 0.78 * unit, 0.43 * unit);
-	eyeR.scale.setScalar(unit);
-	group.add(eyeR);
+	// Accent bow-tie just under the chin.
+	const knot = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.09, 0.07), accentMat);
+	knot.scale.setScalar(unit);
+	knot.position.set(0, 0.66 * unit, 0.46 * unit);
+	bob.add(knot);
+	for (const sx of [-1, 1]) {
+		const wing = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.14, 16), accentMat);
+		wing.scale.set(unit, unit, 0.55 * unit);
+		wing.position.set(sx * 0.1 * unit, 0.66 * unit, 0.45 * unit);
+		wing.rotation.z = sx * Math.PI / 2;
+		bob.add(wing);
+	}
 
-	const hlGeom = new THREE.SphereGeometry(0.028, 12, 10);
-	const hlL = new THREE.Mesh(hlGeom, whiteMat);
-	hlL.position.set(-0.115 * unit, 0.81 * unit, 0.49 * unit);
-	hlL.scale.setScalar(unit);
-	group.add(hlL);
-	const hlR = new THREE.Mesh(hlGeom, whiteMat);
-	hlR.position.set(0.165 * unit, 0.81 * unit, 0.49 * unit);
-	hlR.scale.setScalar(unit);
-	group.add(hlR);
-
-	const noseGeom = new THREE.SphereGeometry(0.045, 14, 10);
-	const nose = new THREE.Mesh(noseGeom, blackMat);
-	nose.position.set(-0.02 * unit, 0.69 * unit, 0.5 * unit);
-	nose.scale.setScalar(unit);
-	group.add(nose);
-
-	const cheekGeom = new THREE.SphereGeometry(0.07, 16, 12);
-	const cheekL = new THREE.Mesh(cheekGeom, cheekMat);
-	cheekL.position.set(-0.27 * unit, 0.66 * unit, 0.4 * unit);
-	cheekL.scale.setScalar(unit);
-	group.add(cheekL);
-	const cheekR = new THREE.Mesh(cheekGeom, cheekMat);
-	cheekR.position.set(0.27 * unit, 0.66 * unit, 0.4 * unit);
-	cheekR.scale.setScalar(unit);
-	group.add(cheekR);
-
-	const tail = new THREE.Mesh(new THREE.SphereGeometry(0.18, 18, 14), tailMat);
-	tail.position.set(-0.05 * unit, 0.34 * unit, -0.46 * unit);
-	tail.scale.set(1.05 * unit, 0.74 * unit, 1.18 * unit);
-	group.add(tail);
-	const tailTip = new THREE.Mesh(new THREE.SphereGeometry(0.09, 14, 10), tailMat);
-	tailTip.position.set(-0.18 * unit, 0.46 * unit, -0.6 * unit);
+	// Orange tail behind, with a curled tip.
+	const tail = new THREE.Mesh(new THREE.SphereGeometry(0.17, 18, 14), orange);
+	tail.scale.set(0.7 * unit, 0.95 * unit, 0.7 * unit);
+	tail.position.set(0.04 * unit, 0.4 * unit, -0.5 * unit);
+	bob.add(tail);
+	const tailTip = new THREE.Mesh(new THREE.SphereGeometry(0.1, 14, 12), orangeShade);
 	tailTip.scale.setScalar(unit);
-	group.add(tailTip);
+	tailTip.position.set(0.16 * unit, 0.56 * unit, -0.56 * unit);
+	bob.add(tailTip);
 
-	const footGeom = new THREE.SphereGeometry(0.15, 22, 14);
-	const footL = new THREE.Mesh(footGeom, accentMat);
-	footL.scale.set(0.9 * unit, 0.58 * unit, 1.45 * unit);
-	footL.position.set(-0.21 * unit, 0.075 * unit, 0.12 * unit);
-	group.add(footL);
-	const footR = new THREE.Mesh(footGeom, accentMat);
-	footR.scale.set(0.9 * unit, 0.58 * unit, 1.45 * unit);
-	footR.position.set(0.21 * unit, 0.075 * unit, 0.12 * unit);
-	group.add(footR);
-
-	const handGeom = new THREE.SphereGeometry(0.1, 16, 12);
-	const handL = new THREE.Mesh(handGeom, accentMat);
-	handL.position.set(-0.48 * unit, 0.46 * unit, 0.06 * unit);
-	handL.scale.setScalar(unit);
-	group.add(handL);
-	const handR = new THREE.Mesh(handGeom, accentMat);
-	handR.position.set(0.48 * unit, 0.46 * unit, 0.06 * unit);
-	handR.scale.setScalar(unit);
-	group.add(handR);
+	// Little yellow hands.
+	for (const sx of [-1, 1]) {
+		const hand = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 12), yellowShade);
+		hand.scale.set(unit, 1.1 * unit, unit);
+		hand.position.set(sx * 0.47 * unit, 0.44 * unit, 0.14 * unit);
+		bob.add(hand);
+	}
 
 	if (options.idle !== false) {
-		const baseY = group.position.y;
-		registerAnimation(group, (object, elapsed) => {
-			body.position.y = (0.55 + Math.sin(elapsed * 1.4) * 0.012) * unit;
-			belly.position.y = (0.46 + Math.sin(elapsed * 1.4) * 0.012) * unit;
-			wDisc.position.y = (0.52 + Math.sin(elapsed * 1.4) * 0.012) * unit;
-			wMark.position.y = (0.52 + Math.sin(elapsed * 1.4) * 0.012) * unit;
-			earL.rotation.z = -0.34 + Math.sin(elapsed * 1.7) * 0.07;
-			earR.rotation.z = 0.34 - Math.sin(elapsed * 1.7) * 0.07;
-			earTipL.rotation.z = earL.rotation.z;
-			earTipR.rotation.z = earR.rotation.z;
+		registerAnimation(bob, (object, elapsed) => {
+			object.position.y = Math.sin(elapsed * 1.5) * 0.02 * unit;
+			object.rotation.z = Math.sin(elapsed * 0.8) * 0.02;
+			ears[0].rotation.z = -0.42 + Math.sin(elapsed * 1.9) * 0.08;
+			ears[1].rotation.z = 0.42 - Math.sin(elapsed * 1.9) * 0.08;
 		});
 	}
 	return group;
@@ -4807,19 +4806,22 @@ function createWapuuWordmarkTexture() {
 	canvas.height = 256;
 	const ctx = canvas.getContext('2d');
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
-	ctx.fillStyle = '#0a4660';
+	// WordPress logo: white "W" inside a blue disc.
+	ctx.fillStyle = '#1e6a93';
 	ctx.beginPath();
-	ctx.arc(128, 128, 92, 0, Math.PI * 2);
+	ctx.arc(128, 128, 96, 0, Math.PI * 2);
 	ctx.fill();
-	ctx.fillStyle = '#fff7e0';
+	ctx.fillStyle = '#0d4f72';
 	ctx.beginPath();
-	ctx.arc(128, 128, 80, 0, Math.PI * 2);
-	ctx.fill();
-	ctx.fillStyle = '#0a4660';
-	ctx.font = '900 130px Arial Black, Impact, sans-serif';
+	ctx.arc(128, 128, 96, 0, Math.PI * 2);
+	ctx.lineWidth = 10;
+	ctx.strokeStyle = '#0d4f72';
+	ctx.stroke();
+	ctx.fillStyle = '#fdfdf4';
+	ctx.font = '900 150px Georgia, "Times New Roman", serif';
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-	ctx.fillText('W', 128, 142);
+	ctx.fillText('W', 128, 150);
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	wapuuWordmarkTexture = texture;
