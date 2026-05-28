@@ -124,6 +124,11 @@ const sideExhibitMaxZ = roomDepth / 2 - exhibitOuterWidth / 2 - exhibitWallMargi
 const entryDistanceFromCenter = 5.2;
 const shellPadding = 1.4;
 const shellHeight = 12.4;
+const mercantileDoorHalfWidth = 2.2;
+const mercantileDoorHeight = 4.45;
+const mercantileCorridorHalfWidth = 2.55;
+const mercantileCorridorDepth = 6.4;
+const mercantileUrl = 'https://mercantile.wordpress.org/';
 const walkSpeed = 7.2;
 const arrowWalkSpeed = 9.2;
 const mobileWalkSpeed = 8.8;
@@ -332,6 +337,421 @@ function createBuildingShell() {
 	group.add(createShellWall(bounds.maxX, centerZ, depth, false));
 	group.add(createCeiling(bounds));
 	group.add(createCeilingDetails(bounds));
+	if (isCurrentVariant) {
+		group.add(createMercantileCorridor());
+	}
+	return group;
+}
+
+function createMercantileCorridor() {
+	const group = new THREE.Group();
+	const zStart = hubApothem;
+	const zEnd = hubApothem + mercantileCorridorDepth;
+	const centerZ = (zStart + zEnd) / 2;
+	const width = mercantileCorridorHalfWidth * 2;
+	const corridorHeight = mercantileDoorHeight + 0.42;
+
+	const floor = new THREE.Mesh(
+		new THREE.PlaneGeometry(width, mercantileCorridorDepth),
+		createMuseumMaterial('roomFloor', {
+			repeatX: width / 4,
+			repeatY: mercantileCorridorDepth / 4,
+			roughness: 0.78,
+			metalness: 0.06,
+		})
+	);
+	floor.rotation.x = -Math.PI / 2;
+	floor.position.set(0, 0.015, centerZ);
+	group.add(floor);
+
+	const runner = new THREE.Mesh(
+		new THREE.PlaneGeometry(width * 0.46, mercantileCorridorDepth - 0.4),
+		new THREE.MeshBasicMaterial({
+			color: 0xd45a39,
+			transparent: true,
+			opacity: 0.84,
+			depthWrite: false,
+		})
+	);
+	runner.rotation.x = -Math.PI / 2;
+	runner.position.set(0, 0.07, centerZ);
+	group.add(runner);
+	const runnerTrim = new THREE.Mesh(
+		new THREE.PlaneGeometry(width * 0.5, mercantileCorridorDepth - 0.32),
+		new THREE.MeshBasicMaterial({
+			color: 0xf3c66a,
+			transparent: true,
+			opacity: 0.45,
+			depthWrite: false,
+		})
+	);
+	runnerTrim.rotation.x = -Math.PI / 2;
+	runnerTrim.position.set(0, 0.06, centerZ);
+	group.add(runnerTrim);
+
+	const wallMaterial = createMuseumMaterial('roomWall', {
+		repeatX: mercantileCorridorDepth / 4.6,
+		repeatY: corridorHeight / 2.4,
+		roughness: 0.92,
+		metalness: 0.02,
+	});
+	for (const sideSign of [-1, 1]) {
+		const wall = new THREE.Mesh(
+			new THREE.BoxGeometry(wallThickness, corridorHeight, mercantileCorridorDepth),
+			wallMaterial
+		);
+		wall.position.set(sideSign * (mercantileCorridorHalfWidth + wallThickness / 2), corridorHeight / 2, centerZ);
+		group.add(wall);
+		group.add(createMercantileWallPanel(sideSign, centerZ));
+	}
+
+	const ceiling = new THREE.Mesh(
+		new THREE.PlaneGeometry(width + wallThickness * 2, mercantileCorridorDepth),
+		new THREE.MeshStandardMaterial({
+			color: 0x18223a,
+			roughness: 0.6,
+			metalness: 0.16,
+			side: THREE.DoubleSide,
+		})
+	);
+	ceiling.rotation.x = Math.PI / 2;
+	ceiling.position.set(0, corridorHeight, centerZ);
+	group.add(ceiling);
+
+	const beamMaterial = new THREE.MeshStandardMaterial({
+		color: 0xf2cf86,
+		emissive: 0x3a2710,
+		emissiveIntensity: 0.12,
+		roughness: 0.3,
+		metalness: 0.5,
+	});
+	for (let index = 1; index <= 3; index++) {
+		const z = zStart + (mercantileCorridorDepth * index) / 4;
+		const beam = new THREE.Mesh(
+			new THREE.BoxGeometry(width + 0.18, 0.14, 0.18),
+			beamMaterial
+		);
+		beam.position.set(0, corridorHeight - 0.07, z);
+		group.add(beam);
+		const bulb = new THREE.Mesh(
+			new THREE.SphereGeometry(0.13, 18, 12),
+			new THREE.MeshBasicMaterial({ color: 0xffefb4 })
+		);
+		bulb.position.set(0, corridorHeight - 0.32, z);
+		group.add(bulb);
+		const lamp = new THREE.PointLight(0xffe2a0, 0.65, 6.5);
+		lamp.position.set(0, corridorHeight - 0.4, z);
+		registerAnimation(lamp, (object, elapsed) => {
+			object.intensity = 0.55 + Math.sin(elapsed * 1.6 + index * 0.7) * 0.08;
+		});
+		group.add(lamp);
+	}
+
+	group.add(createMercantileEndWall(zEnd, corridorHeight));
+	group.add(createMercantileShelves(zStart, zEnd));
+	return group;
+}
+
+function createMercantileWallPanel(sideSign, centerZ) {
+	const group = new THREE.Group();
+	const panelGeom = new THREE.PlaneGeometry(mercantileCorridorDepth - 1.4, 1.6);
+	const panel = new THREE.Mesh(panelGeom, new THREE.MeshBasicMaterial({
+		map: createMercantilePosterTexture(sideSign),
+		transparent: true,
+	}));
+	panel.position.set(
+		sideSign * (mercantileCorridorHalfWidth - 0.02),
+		2.55,
+		centerZ
+	);
+	panel.rotation.y = sideSign === 1 ? -Math.PI / 2 : Math.PI / 2;
+	group.add(panel);
+
+	const trimMaterial = new THREE.MeshBasicMaterial({ color: 0xf2cf86 });
+	const trim = new THREE.Mesh(
+		new THREE.BoxGeometry(0.04, 0.04, mercantileCorridorDepth - 0.8),
+		trimMaterial
+	);
+	trim.position.set(sideSign * (mercantileCorridorHalfWidth - 0.012), 1.6, centerZ);
+	group.add(trim);
+	const trimTop = trim.clone();
+	trimTop.position.y = 3.62;
+	group.add(trimTop);
+	return group;
+}
+
+function createMercantilePosterTexture(sideSign) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 1024;
+	canvas.height = 256;
+	const ctx = canvas.getContext('2d');
+	const palette = sideSign === 1
+		? ['#0e1c2e', '#ffd166', '#50d890', '#2bb7ff']
+		: ['#0e1c2e', '#ff8a3c', '#ffd166', '#b37cff'];
+	const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+	grad.addColorStop(0, palette[0]);
+	grad.addColorStop(1, '#0a1422');
+	ctx.fillStyle = grad;
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	for (let index = 0; index < 8; index++) {
+		ctx.fillStyle = palette[1 + (index % 3)];
+		ctx.globalAlpha = 0.15;
+		ctx.beginPath();
+		ctx.arc(120 + index * 130, 128, 38 + (index % 3) * 14, 0, Math.PI * 2);
+		ctx.fill();
+	}
+	ctx.globalAlpha = 1;
+	ctx.fillStyle = palette[1];
+	ctx.font = '900 86px Arial Black, Impact, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('GIFT SHOP', 512, 100);
+	ctx.fillStyle = '#fff5df';
+	ctx.font = '700 36px system-ui, sans-serif';
+	ctx.fillText('tees · stickers · tote bags · wapuu plushies', 512, 170);
+	ctx.fillStyle = palette[2];
+	ctx.font = '700 22px ui-monospace, Menlo, monospace';
+	ctx.fillText('mercantile.wordpress.org', 512, 218);
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+function createMercantileEndWall(zEnd, corridorHeight) {
+	const group = new THREE.Group();
+	const wallMaterial = createMuseumMaterial('roomWall', {
+		repeatX: mercantileCorridorHalfWidth,
+		repeatY: corridorHeight / 2.4,
+	});
+	const wall = new THREE.Mesh(
+		new THREE.BoxGeometry(mercantileCorridorHalfWidth * 2 + wallThickness * 2, corridorHeight, wallThickness),
+		wallMaterial
+	);
+	wall.position.set(0, corridorHeight / 2, zEnd + wallThickness / 2);
+	group.add(wall);
+
+	const archMaterial = new THREE.MeshStandardMaterial({
+		color: 0xf5d088,
+		emissive: 0x4a2810,
+		emissiveIntensity: 0.32,
+		roughness: 0.32,
+		metalness: 0.46,
+	});
+	const archWidth = mercantileCorridorHalfWidth * 1.7;
+	const archHeight = corridorHeight * 0.82;
+	const archFrame = new THREE.Mesh(
+		new THREE.BoxGeometry(archWidth + 0.32, 0.22, 0.5),
+		archMaterial
+	);
+	archFrame.position.set(0, archHeight + 0.2, zEnd - 0.08);
+	group.add(archFrame);
+
+	for (const xSign of [-1, 1]) {
+		const post = new THREE.Mesh(
+			new THREE.BoxGeometry(0.22, archHeight + 0.42, 0.42),
+			archMaterial
+		);
+		post.position.set(xSign * (archWidth / 2 + 0.12), (archHeight + 0.42) / 2, zEnd - 0.08);
+		group.add(post);
+	}
+
+	const doorMaterial = new THREE.MeshStandardMaterial({
+		color: 0xd45a39,
+		emissive: 0x6b1a0a,
+		emissiveIntensity: 0.32,
+		roughness: 0.38,
+		metalness: 0.18,
+	});
+	const door = new THREE.Mesh(
+		new THREE.BoxGeometry(archWidth, archHeight, 0.18),
+		doorMaterial
+	);
+	door.position.set(0, archHeight / 2 + 0.05, zEnd - 0.14);
+	door.userData.mercantileExit = true;
+	group.add(door);
+	pickables.push(door);
+
+	const doorOverlay = new THREE.Mesh(
+		new THREE.PlaneGeometry(archWidth - 0.16, archHeight - 0.18),
+		new THREE.MeshBasicMaterial({
+			map: createMercantileDoorTexture(),
+			transparent: true,
+			side: THREE.DoubleSide,
+			depthWrite: false,
+		})
+	);
+	doorOverlay.position.set(0, archHeight / 2 + 0.05, zEnd - 0.26);
+	doorOverlay.rotation.y = Math.PI;
+	group.add(doorOverlay);
+
+	const knob = new THREE.Mesh(
+		new THREE.SphereGeometry(0.1, 18, 12),
+		new THREE.MeshStandardMaterial({ color: 0xfff5df, roughness: 0.3, metalness: 0.7 })
+	);
+	knob.position.set(archWidth * 0.32, archHeight / 2 + 0.05, zEnd - 0.25);
+	group.add(knob);
+
+	const halo = new THREE.Mesh(
+		new THREE.PlaneGeometry(archWidth + 1.2, archHeight + 1.4),
+		new THREE.MeshBasicMaterial({
+			color: 0xffd166,
+			transparent: true,
+			opacity: 0.18,
+			depthWrite: false,
+			blending: THREE.AdditiveBlending,
+		})
+	);
+	halo.position.set(0, archHeight / 2 + 0.05, zEnd - 0.4);
+	registerAnimation(halo, (object, elapsed) => {
+		object.material.opacity = 0.12 + (Math.sin(elapsed * 1.2) * 0.5 + 0.5) * 0.18;
+		object.scale.setScalar(1 + Math.sin(elapsed * 1.4) * 0.04);
+	});
+	group.add(halo);
+
+	const doorLight = new THREE.PointLight(0xffba74, 1.4, 9);
+	doorLight.position.set(0, archHeight / 2 + 0.4, zEnd - 1.2);
+	registerAnimation(doorLight, (object, elapsed) => {
+		object.intensity = 1.05 + Math.sin(elapsed * 1.05) * 0.18;
+	});
+	group.add(doorLight);
+
+	const sign = createReadableLabel(createMercantileSignTexture(), 3.2, 0.86);
+	sign.position.set(0, archHeight + 0.95, zEnd - 0.06);
+	group.add(sign);
+
+	const arrowSign = createReadableLabel(
+		createSimpleTextTexture('CLICK TO EXIT  ➜', '#ffd166', '#10182a'),
+		2.2, 0.46
+	);
+	arrowSign.position.set(0, archHeight / 2 - archHeight * 0.42, zEnd - 0.32);
+	registerAnimation(arrowSign, (object, elapsed) => {
+		object.position.y = archHeight / 2 - archHeight * 0.42 + Math.sin(elapsed * 1.5) * 0.04;
+	});
+	group.add(arrowSign);
+
+	return group;
+}
+
+function createMercantileDoorTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 768;
+	canvas.height = 1024;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = 'rgba(0,0,0,0)';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	for (let y = 0; y < canvas.height; y += 8) {
+		ctx.fillStyle = `rgba(255, 245, 223, ${y % 16 === 0 ? 0.06 : 0.02})`;
+		ctx.fillRect(0, y, canvas.width, 2);
+	}
+	ctx.fillStyle = '#fff5df';
+	ctx.globalAlpha = 0.16;
+	for (let i = 0; i < 2; i++) {
+		ctx.strokeStyle = '#fff5df';
+		ctx.lineWidth = 6;
+		ctx.strokeRect(60 + i * 40, 120 + i * 80, canvas.width - 120 - i * 80, canvas.height - 320 - i * 160);
+	}
+	ctx.globalAlpha = 1;
+	ctx.fillStyle = '#fff5df';
+	ctx.font = '900 96px Arial Black, Impact, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.fillText('EXIT', canvas.width / 2, 220);
+	ctx.fillStyle = '#ffd166';
+	ctx.font = '900 220px Arial Black, Impact, sans-serif';
+	ctx.fillText('→', canvas.width / 2, 600);
+	ctx.fillStyle = '#fff5df';
+	ctx.font = '700 56px system-ui, sans-serif';
+	ctx.fillText('MERCANTILE', canvas.width / 2, 800);
+	ctx.font = '500 30px ui-monospace, Menlo, monospace';
+	ctx.fillText('mercantile.wordpress.org', canvas.width / 2, 880);
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+function createSimpleTextTexture(text, color, bg) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 768;
+	canvas.height = 160;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = bg || '#0e1c2e';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = color || '#fff5df';
+	ctx.font = '900 80px Arial Black, Impact, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+function createMercantileShelves(zStart, zEnd) {
+	const group = new THREE.Group();
+	const shelfMat = new THREE.MeshStandardMaterial({
+		color: 0xf8efd9,
+		roughness: 0.64,
+	});
+	const shelfTopMat = new THREE.MeshStandardMaterial({
+		color: 0xeed9a9,
+		roughness: 0.58,
+	});
+	const items = [
+		{ z: zStart + 1.6, color: 0xffd166, label: 'TEE' },
+		{ z: zStart + 3.5, color: 0x2bb7ff, label: 'PIN' },
+		{ z: zStart + 5.05, color: 0x50d890, label: 'WAPUU' },
+	];
+	for (const sideSign of [-1, 1]) {
+		const x = sideSign * (mercantileCorridorHalfWidth - 0.36);
+		for (const [index, item] of items.entries()) {
+			if (index === 0 && sideSign === -1) continue;
+			if (index === 2 && sideSign === 1) continue;
+			const shelf = new THREE.Mesh(
+				new THREE.BoxGeometry(0.5, 0.04, 0.62),
+				shelfTopMat
+			);
+			shelf.position.set(x, 0.95, item.z);
+			group.add(shelf);
+			const support = new THREE.Mesh(
+				new THREE.BoxGeometry(0.4, 0.94, 0.5),
+				shelfMat
+			);
+			support.position.set(x, 0.47, item.z);
+			group.add(support);
+			if (item.label === 'WAPUU') {
+				const plushie = createWapuu3D({ height: 0.52, accent: 0xffd166 });
+				plushie.position.set(x, 0.97, item.z);
+				plushie.rotation.y = sideSign === 1 ? -Math.PI / 2 - 0.3 : Math.PI / 2 + 0.3;
+				group.add(plushie);
+			} else {
+				const merch = new THREE.Mesh(
+					new THREE.BoxGeometry(0.36, 0.34, 0.42),
+					new THREE.MeshStandardMaterial({
+						color: item.color,
+						roughness: 0.55,
+					})
+				);
+				merch.position.set(x, 1.16, item.z);
+				merch.rotation.y = (sideSign === 1 ? -0.18 : 0.18);
+				group.add(merch);
+			}
+			const tag = createReadableLabel(
+				createSmallSignTexture(item.label, '#0e1c2e'),
+				0.36, 0.13
+			);
+			tag.position.set(x - sideSign * 0.21, 1.18, item.z);
+			tag.rotation.y = sideSign === 1 ? -Math.PI / 2 : Math.PI / 2;
+			group.add(tag);
+		}
+	}
+	const bench = new THREE.Mesh(
+		new THREE.BoxGeometry(mercantileCorridorHalfWidth * 1.4, 0.34, 0.4),
+		shelfMat
+	);
+	bench.position.set(0, 0.17, zStart + 0.55);
+	group.add(bench);
 	return group;
 }
 
@@ -1495,10 +1915,15 @@ function createHubWalls() {
 
 	for (const side of hubSides) {
 		if (side.kind === 'mural') {
-			group.add(createHubWallSegment(side, hubSideLength, 0));
+			const segmentLength = (hubSideLength - mercantileDoorHalfWidth * 2) / 2;
+			const segmentOffset = mercantileDoorHalfWidth + segmentLength / 2;
+			group.add(createHubWallSegment(side, segmentLength, -segmentOffset));
+			group.add(createHubWallSegment(side, segmentLength, segmentOffset));
+			group.add(createMercantileTransom(side));
 			group.add(createWordPressMural(side));
 			if (isCurrentVariant) {
 				group.add(createWapuuMuralCutout(side));
+				group.add(createMercantileExitSign(side));
 			}
 		} else {
 			const segmentLength = (roomWidth - roomDoorHalfWidth * 2) / 2;
@@ -1528,8 +1953,9 @@ function createHubWallSegment(side, length, tangentOffset) {
 }
 
 function createWordPressMural(side) {
+	const muralHeight = wallHeight - mercantileDoorHeight - 0.2;
 	const mural = new THREE.Mesh(
-		new THREE.PlaneGeometry(hubSideLength * 0.72, wallHeight * 0.68),
+		new THREE.PlaneGeometry(hubSideLength * 0.78, muralHeight),
 		new THREE.MeshBasicMaterial({
 			map: createWordPressMuralTexture(),
 			transparent: true,
@@ -1539,29 +1965,163 @@ function createWordPressMural(side) {
 	mural.position
 		.copy(side.midpoint)
 		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.08));
-	mural.position.y = 2.65;
+	mural.position.y = mercantileDoorHeight + muralHeight / 2 + 0.08;
 	mural.rotation.y = getRotationForNormal(
 		side.normal.clone().multiplyScalar(-1)
 	);
 	return mural;
 }
 
+function createMercantileTransom(side) {
+	const group = new THREE.Group();
+	const beamHeight = wallHeight - mercantileDoorHeight;
+	const beamMaterial = createRoomWallMaterial(mercantileDoorHalfWidth * 2);
+	const transom = new THREE.Mesh(
+		new THREE.BoxGeometry(mercantileDoorHalfWidth * 2, beamHeight, wallThickness),
+		beamMaterial
+	);
+	transom.position
+		.copy(side.midpoint)
+		.add(side.normal.clone().multiplyScalar(0));
+	transom.position.y = mercantileDoorHeight + beamHeight / 2;
+	transom.rotation.y = getRotationForNormal(side.normal);
+	group.add(transom);
+
+	const lintelMaterial = new THREE.MeshStandardMaterial({
+		color: 0xf5d088,
+		emissive: 0x2a1808,
+		emissiveIntensity: 0.18,
+		roughness: 0.28,
+		metalness: 0.55,
+	});
+	const lintel = new THREE.Mesh(
+		new THREE.BoxGeometry(mercantileDoorHalfWidth * 2 + 0.18, 0.16, 0.36),
+		lintelMaterial
+	);
+	lintel.position
+		.copy(side.midpoint)
+		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.18));
+	lintel.position.y = mercantileDoorHeight + 0.05;
+	lintel.rotation.y = getRotationForNormal(side.normal);
+	group.add(lintel);
+
+	const archMaterial = new THREE.MeshStandardMaterial({
+		color: 0xfff5df,
+		roughness: 0.5,
+		emissive: 0x3a3220,
+		emissiveIntensity: 0.08,
+	});
+	for (let index = 0; index < 5; index++) {
+		const x = (-2 + index) * 1.0;
+		const stone = new THREE.Mesh(
+			new THREE.BoxGeometry(0.84, 0.36, 0.32),
+			archMaterial
+		);
+		stone.position
+			.copy(side.midpoint)
+			.add(side.tangent.clone().multiplyScalar(x))
+			.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.34));
+		stone.position.y = mercantileDoorHeight + 0.24;
+		stone.rotation.y = getRotationForNormal(side.normal);
+		group.add(stone);
+	}
+	return group;
+}
+
 function createWapuuMuralCutout(side) {
-	const wapuu = createWapuuCutout(3.25, {
+	const wapuu = createWapuuCutout(3.05, {
 		accent: activeVariant.eraColors[0],
 		glow: activeVariant.eraColors[3],
 		shadow: true,
 	});
 	wapuu.position
 		.copy(side.midpoint)
-		.add(side.tangent.clone().multiplyScalar(3.85))
+		.add(side.tangent.clone().multiplyScalar(4.55))
 		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.13));
-	wapuu.position.y = 1.78;
+	wapuu.position.y = 1.62;
 	wapuu.rotation.y = getRotationForNormal(
 		side.normal.clone().multiplyScalar(-1)
 	);
 	wapuu.scale.setScalar(1);
 	return wapuu;
+}
+
+function createMercantileExitSign(side) {
+	const group = new THREE.Group();
+	const sign = createReadableLabel(
+		createMercantileSignTexture(),
+		2.6,
+		0.7
+	);
+	sign.position
+		.copy(side.midpoint)
+		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.42));
+	sign.position.y = mercantileDoorHeight + 0.08;
+	sign.rotation.y = getRotationForNormal(
+		side.normal.clone().multiplyScalar(-1)
+	);
+	group.add(sign);
+
+	const arrowMaterial = new THREE.MeshBasicMaterial({
+		color: 0xffd166,
+		transparent: true,
+		opacity: 0.9,
+	});
+	for (let index = 0; index < 3; index++) {
+		const arrow = new THREE.Mesh(
+			new THREE.ConeGeometry(0.16, 0.32, 4),
+			arrowMaterial.clone()
+		);
+		arrow.position
+			.copy(side.midpoint)
+			.add(side.tangent.clone().multiplyScalar(-1.6 + index * 1.6))
+			.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.34));
+		arrow.position.y = 0.45;
+		arrow.rotation.x = Math.PI / 2;
+		arrow.rotation.y = getRotationForNormal(side.normal);
+		registerAnimation(arrow, (object, elapsed) => {
+			object.material.opacity = 0.5 + (Math.sin(elapsed * 2.2 + index * 0.9) * 0.5 + 0.5) * 0.5;
+		});
+		group.add(arrow);
+	}
+	return group;
+}
+
+function createMercantileSignTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 1024;
+	canvas.height = 280;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#1a0d05';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#ffd166';
+	ctx.fillRect(0, 0, canvas.width, 10);
+	ctx.fillRect(0, canvas.height - 10, canvas.width, 10);
+
+	for (let index = 0; index < 12; index++) {
+		const x = 26 + index * 84;
+		ctx.fillStyle = index % 2 ? '#ffd166' : '#50d890';
+		ctx.beginPath();
+		ctx.arc(x, 36, 9, 0, Math.PI * 2);
+		ctx.fill();
+		ctx.beginPath();
+		ctx.arc(x, canvas.height - 36, 9, 0, Math.PI * 2);
+		ctx.fill();
+	}
+
+	ctx.fillStyle = '#fff5df';
+	ctx.font = '900 120px Arial Black, Impact, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('MERCANTILE', 512, 130);
+	ctx.fillStyle = '#ffd166';
+	ctx.font = '700 36px system-ui, sans-serif';
+	ctx.fillText('THIS WAY TO THE GIFT SHOP  →', 512, 210);
+
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
 }
 
 function createWapuuCutout(height, options = {}) {
@@ -6711,8 +7271,16 @@ function pickFromScreen(x, y) {
 	pointer.set(x, y);
 	raycaster.setFromCamera(pointer, camera);
 	const hit = raycaster.intersectObjects(pickables, false)[0];
-	if (hit) {
-		focusRelease(hit.object.userData.releaseIndex);
+	if (!hit) {
+		return;
+	}
+	const obj = hit.object;
+	if (obj.userData.mercantileExit) {
+		window.open(mercantileUrl, '_blank', 'noopener,noreferrer');
+		return;
+	}
+	if (Number.isFinite(obj.userData.releaseIndex)) {
+		focusRelease(obj.userData.releaseIndex);
 	}
 }
 
@@ -6731,11 +7299,24 @@ function setCameraRotation() {
 function isPointInsideClosedMuseum(position) {
 	return (
 		isPointInsideHub(position) ||
+		isPointInsideMercantileCorridor(position) ||
 		movementZones.some(
 			(room) =>
 				isPointInsideRoom(position, room) ||
 				isPointInsideDoorway(position, room)
 		)
+	);
+}
+
+function isPointInsideMercantileCorridor(position) {
+	if (!isCurrentVariant) {
+		return false;
+	}
+	const padding = 0.5;
+	return (
+		Math.abs(position.x) <= mercantileCorridorHalfWidth - padding &&
+		position.z >= hubApothem - 1.2 &&
+		position.z <= hubApothem + mercantileCorridorDepth - 0.4
 	);
 }
 
