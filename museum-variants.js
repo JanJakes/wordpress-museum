@@ -253,7 +253,7 @@
 			slug: 'current',
 			name: 'Current Museum',
 			shortName: 'Ultimate',
-			kicker: 'Polished WordPress time machine',
+			kicker: '— Now Open · Est. 2004 · Free Admission —',
 			description: 'The main museum, curated from the strongest exploration ideas.',
 			isCurrent: true,
 			decor: true,

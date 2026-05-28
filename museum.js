@@ -73,9 +73,10 @@ const museumTextureSources = {
 // Each procedural floor canvas holds a 2x2 block of slabs; this span sets
 // the real-world size of that block so individual slabs read ~2.6m.
 const floorTileSpan = 5.2;
-// Warm tint multiplied over the cool marble photo to bring the walls
-// closer to the cream limestone columns.
-const wallWarmTint = 0xe9dcc0;
+// Bright warm tint multiplied over the cool marble photo so the walls read
+// as light, airy limestone — lighter than the columns, to contrast the
+// dark polished floor.
+const wallWarmTint = 0xf4eede;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(68, 1, 0.1, 420);
 const clock = new THREE.Clock();
@@ -362,8 +363,8 @@ function createMercantileCorridor() {
 		createMuseumMaterial('roomFloor', {
 			repeatX: width / floorTileSpan,
 			repeatY: mercantileCorridorDepth / floorTileSpan,
-			roughness: 0.6,
-			metalness: 0.1,
+			roughness: 0.26,
+			metalness: 0.3,
 		})
 	);
 	floor.rotation.x = -Math.PI / 2;
@@ -865,12 +866,13 @@ function drawAtriumFloorTexture(ctx, width, height) {
 	drawMonumentalFloor(ctx, width, height);
 }
 
-// Large polished marble slabs in two warm cream tones, laid as a 2x2
-// checkerboard that tiles seamlessly. Thin warm grout separates the
-// slabs; faint veining and a soft sheen keep each slab from reading flat.
+// Large polished DARK marble slabs in two near-black tones, laid as a 2x2
+// checkerboard that tiles seamlessly. Brass grout separates the slabs;
+// gold/white veining and a glossy sheen evoke a grand black-marble lobby
+// that contrasts the light limestone walls.
 function drawMonumentalFloor(ctx, width, height) {
-	const grout = '#cabb98';
-	const tones = ['#efe7d4', '#e4d9bf'];
+	const grout = '#0c0d12';
+	const tones = ['#24262e', '#1b1d24'];
 	ctx.fillStyle = grout;
 	ctx.fillRect(0, 0, width, height);
 
@@ -897,16 +899,17 @@ function drawMarbleSlab(ctx, x, y, size, tone) {
 	ctx.fillStyle = `#${base.getHexString()}`;
 	ctx.fillRect(x, y, size, size);
 
-	// Soft diagonal sheen.
+	// Glossy diagonal sheen — a bright streak fading to deep shadow.
 	const sheen = ctx.createLinearGradient(x, y, x + size, y + size);
-	sheen.addColorStop(0, 'rgba(255, 252, 240, 0.5)');
-	sheen.addColorStop(0.5, 'rgba(255, 252, 240, 0)');
-	sheen.addColorStop(1, 'rgba(120, 104, 74, 0.14)');
+	sheen.addColorStop(0, 'rgba(150, 170, 200, 0.22)');
+	sheen.addColorStop(0.42, 'rgba(120, 140, 170, 0.05)');
+	sheen.addColorStop(0.6, 'rgba(0, 0, 0, 0.18)');
+	sheen.addColorStop(1, 'rgba(0, 0, 0, 0.34)');
 	ctx.fillStyle = sheen;
 	ctx.fillRect(x, y, size, size);
 
-	// Faint marble veins.
-	const veinCount = 5;
+	// Gold and pale veins.
+	const veinCount = 6;
 	for (let index = 0; index < veinCount; index++) {
 		const seed = x * 0.013 + y * 0.017 + index * 1.7;
 		const startX = x + (pseudoRandom(seed) * 0.9 + 0.05) * size;
@@ -915,20 +918,20 @@ function drawMarbleSlab(ctx, x, y, size, tone) {
 		ctx.moveTo(startX, startY);
 		let cx = startX;
 		let cy = startY;
-		for (let step = 0; step < 4; step++) {
-			cx += (pseudoRandom(seed + step) - 0.5) * size * 0.5;
-			cy += size * 0.22;
+		for (let step = 0; step < 5; step++) {
+			cx += (pseudoRandom(seed + step) - 0.5) * size * 0.55;
+			cy += size * 0.18;
 			ctx.lineTo(cx, cy);
 		}
-		ctx.strokeStyle = index % 2
-			? 'rgba(118, 102, 72, 0.1)'
-			: 'rgba(255, 250, 236, 0.32)';
-		ctx.lineWidth = 1.4;
+		ctx.strokeStyle = index % 3 === 0
+			? 'rgba(201, 169, 97, 0.34)'
+			: 'rgba(206, 214, 226, 0.16)';
+		ctx.lineWidth = index % 3 === 0 ? 1.6 : 1.0;
 		ctx.stroke();
 	}
 
 	// Subtle inner bevel highlight + shadow for a cut-stone edge.
-	ctx.strokeStyle = 'rgba(255, 252, 242, 0.55)';
+	ctx.strokeStyle = 'rgba(180, 195, 215, 0.2)';
 	ctx.lineWidth = 2;
 	ctx.strokeRect(x + 2, y + 2, size - 4, size - 4);
 	ctx.strokeStyle = 'rgba(120, 104, 74, 0.18)';
@@ -2311,8 +2314,8 @@ function createHubFloor() {
 		createMuseumMaterial('atriumFloor', {
 			repeatX: (hubCircumradius * 2) / floorTileSpan,
 			repeatY: (hubCircumradius * 2) / floorTileSpan,
-			roughness: 0.58,
-			metalness: 0.12,
+			roughness: 0.22,
+			metalness: 0.34,
 		})
 	);
 	floor.rotation.x = -Math.PI / 2;
@@ -2995,8 +2998,8 @@ function createRoom(room) {
 		createMuseumMaterial('roomFloor', {
 			repeatX: roomWidth / floorTileSpan,
 			repeatY: roomDepth / floorTileSpan,
-			roughness: 0.6,
-			metalness: 0.12,
+			roughness: 0.24,
+			metalness: 0.32,
 		})
 	);
 	floor.rotation.x = -Math.PI / 2;
