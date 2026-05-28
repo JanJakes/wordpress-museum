@@ -964,6 +964,40 @@ function createGrandCeilingOculus(bounds) {
 	glass.position.set(centerX, y + 0.015, centerZ);
 	group.add(glass);
 
+	const domeRings = [
+		{ radius: 1.55, yOffset: -1.04 },
+		{ radius: 2.7, yOffset: -0.78 },
+		{ radius: 3.85, yOffset: -0.5 },
+		{ radius: 5.0, yOffset: -0.23 },
+	];
+	domeRings.forEach((spec, index) => {
+		const ring = new THREE.Mesh(
+			new THREE.TorusGeometry(spec.radius, 0.028, 8, 90),
+			brassMaterial
+		);
+		ring.rotation.x = Math.PI / 2;
+		ring.position.set(centerX, y + spec.yOffset, centerZ);
+		group.add(ring);
+
+		if (index > 0) {
+			const previous = domeRings[index - 1];
+			for (let spokeIndex = 0; spokeIndex < 12; spokeIndex++) {
+				const angle = (Math.PI * 2 * spokeIndex) / 12 + index * 0.08;
+				const start = new THREE.Vector3(
+					centerX + Math.cos(angle) * previous.radius,
+					y + previous.yOffset,
+					centerZ + Math.sin(angle) * previous.radius
+				);
+				const end = new THREE.Vector3(
+					centerX + Math.cos(angle) * spec.radius,
+					y + spec.yOffset,
+					centerZ + Math.sin(angle) * spec.radius
+				);
+				group.add(createCylinderBetween(start, end, 0.012, brassMaterial, 8));
+			}
+		}
+	});
+
 	[3.15, 4.35, 5.75].forEach((radius, index) => {
 		const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.035 + index * 0.008, 10, 96), brassMaterial);
 		ring.rotation.x = Math.PI / 2;
@@ -2611,11 +2645,12 @@ function createAtriumRopeArcs(color, secondary) {
 function createOpenSourceAtriumRing() {
 	const group = new THREE.Group();
 	openSourceProjectItems.forEach((item, index) => {
-		const angle = -Math.PI * 0.87 + (Math.PI * 1.74 * index) / (openSourceProjectItems.length - 1);
-		const radius = 8.85;
+		const angle = -Math.PI * 0.8 + (Math.PI * 1.6 * index) / (openSourceProjectItems.length - 1);
+		const radius = 10.65;
 		const pylon = createOpenSourcePylon(item, index);
 		pylon.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
 		pylon.rotation.y = getRotationForNormal(new THREE.Vector3(-pylon.position.x, 0, -pylon.position.z).normalize());
+		pylon.scale.setScalar(0.84);
 		group.add(pylon);
 	});
 	return group;
@@ -2624,36 +2659,36 @@ function createOpenSourceAtriumRing() {
 function createOpenSourcePylon(item, index) {
 	const group = new THREE.Group();
 	const base = new THREE.Mesh(
-		new THREE.CylinderGeometry(0.32, 0.42, 0.2, 20),
+		new THREE.CylinderGeometry(0.26, 0.36, 0.18, 20),
 		new THREE.MeshStandardMaterial({ color: 0xf8efd9, roughness: 0.68, metalness: 0.04 })
 	);
 	base.position.y = 0.1;
 	group.add(base);
 
 	const post = new THREE.Mesh(
-		new THREE.CylinderGeometry(0.045, 0.06, 1.2, 14),
+		new THREE.CylinderGeometry(0.038, 0.052, 1.08, 14),
 		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.32, metalness: 0.5 })
 	);
-	post.position.y = 0.72;
+	post.position.y = 0.64;
 	group.add(post);
 
 	const orb = new THREE.Mesh(
-		new THREE.SphereGeometry(0.13, 18, 12),
+		new THREE.SphereGeometry(0.11, 18, 12),
 		new THREE.MeshBasicMaterial({ color: item.color, transparent: true, opacity: 0.9 })
 	);
-	orb.position.y = 1.38;
+	orb.position.y = 1.24;
 	registerAnimation(orb, (object, elapsed) => {
 		object.scale.setScalar(1 + Math.sin(elapsed * 1.5 + index) * 0.08);
 		object.material.opacity = 0.72 + Math.sin(elapsed * 1.8 + index) * 0.13;
 	});
 	group.add(orb);
 
-	const label = createReadableLabel(createOpenSourceSignTexture(item.title, item.note, item.color), 1.02, 0.4);
-	label.position.set(0, 0.86, -0.16);
+	const label = createReadableLabel(createOpenSourceSignTexture(item.title, item.note, item.color), 0.84, 0.34);
+	label.position.set(0, 0.76, -0.15);
 	group.add(label);
 
 	const glow = new THREE.PointLight(new THREE.Color(item.color), 0.18, 3.2);
-	glow.position.y = 1.28;
+	glow.position.y = 1.16;
 	registerAnimation(glow, (object, elapsed) => {
 		object.intensity = 0.13 + Math.sin(elapsed * 1.4 + index) * 0.04;
 	});
@@ -3034,7 +3069,9 @@ function addUltimateAtriumFeature(group, color, secondary) {
 	addPlaced(group, createAtriumPlanter(secondary, color), 6.7, 14.62, 0);
 	addPlaced(group, createWapuuDocent(color, secondary), -4.45, -1.85, 0.66);
 	addPlaced(group, createMuseumInfoDesk(color, secondary), 0.45, -4.65, 0.06);
-	addPlaced(group, createOpenSourceEngineRoom(color, secondary), 7.85, 4.85, -0.72);
+	const engineRoom = createOpenSourceEngineRoom(color, secondary);
+	engineRoom.scale.setScalar(0.78);
+	addPlaced(group, engineRoom, 10.25, 5.9, -0.96);
 	addPlaced(group, createLoadedModel('scaffoldingStructure', {
 		targetHeight: 2.55,
 		fallback: 'column',
