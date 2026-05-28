@@ -131,11 +131,38 @@ const sideExhibitMaxZ = roomDepth / 2 - exhibitOuterWidth / 2 - exhibitWallMargi
 const entryDistanceFromCenter = 5.2;
 const shellPadding = 1.4;
 const shellHeight = 12.4;
-const mercantileDoorHalfWidth = 2.2;
-const mercantileDoorHeight = 4.45;
-const mercantileCorridorHalfWidth = 2.55;
-const mercantileCorridorDepth = 6.4;
+const portalDoorHeight = 4.45;
+const portalDoorHalfWidth = 1.55;
+const portalCenterOffset = 2.5;
+const portalAlcoveHalfWidth = 1.55;
+const portalAlcoveDepth = 4.4;
 const mercantileUrl = 'https://mercantile.wordpress.org/';
+const wordpressOrgUrl = 'https://wordpress.org/';
+// Two doorways flank the central pier on the mural wall: enter from
+// wordpress.org on the left, exit through the Mercantile gift shop on the
+// right. Each opens a short themed alcove with a clickable door.
+const muralPortals = [
+	{
+		offset: -portalCenterOffset,
+		kind: 'entrance',
+		title: 'ENTRANCE',
+		sub: 'wordpress.org',
+		url: wordpressOrgUrl,
+		runner: 0x2c6fae,
+		door: 0x1f6fb0,
+		accent: 0x8fd0ff,
+	},
+	{
+		offset: portalCenterOffset,
+		kind: 'exit',
+		title: 'EXIT',
+		sub: 'Mercantile · Gift Shop',
+		url: mercantileUrl,
+		runner: 0xc24a2c,
+		door: 0xd45a39,
+		accent: 0xffd166,
+	},
+];
 const walkSpeed = 7.2;
 const arrowWalkSpeed = 9.2;
 const mobileWalkSpeed = 8.8;
@@ -342,203 +369,109 @@ function createBuildingShell() {
 	group.add(createCeiling(bounds));
 	group.add(createCeilingDetails(bounds));
 	if (isCurrentVariant) {
-		group.add(createMercantileCorridor());
+		group.add(createMuralPortals());
 	}
 	return group;
 }
 
-function createMercantileCorridor() {
+function createMuralPortals() {
+	const group = new THREE.Group();
+	for (const portal of muralPortals) {
+		group.add(createPortalAlcove(portal));
+	}
+	return group;
+}
+
+function createPortalAlcove(portal) {
 	const group = new THREE.Group();
 	const zStart = hubApothem;
-	const zEnd = hubApothem + mercantileCorridorDepth;
+	const zEnd = hubApothem + portalAlcoveDepth;
 	const centerZ = (zStart + zEnd) / 2;
-	const width = mercantileCorridorHalfWidth * 2;
-	const corridorHeight = mercantileDoorHeight + 0.42;
+	const cx = portal.offset;
+	const width = portalAlcoveHalfWidth * 2;
+	const height = portalDoorHeight + 0.42;
 
 	const floor = new THREE.Mesh(
-		new THREE.PlaneGeometry(width, mercantileCorridorDepth),
+		new THREE.PlaneGeometry(width, portalAlcoveDepth),
 		createMuseumMaterial('roomFloor', {
 			repeatX: width / floorTileSpan,
-			repeatY: mercantileCorridorDepth / floorTileSpan,
+			repeatY: portalAlcoveDepth / floorTileSpan,
 			roughness: 0.26,
 			metalness: 0.3,
 		})
 	);
 	floor.rotation.x = -Math.PI / 2;
-	floor.position.set(0, 0.015, centerZ);
+	floor.position.set(cx, 0.015, centerZ);
 	group.add(floor);
 
 	const runner = new THREE.Mesh(
-		new THREE.PlaneGeometry(width * 0.46, mercantileCorridorDepth - 0.4),
-		new THREE.MeshBasicMaterial({
-			color: 0xd45a39,
-			transparent: true,
-			opacity: 0.84,
-			depthWrite: false,
-		})
+		new THREE.PlaneGeometry(width * 0.5, portalAlcoveDepth - 0.4),
+		new THREE.MeshBasicMaterial({ color: portal.runner, transparent: true, opacity: 0.85, depthWrite: false })
 	);
 	runner.rotation.x = -Math.PI / 2;
-	runner.position.set(0, 0.07, centerZ);
+	runner.position.set(cx, 0.06, centerZ);
 	group.add(runner);
-	const runnerTrim = new THREE.Mesh(
-		new THREE.PlaneGeometry(width * 0.5, mercantileCorridorDepth - 0.32),
-		new THREE.MeshBasicMaterial({
-			color: 0xf3c66a,
-			transparent: true,
-			opacity: 0.45,
-			depthWrite: false,
-		})
-	);
-	runnerTrim.rotation.x = -Math.PI / 2;
-	runnerTrim.position.set(0, 0.06, centerZ);
-	group.add(runnerTrim);
 
 	const wallMaterial = createMuseumMaterial('roomWall', {
-		repeatX: mercantileCorridorDepth / 4.6,
-		repeatY: corridorHeight / 2.4,
+		repeatX: portalAlcoveDepth / 4.6,
+		repeatY: height / 2.4,
 		color: wallWarmTint,
 		roughness: 0.9,
 		metalness: 0.03,
 	});
 	for (const sideSign of [-1, 1]) {
 		const wall = new THREE.Mesh(
-			new THREE.BoxGeometry(wallThickness, corridorHeight, mercantileCorridorDepth),
+			new THREE.BoxGeometry(wallThickness, height, portalAlcoveDepth),
 			wallMaterial
 		);
-		wall.position.set(sideSign * (mercantileCorridorHalfWidth + wallThickness / 2), corridorHeight / 2, centerZ);
+		wall.position.set(cx + sideSign * (portalAlcoveHalfWidth + wallThickness / 2), height / 2, centerZ);
 		group.add(wall);
-		group.add(createMercantileWallPanel(sideSign, centerZ));
 	}
 
 	const ceiling = new THREE.Mesh(
-		new THREE.PlaneGeometry(width + wallThickness * 2, mercantileCorridorDepth),
-		new THREE.MeshStandardMaterial({
-			color: 0x18223a,
-			roughness: 0.6,
-			metalness: 0.16,
-			side: THREE.DoubleSide,
-		})
+		new THREE.PlaneGeometry(width + wallThickness * 2, portalAlcoveDepth),
+		new THREE.MeshStandardMaterial({ color: 0x18223a, roughness: 0.6, metalness: 0.16, side: THREE.DoubleSide })
 	);
 	ceiling.rotation.x = Math.PI / 2;
-	ceiling.position.set(0, corridorHeight, centerZ);
+	ceiling.position.set(cx, height, centerZ);
 	group.add(ceiling);
 
-	const beamMaterial = new THREE.MeshStandardMaterial({
-		color: 0xf2cf86,
-		emissive: 0x3a2710,
-		emissiveIntensity: 0.12,
-		roughness: 0.3,
-		metalness: 0.5,
+	const beam = new THREE.Mesh(
+		new THREE.BoxGeometry(width + 0.16, 0.13, 0.16),
+		new THREE.MeshStandardMaterial({ color: 0xf2cf86, emissive: 0x3a2710, emissiveIntensity: 0.12, roughness: 0.3, metalness: 0.5 })
+	);
+	beam.position.set(cx, height - 0.07, centerZ);
+	group.add(beam);
+	const bulb = new THREE.Mesh(
+		new THREE.SphereGeometry(0.12, 16, 12),
+		new THREE.MeshBasicMaterial({ color: 0xffefb4 })
+	);
+	bulb.position.set(cx, height - 0.3, centerZ);
+	group.add(bulb);
+	const lamp = new THREE.PointLight(0xffe6b0, 0.95, 8.5);
+	lamp.position.set(cx, height - 0.4, centerZ);
+	registerAnimation(lamp, (object, elapsed) => {
+		object.intensity = 0.82 + Math.sin(elapsed * 1.5) * 0.1;
 	});
-	for (let index = 1; index <= 3; index++) {
-		const z = zStart + (mercantileCorridorDepth * index) / 4;
-		const beam = new THREE.Mesh(
-			new THREE.BoxGeometry(width + 0.18, 0.14, 0.18),
-			beamMaterial
-		);
-		beam.position.set(0, corridorHeight - 0.07, z);
-		group.add(beam);
-		const bulb = new THREE.Mesh(
-			new THREE.SphereGeometry(0.13, 18, 12),
-			new THREE.MeshBasicMaterial({ color: 0xffefb4 })
-		);
-		bulb.position.set(0, corridorHeight - 0.32, z);
-		group.add(bulb);
-		// One shared lamp (middle bulb) lights the corridor; the others glow
-		// via their emissive bulbs only.
-		if (index === 2) {
-			const lamp = new THREE.PointLight(0xffe2a0, 1.0, 9);
-			lamp.position.set(0, corridorHeight - 0.4, z);
-			registerAnimation(lamp, (object, elapsed) => {
-				object.intensity = 0.86 + Math.sin(elapsed * 1.6) * 0.1;
-			});
-			group.add(lamp);
-		}
-	}
+	group.add(lamp);
 
-	group.add(createMercantileEndWall(zEnd, corridorHeight));
-	group.add(createMercantileShelves(zStart, zEnd));
+	group.add(createPortalEndWall(portal, cx, zEnd, height));
+	group.add(createPortalContent(portal, cx, zStart, zEnd));
 	return group;
 }
 
-function createMercantileWallPanel(sideSign, centerZ) {
-	const group = new THREE.Group();
-	const panelGeom = new THREE.PlaneGeometry(mercantileCorridorDepth - 1.4, 1.6);
-	const panel = new THREE.Mesh(panelGeom, new THREE.MeshBasicMaterial({
-		map: createMercantilePosterTexture(sideSign),
-		transparent: true,
-	}));
-	panel.position.set(
-		sideSign * (mercantileCorridorHalfWidth - 0.02),
-		2.55,
-		centerZ
-	);
-	panel.rotation.y = sideSign === 1 ? -Math.PI / 2 : Math.PI / 2;
-	group.add(panel);
-
-	const trimMaterial = new THREE.MeshBasicMaterial({ color: 0xf2cf86 });
-	const trim = new THREE.Mesh(
-		new THREE.BoxGeometry(0.04, 0.04, mercantileCorridorDepth - 0.8),
-		trimMaterial
-	);
-	trim.position.set(sideSign * (mercantileCorridorHalfWidth - 0.012), 1.6, centerZ);
-	group.add(trim);
-	const trimTop = trim.clone();
-	trimTop.position.y = 3.62;
-	group.add(trimTop);
-	return group;
-}
-
-function createMercantilePosterTexture(sideSign) {
-	const canvas = document.createElement('canvas');
-	canvas.width = 1024;
-	canvas.height = 256;
-	const ctx = canvas.getContext('2d');
-	const palette = sideSign === 1
-		? ['#0e1c2e', '#ffd166', '#50d890', '#2bb7ff']
-		: ['#0e1c2e', '#ff8a3c', '#ffd166', '#b37cff'];
-	const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
-	grad.addColorStop(0, palette[0]);
-	grad.addColorStop(1, '#0a1422');
-	ctx.fillStyle = grad;
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	for (let index = 0; index < 8; index++) {
-		ctx.fillStyle = palette[1 + (index % 3)];
-		ctx.globalAlpha = 0.15;
-		ctx.beginPath();
-		ctx.arc(120 + index * 130, 128, 38 + (index % 3) * 14, 0, Math.PI * 2);
-		ctx.fill();
-	}
-	ctx.globalAlpha = 1;
-	ctx.fillStyle = palette[1];
-	ctx.font = '900 86px Arial Black, Impact, sans-serif';
-	ctx.textAlign = 'center';
-	ctx.textBaseline = 'middle';
-	ctx.fillText('GIFT SHOP', 512, 100);
-	ctx.fillStyle = '#fff5df';
-	ctx.font = '700 36px system-ui, sans-serif';
-	ctx.fillText('tees · stickers · tote bags · wapuu plushies', 512, 170);
-	ctx.fillStyle = palette[2];
-	ctx.font = '700 22px ui-monospace, Menlo, monospace';
-	ctx.fillText('mercantile.wordpress.org', 512, 218);
-	const tex = new THREE.CanvasTexture(canvas);
-	tex.colorSpace = THREE.SRGBColorSpace;
-	tex.anisotropy = 4;
-	return tex;
-}
-
-function createMercantileEndWall(zEnd, corridorHeight) {
+function createPortalEndWall(portal, cx, zEnd, height) {
 	const group = new THREE.Group();
 	const wallMaterial = createMuseumMaterial('roomWall', {
-		repeatX: mercantileCorridorHalfWidth,
-		repeatY: corridorHeight / 2.4,
+		repeatX: portalAlcoveHalfWidth,
+		repeatY: height / 2.4,
 		color: wallWarmTint,
 	});
 	const wall = new THREE.Mesh(
-		new THREE.BoxGeometry(mercantileCorridorHalfWidth * 2 + wallThickness * 2, corridorHeight, wallThickness),
+		new THREE.BoxGeometry(portalAlcoveHalfWidth * 2 + wallThickness * 2, height, wallThickness),
 		wallMaterial
 	);
-	wall.position.set(0, corridorHeight / 2, zEnd + wallThickness / 2);
+	wall.position.set(cx, height / 2, zEnd + wallThickness / 2);
 	group.add(wall);
 
 	const archMaterial = new THREE.MeshStandardMaterial({
@@ -548,132 +481,235 @@ function createMercantileEndWall(zEnd, corridorHeight) {
 		roughness: 0.32,
 		metalness: 0.46,
 	});
-	const archWidth = mercantileCorridorHalfWidth * 1.7;
-	const archHeight = corridorHeight * 0.82;
-	const archFrame = new THREE.Mesh(
-		new THREE.BoxGeometry(archWidth + 0.32, 0.22, 0.5),
-		archMaterial
-	);
-	archFrame.position.set(0, archHeight + 0.2, zEnd - 0.08);
+	const archWidth = portalAlcoveHalfWidth * 1.74;
+	const archHeight = height * 0.84;
+	const archFrame = new THREE.Mesh(new THREE.BoxGeometry(archWidth + 0.3, 0.2, 0.46), archMaterial);
+	archFrame.position.set(cx, archHeight + 0.18, zEnd - 0.08);
 	group.add(archFrame);
-
 	for (const xSign of [-1, 1]) {
-		const post = new THREE.Mesh(
-			new THREE.BoxGeometry(0.22, archHeight + 0.42, 0.42),
-			archMaterial
-		);
-		post.position.set(xSign * (archWidth / 2 + 0.12), (archHeight + 0.42) / 2, zEnd - 0.08);
+		const post = new THREE.Mesh(new THREE.BoxGeometry(0.2, archHeight + 0.38, 0.4), archMaterial);
+		post.position.set(cx + xSign * (archWidth / 2 + 0.1), (archHeight + 0.38) / 2, zEnd - 0.08);
 		group.add(post);
 	}
 
-	const doorMaterial = new THREE.MeshStandardMaterial({
-		color: 0xd45a39,
-		emissive: 0x6b1a0a,
-		emissiveIntensity: 0.32,
-		roughness: 0.38,
-		metalness: 0.18,
-	});
 	const door = new THREE.Mesh(
 		new THREE.BoxGeometry(archWidth, archHeight, 0.18),
-		doorMaterial
+		new THREE.MeshStandardMaterial({ color: portal.door, emissive: new THREE.Color(portal.door).multiplyScalar(0.3), emissiveIntensity: 0.3, roughness: 0.38, metalness: 0.18 })
 	);
-	door.position.set(0, archHeight / 2 + 0.05, zEnd - 0.14);
-	door.userData.mercantileExit = true;
+	door.position.set(cx, archHeight / 2 + 0.05, zEnd - 0.14);
+	door.userData.portalUrl = portal.url;
 	group.add(door);
 	pickables.push(door);
 
 	const doorOverlay = new THREE.Mesh(
 		new THREE.PlaneGeometry(archWidth - 0.16, archHeight - 0.18),
-		new THREE.MeshBasicMaterial({
-			map: createMercantileDoorTexture(),
-			transparent: true,
-			side: THREE.DoubleSide,
-			depthWrite: false,
-		})
+		new THREE.MeshBasicMaterial({ map: createPortalDoorTexture(portal), transparent: true, side: THREE.DoubleSide, depthWrite: false })
 	);
-	doorOverlay.position.set(0, archHeight / 2 + 0.05, zEnd - 0.26);
+	doorOverlay.position.set(cx, archHeight / 2 + 0.05, zEnd - 0.26);
 	doorOverlay.rotation.y = Math.PI;
 	group.add(doorOverlay);
 
 	const knob = new THREE.Mesh(
-		new THREE.SphereGeometry(0.1, 18, 12),
+		new THREE.SphereGeometry(0.09, 16, 12),
 		new THREE.MeshStandardMaterial({ color: 0xfff5df, roughness: 0.3, metalness: 0.7 })
 	);
-	knob.position.set(archWidth * 0.32, archHeight / 2 + 0.05, zEnd - 0.25);
+	knob.position.set(cx + archWidth * 0.34, archHeight / 2 + 0.05, zEnd - 0.25);
 	group.add(knob);
 
 	const halo = new THREE.Mesh(
-		new THREE.PlaneGeometry(archWidth + 1.2, archHeight + 1.4),
-		new THREE.MeshBasicMaterial({
-			color: 0xffd166,
-			transparent: true,
-			opacity: 0.18,
-			depthWrite: false,
-			blending: THREE.AdditiveBlending,
-		})
+		new THREE.PlaneGeometry(archWidth + 1.0, archHeight + 1.2),
+		new THREE.MeshBasicMaterial({ color: portal.accent, transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending })
 	);
-	halo.position.set(0, archHeight / 2 + 0.05, zEnd - 0.4);
+	halo.position.set(cx, archHeight / 2 + 0.05, zEnd - 0.4);
 	registerAnimation(halo, (object, elapsed) => {
-		object.material.opacity = 0.12 + (Math.sin(elapsed * 1.2) * 0.5 + 0.5) * 0.18;
-		object.scale.setScalar(1 + Math.sin(elapsed * 1.4) * 0.04);
+		object.material.opacity = 0.1 + (Math.sin(elapsed * 1.2) * 0.5 + 0.5) * 0.16;
 	});
 	group.add(halo);
 
-	const doorLight = new THREE.PointLight(0xffba74, 1.4, 9);
-	doorLight.position.set(0, archHeight / 2 + 0.4, zEnd - 1.2);
+	const doorLight = new THREE.PointLight(portal.accent, 1.1, 8);
+	doorLight.position.set(cx, archHeight / 2 + 0.3, zEnd - 1.1);
 	registerAnimation(doorLight, (object, elapsed) => {
-		object.intensity = 1.05 + Math.sin(elapsed * 1.05) * 0.18;
+		object.intensity = 0.9 + Math.sin(elapsed * 1.05) * 0.15;
 	});
 	group.add(doorLight);
 
-	const sign = createReadableLabel(createMercantileSignTexture(), 3.2, 0.86);
-	sign.position.set(0, archHeight + 0.95, zEnd - 0.06);
-	group.add(sign);
-
-	const arrowSign = createReadableLabel(
-		createSimpleTextTexture('CLICK TO EXIT  ➜', '#ffd166', '#10182a'),
-		2.2, 0.46
-	);
-	arrowSign.position.set(0, archHeight / 2 - archHeight * 0.42, zEnd - 0.32);
-	registerAnimation(arrowSign, (object, elapsed) => {
+	const cta = portal.kind === 'exit' ? 'CLICK TO EXIT  →' : 'CLICK TO ENTER  →';
+	const ctaSign = createReadableLabel(createSimpleTextTexture(cta, '#fff5df', '#10182a'), 2.0, 0.42);
+	ctaSign.position.set(cx, archHeight / 2 - archHeight * 0.42, zEnd - 0.32);
+	registerAnimation(ctaSign, (object, elapsed) => {
 		object.position.y = archHeight / 2 - archHeight * 0.42 + Math.sin(elapsed * 1.5) * 0.04;
 	});
-	group.add(arrowSign);
-
+	group.add(ctaSign);
 	return group;
 }
 
-function createMercantileDoorTexture() {
+function createPortalContent(portal, cx, zStart, zEnd) {
+	const group = new THREE.Group();
+	// Poster on the outer side wall of the alcove.
+	const sideSign = portal.kind === 'exit' ? 1 : -1;
+	const poster = new THREE.Mesh(
+		new THREE.PlaneGeometry(portalAlcoveDepth - 1.6, 1.5),
+		new THREE.MeshBasicMaterial({ map: createPortalPosterTexture(portal), transparent: true })
+	);
+	poster.position.set(cx + sideSign * (portalAlcoveHalfWidth - 0.03), 2.4, (zStart + zEnd) / 2);
+	poster.rotation.y = sideSign === 1 ? -Math.PI / 2 : Math.PI / 2;
+	group.add(poster);
+
+	if (portal.kind === 'exit') {
+		group.add(createGiftShopShelf(cx, zStart, zEnd));
+	} else {
+		group.add(createDownloadPlinth(cx, zStart + 1.8));
+	}
+	return group;
+}
+
+function createGiftShopShelf(cx, zStart, zEnd) {
+	const group = new THREE.Group();
+	const shelfMat = new THREE.MeshStandardMaterial({ color: 0xf8efd9, roughness: 0.64 });
+	const items = [
+		{ z: zStart + 1.5, color: 0xffd166, label: 'TEE' },
+		{ z: zStart + 2.85, color: 0x2bb7ff, label: 'PIN' },
+	];
+	const x = cx - (portalAlcoveHalfWidth - 0.34);
+	for (const item of items) {
+		const support = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.94, 0.5), shelfMat);
+		support.position.set(x, 0.47, item.z);
+		group.add(support);
+		const merch = new THREE.Mesh(
+			new THREE.BoxGeometry(0.34, 0.32, 0.4),
+			new THREE.MeshStandardMaterial({ color: item.color, roughness: 0.55 })
+		);
+		merch.position.set(x, 1.12, item.z);
+		merch.rotation.y = 0.2;
+		group.add(merch);
+		const tag = createReadableLabel(createSmallSignTexture(item.label, '#0e1c2e'), 0.34, 0.12);
+		tag.position.set(x + 0.2, 1.14, item.z);
+		tag.rotation.y = Math.PI / 2;
+		group.add(tag);
+	}
+	// Wapuu plushie display on a small plinth.
+	const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.6), shelfMat);
+	plinth.position.set(cx + (portalAlcoveHalfWidth - 0.4), 0.25, zStart + 2.2);
+	group.add(plinth);
+	const plushie = createWapuu3D({ height: 0.55, accent: 0xffd166 });
+	plushie.position.set(cx + (portalAlcoveHalfWidth - 0.4), 0.5, zStart + 2.2);
+	plushie.rotation.y = -Math.PI / 2 - 0.2;
+	group.add(plushie);
+	const tag = createReadableLabel(createSmallSignTexture('WAPUU', '#0e1c2e'), 0.5, 0.14);
+	tag.position.set(cx + (portalAlcoveHalfWidth - 0.62), 0.62, zStart + 2.2);
+	tag.rotation.y = Math.PI / 2;
+	group.add(tag);
+	return group;
+}
+
+function createDownloadPlinth(cx, z) {
+	const group = new THREE.Group();
+	group.add(createPedestal(0.9, 0.5, 0x2bb7ff));
+	const base = group.children[0];
+	base.position.set(cx, 0, z);
+	// Glowing WordPress download orb.
+	const orb = new THREE.Mesh(
+		new THREE.SphereGeometry(0.26, 24, 18),
+		new THREE.MeshStandardMaterial({ color: 0x1e6a93, emissive: 0x1e6a93, emissiveIntensity: 0.4, roughness: 0.3, metalness: 0.2 })
+	);
+	orb.position.set(cx, 0.82, z);
+	registerAnimation(orb, (object, elapsed) => {
+		object.position.y = 0.82 + Math.sin(elapsed * 1.4) * 0.05;
+		object.rotation.y = elapsed * 0.5;
+	});
+	group.add(orb);
+	const mark = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.34, 0.34),
+		new THREE.MeshBasicMaterial({ map: createWapuuWordmarkTexture(), transparent: true, depthWrite: false, side: THREE.DoubleSide })
+	);
+	mark.position.set(cx, 0.82, z + 0.27);
+	registerAnimation(mark, (object, elapsed) => {
+		object.position.y = 0.82 + Math.sin(elapsed * 1.4) * 0.05;
+	});
+	group.add(mark);
+	const tag = createReadableLabel(createSimpleTextTexture('GET WORDPRESS · FREE', '#0e1c2e', '#ffd166'), 1.2, 0.26);
+	tag.position.set(cx, 0.58, z - 0.46);
+	group.add(tag);
+	return group;
+}
+
+function createPortalDoorTexture(portal) {
 	const canvas = document.createElement('canvas');
 	canvas.width = 768;
 	canvas.height = 1024;
 	const ctx = canvas.getContext('2d');
-	ctx.fillStyle = 'rgba(0,0,0,0)';
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	for (let y = 0; y < canvas.height; y += 8) {
 		ctx.fillStyle = `rgba(255, 245, 223, ${y % 16 === 0 ? 0.06 : 0.02})`;
 		ctx.fillRect(0, y, canvas.width, 2);
 	}
-	ctx.fillStyle = '#fff5df';
 	ctx.globalAlpha = 0.16;
+	ctx.strokeStyle = '#fff5df';
+	ctx.lineWidth = 6;
 	for (let i = 0; i < 2; i++) {
-		ctx.strokeStyle = '#fff5df';
-		ctx.lineWidth = 6;
 		ctx.strokeRect(60 + i * 40, 120 + i * 80, canvas.width - 120 - i * 80, canvas.height - 320 - i * 160);
 	}
 	ctx.globalAlpha = 1;
+	const accent = '#' + new THREE.Color(portal.accent).getHexString();
 	ctx.fillStyle = '#fff5df';
-	ctx.font = '900 96px Arial Black, Impact, sans-serif';
+	ctx.font = '900 110px Arial Black, Impact, sans-serif';
 	ctx.textAlign = 'center';
-	ctx.fillText('EXIT', canvas.width / 2, 220);
-	ctx.fillStyle = '#ffd166';
+	ctx.fillText(portal.kind === 'exit' ? 'EXIT' : 'ENTER', canvas.width / 2, 230);
+	ctx.fillStyle = accent;
 	ctx.font = '900 220px Arial Black, Impact, sans-serif';
 	ctx.fillText('→', canvas.width / 2, 600);
 	ctx.fillStyle = '#fff5df';
-	ctx.font = '700 56px system-ui, sans-serif';
-	ctx.fillText('MERCANTILE', canvas.width / 2, 800);
-	ctx.font = '500 30px ui-monospace, Menlo, monospace';
-	ctx.fillText('mercantile.wordpress.org', canvas.width / 2, 880);
+	ctx.font = '900 52px Arial Black, Impact, sans-serif';
+	ctx.fillText(portal.kind === 'exit' ? 'MERCANTILE' : 'WORDPRESS.ORG', canvas.width / 2, 800);
+	ctx.font = '500 28px ui-monospace, Menlo, monospace';
+	ctx.fillText(portal.url.replace('https://', '').replace(/\/$/, ''), canvas.width / 2, 870);
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+function createPortalPosterTexture(portal) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 1024;
+	canvas.height = 320;
+	const ctx = canvas.getContext('2d');
+	const accent = '#' + new THREE.Color(portal.accent).getHexString();
+	const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+	grad.addColorStop(0, '#0e1c2e');
+	grad.addColorStop(1, '#0a1422');
+	ctx.fillStyle = grad;
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	for (let index = 0; index < 9; index++) {
+		ctx.fillStyle = accent;
+		ctx.globalAlpha = 0.12;
+		ctx.beginPath();
+		ctx.arc(100 + index * 110, 160, 40 + (index % 3) * 16, 0, Math.PI * 2);
+		ctx.fill();
+	}
+	ctx.globalAlpha = 1;
+	ctx.textAlign = 'center';
+	if (portal.kind === 'exit') {
+		ctx.fillStyle = accent;
+		ctx.font = '900 104px Arial Black, Impact, sans-serif';
+		ctx.fillText('GIFT SHOP', 512, 130);
+		ctx.fillStyle = '#fff5df';
+		ctx.font = '700 40px system-ui, sans-serif';
+		ctx.fillText('tees · stickers · tote bags · wapuu plushies', 512, 210);
+		ctx.fillStyle = accent;
+		ctx.font = '600 26px ui-monospace, Menlo, monospace';
+		ctx.fillText('mercantile.wordpress.org', 512, 268);
+	} else {
+		ctx.fillStyle = accent;
+		ctx.font = '900 96px Arial Black, Impact, sans-serif';
+		ctx.fillText('WELCOME', 512, 124);
+		ctx.fillStyle = '#fff5df';
+		ctx.font = '700 38px system-ui, sans-serif';
+		ctx.fillText('Free & open-source · the five-minute install', 512, 204);
+		ctx.fillStyle = accent;
+		ctx.font = '600 26px ui-monospace, Menlo, monospace';
+		ctx.fillText('“Code is poetry.”', 512, 264);
+	}
 	const tex = new THREE.CanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
@@ -688,7 +724,7 @@ function createSimpleTextTexture(text, color, bg) {
 	ctx.fillStyle = bg || '#0e1c2e';
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 	ctx.fillStyle = color || '#fff5df';
-	ctx.font = '900 80px Arial Black, Impact, sans-serif';
+	ctx.font = '900 76px Arial Black, Impact, sans-serif';
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
 	ctx.fillText(text, canvas.width / 2, canvas.height / 2);
@@ -696,73 +732,6 @@ function createSimpleTextTexture(text, color, bg) {
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
-}
-
-function createMercantileShelves(zStart, zEnd) {
-	const group = new THREE.Group();
-	const shelfMat = new THREE.MeshStandardMaterial({
-		color: 0xf8efd9,
-		roughness: 0.64,
-	});
-	const shelfTopMat = new THREE.MeshStandardMaterial({
-		color: 0xeed9a9,
-		roughness: 0.58,
-	});
-	const items = [
-		{ z: zStart + 1.6, color: 0xffd166, label: 'TEE' },
-		{ z: zStart + 3.5, color: 0x2bb7ff, label: 'PIN' },
-		{ z: zStart + 5.05, color: 0x50d890, label: 'WAPUU' },
-	];
-	for (const sideSign of [-1, 1]) {
-		const x = sideSign * (mercantileCorridorHalfWidth - 0.36);
-		for (const [index, item] of items.entries()) {
-			if (index === 0 && sideSign === -1) continue;
-			if (index === 2 && sideSign === 1) continue;
-			const shelf = new THREE.Mesh(
-				new THREE.BoxGeometry(0.5, 0.04, 0.62),
-				shelfTopMat
-			);
-			shelf.position.set(x, 0.95, item.z);
-			group.add(shelf);
-			const support = new THREE.Mesh(
-				new THREE.BoxGeometry(0.4, 0.94, 0.5),
-				shelfMat
-			);
-			support.position.set(x, 0.47, item.z);
-			group.add(support);
-			if (item.label === 'WAPUU') {
-				const plushie = createWapuu3D({ height: 0.52, accent: 0xffd166 });
-				plushie.position.set(x, 0.97, item.z);
-				plushie.rotation.y = sideSign === 1 ? -Math.PI / 2 - 0.3 : Math.PI / 2 + 0.3;
-				group.add(plushie);
-			} else {
-				const merch = new THREE.Mesh(
-					new THREE.BoxGeometry(0.36, 0.34, 0.42),
-					new THREE.MeshStandardMaterial({
-						color: item.color,
-						roughness: 0.55,
-					})
-				);
-				merch.position.set(x, 1.16, item.z);
-				merch.rotation.y = (sideSign === 1 ? -0.18 : 0.18);
-				group.add(merch);
-			}
-			const tag = createReadableLabel(
-				createSmallSignTexture(item.label, '#0e1c2e'),
-				0.36, 0.13
-			);
-			tag.position.set(x - sideSign * 0.21, 1.18, item.z);
-			tag.rotation.y = sideSign === 1 ? -Math.PI / 2 : Math.PI / 2;
-			group.add(tag);
-		}
-	}
-	const bench = new THREE.Mesh(
-		new THREE.BoxGeometry(mercantileCorridorHalfWidth * 1.4, 0.34, 0.4),
-		shelfMat
-	);
-	bench.position.set(0, 0.17, zStart + 0.55);
-	group.add(bench);
-	return group;
 }
 
 function createMuseumMaterial(textureName, options = {}) {
@@ -2469,16 +2438,7 @@ function createHubWalls() {
 
 	for (const side of hubSides) {
 		if (side.kind === 'mural') {
-			const segmentLength = (hubSideLength - mercantileDoorHalfWidth * 2) / 2;
-			const segmentOffset = mercantileDoorHalfWidth + segmentLength / 2;
-			group.add(createHubWallSegment(side, segmentLength, -segmentOffset));
-			group.add(createHubWallSegment(side, segmentLength, segmentOffset));
-			group.add(createMercantileTransom(side));
-			group.add(createWordPressMural(side));
-			if (isCurrentVariant) {
-				group.add(createWapuuMuralCutout(side));
-				group.add(createMercantileExitSign(side));
-			}
+			group.add(createMuralWall(side));
 		} else {
 			const segmentLength = (roomWidth - roomDoorHalfWidth * 2) / 2;
 			const segmentOffset = roomDoorHalfWidth + segmentLength / 2;
@@ -2506,10 +2466,40 @@ function createHubWallSegment(side, length, tangentOffset) {
 	return wall;
 }
 
+function createMuralWall(side) {
+	const group = new THREE.Group();
+	const half = hubSideLength / 2;
+	const dHW = portalDoorHalfWidth;
+	const dC = portalCenterOffset;
+	// Three full-height wall segments: left wall, central pier, right wall.
+	const segments = [
+		[-half, -(dC + dHW)],
+		[-(dC - dHW), dC - dHW],
+		[dC + dHW, half],
+	];
+	for (const [a, b] of segments) {
+		group.add(createHubWallSegment(side, b - a, (a + b) / 2));
+	}
+
+	// Wall + lintel above each doorway, and the mural spanning above both.
+	for (const portal of muralPortals) {
+		group.add(createPortalTransom(side, portal.offset));
+	}
+	group.add(createWordPressMural(side));
+
+	if (isCurrentVariant) {
+		group.add(createMuralWapuuGreeter(side));
+		for (const portal of muralPortals) {
+			group.add(createPortalSign(side, portal));
+		}
+	}
+	return group;
+}
+
 function createWordPressMural(side) {
-	const muralHeight = wallHeight - mercantileDoorHeight - 0.2;
+	const muralHeight = wallHeight - portalDoorHeight - 0.2;
 	const mural = new THREE.Mesh(
-		new THREE.PlaneGeometry(hubSideLength * 0.78, muralHeight),
+		new THREE.PlaneGeometry(hubSideLength * 0.92, muralHeight),
 		new THREE.MeshBasicMaterial({
 			map: createWordPressMuralTexture(),
 			transparent: true,
@@ -2519,25 +2509,24 @@ function createWordPressMural(side) {
 	mural.position
 		.copy(side.midpoint)
 		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.08));
-	mural.position.y = mercantileDoorHeight + muralHeight / 2 + 0.08;
+	mural.position.y = portalDoorHeight + muralHeight / 2 + 0.08;
 	mural.rotation.y = getRotationForNormal(
 		side.normal.clone().multiplyScalar(-1)
 	);
 	return mural;
 }
 
-function createMercantileTransom(side) {
+function createPortalTransom(side, offset) {
 	const group = new THREE.Group();
-	const beamHeight = wallHeight - mercantileDoorHeight;
-	const beamMaterial = createRoomWallMaterial(mercantileDoorHalfWidth * 2);
+	const beamHeight = wallHeight - portalDoorHeight;
 	const transom = new THREE.Mesh(
-		new THREE.BoxGeometry(mercantileDoorHalfWidth * 2, beamHeight, wallThickness),
-		beamMaterial
+		new THREE.BoxGeometry(portalDoorHalfWidth * 2, beamHeight, wallThickness),
+		createRoomWallMaterial(portalDoorHalfWidth * 2)
 	);
 	transom.position
 		.copy(side.midpoint)
-		.add(side.normal.clone().multiplyScalar(0));
-	transom.position.y = mercantileDoorHeight + beamHeight / 2;
+		.add(side.tangent.clone().multiplyScalar(offset));
+	transom.position.y = portalDoorHeight + beamHeight / 2;
 	transom.rotation.y = getRotationForNormal(side.normal);
 	group.add(transom);
 
@@ -2549,90 +2538,65 @@ function createMercantileTransom(side) {
 		metalness: 0.55,
 	});
 	const lintel = new THREE.Mesh(
-		new THREE.BoxGeometry(mercantileDoorHalfWidth * 2 + 0.18, 0.16, 0.36),
+		new THREE.BoxGeometry(portalDoorHalfWidth * 2 + 0.2, 0.16, 0.36),
 		lintelMaterial
 	);
 	lintel.position
 		.copy(side.midpoint)
+		.add(side.tangent.clone().multiplyScalar(offset))
 		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.18));
-	lintel.position.y = mercantileDoorHeight + 0.05;
+	lintel.position.y = portalDoorHeight + 0.05;
 	lintel.rotation.y = getRotationForNormal(side.normal);
 	group.add(lintel);
-
-	const archMaterial = new THREE.MeshStandardMaterial({
-		color: 0xfff5df,
-		roughness: 0.5,
-		emissive: 0x3a3220,
-		emissiveIntensity: 0.08,
-	});
-	for (let index = 0; index < 5; index++) {
-		const x = (-2 + index) * 1.0;
-		const stone = new THREE.Mesh(
-			new THREE.BoxGeometry(0.84, 0.36, 0.32),
-			archMaterial
-		);
-		stone.position
-			.copy(side.midpoint)
-			.add(side.tangent.clone().multiplyScalar(x))
-			.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.34));
-		stone.position.y = mercantileDoorHeight + 0.24;
-		stone.rotation.y = getRotationForNormal(side.normal);
-		group.add(stone);
-	}
 	return group;
 }
 
-function createWapuuMuralCutout(side) {
-	const wapuu = createWapuuCutout(3.05, {
+function createMuralWapuuGreeter(side) {
+	// A flat Wapuu cutout on the central pier, greeting visitors between
+	// the entrance and exit doors.
+	const wapuu = createWapuuCutout(2.6, {
 		accent: activeVariant.eraColors[0],
 		glow: activeVariant.eraColors[3],
 		shadow: true,
 	});
 	wapuu.position
 		.copy(side.midpoint)
-		.add(side.tangent.clone().multiplyScalar(4.55))
 		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.13));
-	wapuu.position.y = 1.62;
-	wapuu.rotation.y = getRotationForNormal(
-		side.normal.clone().multiplyScalar(-1)
-	);
-	wapuu.scale.setScalar(1);
+	wapuu.position.y = 0.55;
+	wapuu.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
 	return wapuu;
 }
 
-function createMercantileExitSign(side) {
+function createPortalSign(side, portal) {
 	const group = new THREE.Group();
 	const sign = createReadableLabel(
-		createMercantileSignTexture(),
-		2.6,
-		0.7
+		createPortalSignTexture(portal),
+		2.5,
+		0.66
 	);
 	sign.position
 		.copy(side.midpoint)
+		.add(side.tangent.clone().multiplyScalar(portal.offset))
 		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.42));
-	sign.position.y = mercantileDoorHeight + 0.08;
-	sign.rotation.y = getRotationForNormal(
-		side.normal.clone().multiplyScalar(-1)
-	);
+	sign.position.y = portalDoorHeight + 0.05;
+	sign.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
 	group.add(sign);
 
 	const arrowMaterial = new THREE.MeshBasicMaterial({
-		color: 0xffd166,
+		color: portal.accent,
 		transparent: true,
 		opacity: 0.9,
 	});
+	const arrowDir = portal.kind === 'entrance' ? -1 : 1;
 	for (let index = 0; index < 3; index++) {
-		const arrow = new THREE.Mesh(
-			new THREE.ConeGeometry(0.16, 0.32, 4),
-			arrowMaterial.clone()
-		);
+		const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.3, 4), arrowMaterial.clone());
 		arrow.position
 			.copy(side.midpoint)
-			.add(side.tangent.clone().multiplyScalar(-1.6 + index * 1.6))
+			.add(side.tangent.clone().multiplyScalar(portal.offset + (-1.0 + index * 1.0) * arrowDir))
 			.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.34));
-		arrow.position.y = 0.45;
+		arrow.position.y = 0.5;
 		arrow.rotation.x = Math.PI / 2;
-		arrow.rotation.y = getRotationForNormal(side.normal);
+		arrow.rotation.y = getRotationForNormal(side.normal) + (arrowDir < 0 ? Math.PI : 0);
 		registerAnimation(arrow, (object, elapsed) => {
 			object.material.opacity = 0.5 + (Math.sin(elapsed * 2.2 + index * 0.9) * 0.5 + 0.5) * 0.5;
 		});
@@ -2641,36 +2605,32 @@ function createMercantileExitSign(side) {
 	return group;
 }
 
-function createMercantileSignTexture() {
+function createPortalSignTexture(portal) {
 	const canvas = document.createElement('canvas');
 	canvas.width = 1024;
 	canvas.height = 280;
 	const ctx = canvas.getContext('2d');
-	ctx.fillStyle = '#1a0d05';
+	ctx.fillStyle = '#140d05';
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	ctx.fillStyle = '#ffd166';
-	ctx.fillRect(0, 0, canvas.width, 10);
-	ctx.fillRect(0, canvas.height - 10, canvas.width, 10);
-
+	const bulb = new THREE.Color(portal.accent).getHexString();
 	for (let index = 0; index < 12; index++) {
 		const x = 26 + index * 84;
-		ctx.fillStyle = index % 2 ? '#ffd166' : '#50d890';
+		ctx.fillStyle = index % 2 ? `#${bulb}` : '#fff5df';
 		ctx.beginPath();
-		ctx.arc(x, 36, 9, 0, Math.PI * 2);
+		ctx.arc(x, 34, 8, 0, Math.PI * 2);
 		ctx.fill();
 		ctx.beginPath();
-		ctx.arc(x, canvas.height - 36, 9, 0, Math.PI * 2);
+		ctx.arc(x, canvas.height - 34, 8, 0, Math.PI * 2);
 		ctx.fill();
 	}
-
 	ctx.fillStyle = '#fff5df';
-	ctx.font = '900 120px Arial Black, Impact, sans-serif';
+	ctx.font = '900 128px Arial Black, Impact, sans-serif';
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-	ctx.fillText('MERCANTILE', 512, 130);
-	ctx.fillStyle = '#ffd166';
-	ctx.font = '700 36px system-ui, sans-serif';
-	ctx.fillText('THIS WAY TO THE GIFT SHOP  →', 512, 210);
+	ctx.fillText(portal.title, 512, 124);
+	ctx.fillStyle = `#${bulb}`;
+	ctx.font = '700 40px system-ui, sans-serif';
+	ctx.fillText(portal.sub.toUpperCase(), 512, 216);
 
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
@@ -8299,8 +8259,8 @@ function pickFromScreen(x, y) {
 		return;
 	}
 	const obj = hit.object;
-	if (obj.userData.mercantileExit) {
-		window.open(mercantileUrl, '_blank', 'noopener,noreferrer');
+	if (obj.userData.portalUrl) {
+		window.open(obj.userData.portalUrl, '_blank', 'noopener,noreferrer');
 		return;
 	}
 	if (Number.isFinite(obj.userData.releaseIndex)) {
@@ -8323,7 +8283,7 @@ function setCameraRotation() {
 function isPointInsideClosedMuseum(position) {
 	return (
 		isPointInsideHub(position) ||
-		isPointInsideMercantileCorridor(position) ||
+		isPointInsideMuralPortals(position) ||
 		movementZones.some(
 			(room) =>
 				isPointInsideRoom(position, room) ||
@@ -8332,15 +8292,16 @@ function isPointInsideClosedMuseum(position) {
 	);
 }
 
-function isPointInsideMercantileCorridor(position) {
+function isPointInsideMuralPortals(position) {
 	if (!isCurrentVariant) {
 		return false;
 	}
-	const padding = 0.5;
-	return (
-		Math.abs(position.x) <= mercantileCorridorHalfWidth - padding &&
-		position.z >= hubApothem - 1.2 &&
-		position.z <= hubApothem + mercantileCorridorDepth - 0.4
+	const padding = 0.45;
+	if (position.z < hubApothem - 1.2 || position.z > hubApothem + portalAlcoveDepth - 0.4) {
+		return false;
+	}
+	return muralPortals.some(
+		(portal) => Math.abs(position.x - portal.offset) <= portalAlcoveHalfWidth - padding
 	);
 }
 
