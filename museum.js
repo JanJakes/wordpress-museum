@@ -107,7 +107,7 @@ const exhibitPlaqueWidth = 3.02;
 const exhibitPlaqueHeight = 2.16;
 const exhibitWallMargin = 0.75;
 const exhibitPreferredSpacing = exhibitOuterWidth + 0.65;
-const sideExhibitMinZ = -roomDepth / 2 + exhibitOuterWidth / 2 + 1.65;
+const sideExhibitMinZ = -roomDepth / 2 + exhibitOuterWidth / 2 + 2.55;
 const sideExhibitMaxZ = roomDepth / 2 - exhibitOuterWidth / 2 - exhibitWallMargin;
 const entryDistanceFromCenter = 5.2;
 const shellPadding = 1.4;
@@ -358,7 +358,24 @@ function configureMuseumTexture(texture, repeatX, repeatY) {
 
 function getWapuuTexture() {
 	if (!wapuuTexture) {
-		wapuuTexture = textureLoader.load('./assets/wapuu/wapuu-original.png');
+		const canvas = document.createElement('canvas');
+		canvas.width = 1024;
+		canvas.height = Math.round(canvas.width * (66 / 60));
+		const texture = new THREE.CanvasTexture(canvas);
+		const image = new Image();
+		image.decoding = 'async';
+		image.addEventListener(
+			'load',
+			() => {
+				const ctx = canvas.getContext('2d');
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+				ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+				texture.needsUpdate = true;
+			},
+			{ once: true }
+		);
+		image.src = './assets/wapuu/wapuu-original.svg';
+		wapuuTexture = texture;
 		wapuuTexture.colorSpace = THREE.SRGBColorSpace;
 		wapuuTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
 	}
@@ -2001,8 +2018,8 @@ function addAtriumFeature(group, feature, color, secondary) {
 function addUltimateAtriumFeature(group, color, secondary) {
 	addPlaced(group, createAtriumPlanter(color, secondary), -6.7, 14.62, 0);
 	addPlaced(group, createAtriumPlanter(secondary, color), 6.7, 14.62, 0);
-	addPlaced(group, createWapuuDocent(color, secondary), -3.35, -1.95, Math.PI);
-	addPlaced(group, createMuseumInfoDesk(color, secondary), 0, -2.85, 0);
+	addPlaced(group, createWapuuDocent(color, secondary), -4.45, -1.85, 0.66);
+	addPlaced(group, createMuseumInfoDesk(color, secondary), 0.45, -4.65, 0.06);
 	addPlaced(group, createLoadedModel('scaffoldingStructure', {
 		targetHeight: 2.55,
 		fallback: 'column',
@@ -2014,15 +2031,15 @@ function addUltimateAtriumFeature(group, color, secondary) {
 	addPlaced(group, createLoadedModel('televisionVintage', {
 		targetHeight: 0.82,
 		fallback: 'screen',
-	}), -5.1, -3.7, 0.34);
+	}), -7.35, -3.35, 0.48);
 	addPlaced(group, createLoadedModel('loungeDesignChair', {
 		targetHeight: 0.68,
 		fallback: 'bench',
-	}), 5.05, -3.8, -0.45);
+	}), 5.85, -4.05, -0.34);
 	addPlaced(group, createLoadedModel('tableCoffee', {
 		targetHeight: 0.34,
 		fallback: 'block',
-	}), 3.72, -3.15, -0.12);
+	}), 4.7, -3.25, -0.12);
 	addPlaced(group, createLoadedModel('treeParkLarge', {
 		targetHeight: 1.7,
 		fallback: 'plant',
@@ -2059,27 +2076,26 @@ function createAtriumPlanter(color, secondary) {
 
 function createWapuuDocent(color, secondary) {
 	const group = new THREE.Group();
-	const pedestal = createPedestal(2.05, 0.42, color);
+	const pedestal = createPedestal(1.58, 0.36, color);
 	group.add(pedestal);
-	const cutout = createWapuuCutout(3.05, {
+	const cutout = createWapuuCutout(2.34, {
 		glow: secondary,
-		shadow: true,
 	});
-	cutout.position.y = 0.4;
+	cutout.position.y = 0.34;
 	registerAnimation(cutout, (object, elapsed) => {
-		object.position.y = 0.4 + Math.sin(elapsed * 1.15) * 0.035;
+		object.position.y = 0.34 + Math.sin(elapsed * 1.15) * 0.035;
 		object.rotation.z = Math.sin(elapsed * 0.75) * 0.018;
 	});
 	group.add(cutout);
 
-	const label = createReadableLabel(createSmallSignTexture('WAPUU', color), 1.34, 0.3);
-	label.position.set(0, 0.66, -0.84);
+	const label = createReadableLabel(createSmallSignTexture('WAPUU', color), 1.12, 0.26);
+	label.position.set(0, 0.54, -0.66);
 	group.add(label);
 
-	const glow = new THREE.PointLight(new THREE.Color(secondary), 1.05, 8);
-	glow.position.set(0, 1.75, -0.45);
+	const glow = new THREE.PointLight(new THREE.Color(secondary), 0.82, 6.8);
+	glow.position.set(0, 1.46, -0.38);
 	registerAnimation(glow, (object, elapsed) => {
-		object.intensity = 0.92 + Math.sin(elapsed * 1.8) * 0.13;
+		object.intensity = 0.72 + Math.sin(elapsed * 1.8) * 0.11;
 	});
 	group.add(glow);
 	return group;
@@ -2234,32 +2250,32 @@ function addEraVignette(group, room, roomIndex) {
 function addEraModelProps(group, room, roomIndex, color, secondary) {
 	const modelSets = {
 		'Blogging Roots': [
-			['radio', -3.45, -5.05, 0.36, 0.46, 'radio'],
-			['bookcaseOpenLow', 3.45, -5.0, -0.34, 0.86, 'bookcase'],
+			['radio', -4.65, -3.75, 0.5, 0.46, 'radio'],
+			['bookcaseOpenLow', 4.65, -3.72, -0.48, 0.86, 'bookcase'],
 		],
 		'Dashboard Foundations': [
-			['computerScreen', -3.45, -5.04, 0.3, 0.62, 'screen'],
-			['loungeDesignChair', 3.45, -5.08, -0.36, 0.62, 'bench'],
+			['computerScreen', -4.65, -3.76, 0.46, 0.62, 'screen'],
+			['loungeDesignChair', 4.65, -3.78, -0.5, 0.62, 'bench'],
 		],
 		'CMS Toolkit': [
-			['wallDoorwayRound', -3.65, -5.0, 0.45, 1.35, 'portal'],
-			['doorRotateSquareA', 3.55, -5.04, -0.4, 1.18, 'portal'],
+			['wallDoorwayRound', -4.8, -3.72, 0.58, 1.35, 'portal'],
+			['doorRotateSquareA', 4.75, -3.74, -0.54, 1.18, 'portal'],
 		],
 		'Modern Admin': [
-			['laptop', -3.5, -5.1, 0.35, 0.46, 'screen'],
-			['televisionVintage', 3.55, -5.06, -0.34, 0.72, 'screen'],
+			['laptop', -4.65, -3.82, 0.52, 0.46, 'screen'],
+			['televisionVintage', 4.7, -3.78, -0.48, 0.72, 'screen'],
 		],
 		'API and Customizer': [
-			['doorRotateRoundA', -3.6, -5.0, 0.46, 1.2, 'portal'],
-			['columnThin', 3.55, -5.03, -0.2, 1.6, 'column'],
+			['doorRotateRoundA', -4.78, -3.72, 0.58, 1.2, 'portal'],
+			['columnThin', 4.72, -3.76, -0.34, 1.6, 'column'],
 		],
 		'Block Editor': [
-			['platingDetailed', -3.55, -5.05, 0.26, 0.28, 'block'],
-			['loungeDesignSofa', 3.5, -5.08, -0.32, 0.58, 'bench'],
+			['platingDetailed', -4.68, -3.78, 0.4, 0.28, 'block'],
+			['loungeDesignSofa', 4.68, -3.8, -0.44, 0.58, 'bench'],
 		],
 		'Blocks Everywhere': [
-			['tableCoffee', -3.45, -5.05, 0.28, 0.34, 'block'],
-			['pottedPlant', 3.45, -5.08, -0.28, 0.88, 'plant'],
+			['tableCoffee', -4.62, -3.76, 0.42, 0.34, 'block'],
+			['pottedPlant', 4.62, -3.78, -0.42, 0.88, 'plant'],
 		],
 	};
 	const entries = modelSets[room.era] || [];
@@ -2272,15 +2288,15 @@ function addEraModelProps(group, room, roomIndex, color, secondary) {
 	});
 	const floorLight = createMuseumLamp(roomIndex % 2 ? color : secondary);
 	floorLight.scale.setScalar(0.8);
-	addLocal(group, floorLight, roomIndex % 2 ? -4.75 : 4.75, -5.05, 0);
+	addLocal(group, floorLight, roomIndex % 2 ? -5.1 : 5.1, -4.05, 0);
 }
 
 function getEraVignetteStations() {
-	const sideStationZ = -roomDepth / 2 + 2.9;
+	const sideStationZ = -roomDepth / 2 + 4.35;
 	return [
-		{ x: -5.35, z: sideStationZ, rotation: -Math.PI / 2 },
-		{ x: 5.35, z: sideStationZ, rotation: Math.PI / 2 },
-		{ x: 0, z: roomDepth / 2 - 1.32, rotation: 0 },
+		{ x: -4.85, z: sideStationZ, rotation: -Math.PI / 2 },
+		{ x: 4.85, z: sideStationZ, rotation: Math.PI / 2 },
+		{ x: 0, z: roomDepth / 2 - 1.72, rotation: 0 },
 	];
 }
 
@@ -2326,9 +2342,9 @@ function getEraVignetteItems(room, color, secondary) {
 
 function createVignetteStation(color, labelText, object, options = {}) {
 	const group = new THREE.Group();
-	const width = options.width || 1.5;
-	const depth = options.depth || 1.02;
-	const baseHeight = 0.1;
+	const width = (options.width || 1.5) * 1.08;
+	const depth = (options.depth || 1.02) * 1.08;
+	const baseHeight = 0.34;
 	const base = new THREE.Mesh(
 		new THREE.BoxGeometry(width, baseHeight, depth),
 		new THREE.MeshStandardMaterial({ color: 0xf8efd9, roughness: 0.66 })
@@ -2336,20 +2352,27 @@ function createVignetteStation(color, labelText, object, options = {}) {
 	base.position.y = baseHeight / 2;
 	group.add(base);
 
+	const plinth = new THREE.Mesh(
+		new THREE.BoxGeometry(width * 0.82, 0.12, depth * 0.78),
+		new THREE.MeshStandardMaterial({ color: 0xe5dbc6, roughness: 0.7 })
+	);
+	plinth.position.y = baseHeight + 0.06;
+	group.add(plinth);
+
 	const accent = new THREE.Mesh(
 		new THREE.BoxGeometry(width + 0.04, 0.035, 0.09),
 		new THREE.MeshBasicMaterial({ color })
 	);
-	accent.position.set(0, baseHeight + 0.018, -depth / 2 + 0.045);
+	accent.position.set(0, baseHeight + 0.082, -depth / 2 + 0.045);
 	group.add(accent);
 
 	const objectAnchor = new THREE.Group();
-	object.position.y += baseHeight;
+	object.position.y += baseHeight + 0.12;
 	objectAnchor.add(object);
 	group.add(objectAnchor);
 
-	const label = createReadableLabel(createSmallSignTexture(labelText, color), Math.min(width * 0.84, 1.22), 0.24);
-	label.position.set(0, 0.22, -depth / 2 - 0.16);
+	const label = createReadableLabel(createSmallSignTexture(labelText, color), Math.min(width * 0.8, 1.24), 0.25);
+	label.position.set(0, baseHeight + 0.2, -depth / 2 - 0.16);
 	group.add(label);
 	return group;
 }
@@ -2513,7 +2536,7 @@ function createRoomFloorLabel(room, roomIndex) {
 			side: THREE.DoubleSide,
 		})
 	);
-	label.position.set(0, 0.075, -roomDepth / 2 + 1.12);
+	label.position.set(0, 0.075, -roomDepth / 2 + 2.35);
 	label.rotation.x = -Math.PI / 2;
 	return label;
 }
