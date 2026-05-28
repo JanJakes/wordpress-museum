@@ -546,22 +546,31 @@ body[data-ui='glass'] .kicker {
 		top: auto;
 		bottom: 168px;
 		width: auto;
-		max-height: 38vh;
+		max-height: 32vh;
 		overflow: auto;
-		padding: 14px;
+		padding: 12px;
 	}
 
 	.release-panel h2 {
-		font-size: 1.5rem;
+		font-size: 1.34rem;
+		line-height: 1.02;
 	}
 
 	.release-panel p {
-		margin-top: 8px;
-		font-size: 0.9rem;
+		margin-top: 7px;
+		font-size: 0.84rem;
+		line-height: 1.36;
 	}
 
 	.panel-links {
-		margin-top: 12px;
+		margin-top: 10px;
+		gap: 8px;
+	}
+
+	.panel-links a {
+		min-height: 34px;
+		padding: 0 11px;
+		font-size: 0.8rem;
 	}
 
 	.tour-controls {

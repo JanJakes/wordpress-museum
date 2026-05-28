@@ -168,7 +168,7 @@ function initRenderer() {
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.35));
 	renderer.outputColorSpace = THREE.SRGBColorSpace;
 	renderer.toneMapping = THREE.ACESFilmicToneMapping;
-	renderer.toneMappingExposure = isCurrentVariant ? 1.08 : 1;
+	renderer.toneMappingExposure = isCurrentVariant ? 0.94 : 1;
 	scene.background = new THREE.Color(activeVariant.scene.background);
 	scene.fog = new THREE.Fog(activeVariant.scene.fog, 52, 118);
 
@@ -179,9 +179,9 @@ function initRenderer() {
 			activeVariant.scene.hemiIntensity
 		)
 	);
-	scene.add(new THREE.AmbientLight(0xe8edff, isCurrentVariant ? 0.9 : 0.72));
+	scene.add(new THREE.AmbientLight(0xe8edff, isCurrentVariant ? 0.58 : 0.72));
 	const keyLight = new THREE.DirectionalLight(0xffe2b0, 2.8);
-	keyLight.intensity = activeVariant.scene.keyIntensity;
+	keyLight.intensity = activeVariant.scene.keyIntensity * (isCurrentVariant ? 0.86 : 1);
 	keyLight.position.set(2, 8, -6);
 	scene.add(keyLight);
 
@@ -1453,6 +1453,7 @@ function createRoom(room) {
 		group.add(createRoomMuseumArchitecture(room));
 		group.add(createRoomStoryWall(room));
 		group.add(createRoomFloorWayfinding(room.color));
+		group.add(createSuspendedReleaseMobile(room));
 	}
 	if (shouldDecorateScene) {
 		group.add(createRoomMural(room));
@@ -1887,6 +1888,8 @@ function createRoomMuseumArchitecture(room) {
 		group.add(createWallRail(side, 3.04, brass, 0.045));
 		group.add(createWallRail(side, wallHeight - 0.58, brass, 0.12));
 	});
+	group.add(createRoomAccentWashes(room));
+	group.add(createRoomRopeBarriers(room.color));
 	group.add(createRoomTrackLighting(room.color));
 	for (const side of ['left', 'right']) {
 		for (const z of [-2.8, 2.35]) {
@@ -1898,6 +1901,215 @@ function createRoomMuseumArchitecture(room) {
 			group.add(sconce);
 		}
 	}
+	return group;
+}
+
+function createRoomAccentWashes(room) {
+	const group = new THREE.Group();
+	const washSpecs = [
+		{
+			width: roomWidth - 2.4,
+			height: 2.65,
+			position: [0, 2.48, roomDepth / 2 - wallThickness / 2 - 0.035],
+			rotationY: Math.PI,
+			opacity: 0.1,
+		},
+		{
+			width: roomDepth - 3.2,
+			height: 1.9,
+			position: [-roomWidth / 2 + wallThickness / 2 + 0.035, 2.2, 0.28],
+			rotationY: Math.PI / 2,
+			opacity: 0.075,
+		},
+		{
+			width: roomDepth - 3.2,
+			height: 1.9,
+			position: [roomWidth / 2 - wallThickness / 2 - 0.035, 2.2, 0.28],
+			rotationY: -Math.PI / 2,
+			opacity: 0.075,
+		},
+	];
+
+	washSpecs.forEach((spec, index) => {
+		const material = new THREE.MeshBasicMaterial({
+			color: room.color,
+			transparent: true,
+			opacity: spec.opacity,
+			side: THREE.DoubleSide,
+			depthWrite: false,
+		});
+		const wash = new THREE.Mesh(new THREE.PlaneGeometry(spec.width, spec.height), material);
+		wash.position.set(...spec.position);
+		wash.rotation.y = spec.rotationY;
+		registerAnimation(wash, (object, elapsed) => {
+			object.material.opacity = spec.opacity + Math.sin(elapsed * 0.7 + index) * 0.018;
+		});
+		group.add(wash);
+	});
+
+	return group;
+}
+
+function createRoomRopeBarriers(color) {
+	const group = new THREE.Group();
+	group.add(createMuseumRopeLine([
+		{ x: -roomWidth / 2 + 1.65, z: roomDepth / 2 - 2.35 },
+		{ x: -2.1, z: roomDepth / 2 - 2.35 },
+		{ x: 0, z: roomDepth / 2 - 2.35 },
+		{ x: 2.1, z: roomDepth / 2 - 2.35 },
+		{ x: roomWidth / 2 - 1.65, z: roomDepth / 2 - 2.35 },
+	], color));
+	group.add(createMuseumRopeLine([
+		{ x: -roomWidth / 2 + 1.05, z: -2.62 },
+		{ x: -roomWidth / 2 + 1.05, z: -0.5 },
+		{ x: -roomWidth / 2 + 1.05, z: 1.62 },
+		{ x: -roomWidth / 2 + 1.05, z: 3.72 },
+	], color));
+	group.add(createMuseumRopeLine([
+		{ x: roomWidth / 2 - 1.05, z: -2.62 },
+		{ x: roomWidth / 2 - 1.05, z: -0.5 },
+		{ x: roomWidth / 2 - 1.05, z: 1.62 },
+		{ x: roomWidth / 2 - 1.05, z: 3.72 },
+	], color));
+	return group;
+}
+
+function createMuseumRopeLine(points, color, options = {}) {
+	const group = new THREE.Group();
+	const postHeight = options.postHeight ?? 0.82;
+	const postRadius = options.postRadius ?? 0.045;
+	const capRadius = options.capRadius ?? 0.075;
+	const ropeY = options.ropeY ?? 0.84;
+	const ropeRadius = options.ropeRadius ?? 0.026;
+	const postMaterial = new THREE.MeshStandardMaterial({
+		color: 0xc79b43,
+		roughness: 0.32,
+		metalness: 0.52,
+	});
+	const capMaterial = new THREE.MeshStandardMaterial({
+		color: 0xfff5df,
+		roughness: 0.42,
+		metalness: 0.22,
+	});
+	const ropeMaterial = new THREE.MeshStandardMaterial({
+		color,
+		emissive: new THREE.Color(color),
+		emissiveIntensity: 0.04,
+		roughness: 0.34,
+		metalness: 0.18,
+	});
+	const ropeSegments = [];
+
+	points.forEach((point, index) => {
+		const post = new THREE.Mesh(
+			new THREE.CylinderGeometry(postRadius, postRadius * 1.24, postHeight, 14),
+			postMaterial
+		);
+		post.position.set(point.x, postHeight / 2, point.z);
+		group.add(post);
+
+		const cap = new THREE.Mesh(new THREE.SphereGeometry(capRadius, 14, 10), capMaterial);
+		cap.position.set(point.x, postHeight + capRadius * 0.35, point.z);
+		group.add(cap);
+
+		if (index > 0) {
+			const rope = createRopeSegment(points[index - 1], point, ropeY, ropeRadius, ropeMaterial);
+			ropeSegments.push(rope);
+			group.add(rope);
+		}
+	});
+
+	registerAnimation(group, (object, elapsed) => {
+		for (const [index, rope] of ropeSegments.entries()) {
+			rope.position.y = ropeY + Math.sin(elapsed * 1.05 + index) * 0.018;
+			rope.material.emissiveIntensity = 0.035 + Math.sin(elapsed * 1.3 + index) * 0.012;
+		}
+	});
+	return group;
+}
+
+function createRopeSegment(start, end, y, radius, material) {
+	const direction = new THREE.Vector3(end.x - start.x, 0, end.z - start.z);
+	const length = direction.length();
+	const rope = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length, 12), material);
+	rope.position.set((start.x + end.x) / 2, y, (start.z + end.z) / 2);
+	rope.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+	return rope;
+}
+
+function createSuspendedReleaseMobile(room) {
+	const group = new THREE.Group();
+	const items = getSuspendedReleaseItems(room);
+	const cableMaterial = new THREE.MeshBasicMaterial({
+		color: 0xfff5df,
+		transparent: true,
+		opacity: 0.46,
+	});
+
+	items.forEach(({ release }, index) => {
+		const x = -3.35 + index * (6.7 / Math.max(items.length - 1, 1));
+		const z = -0.78 + (index % 2) * 1.22;
+		const y = 4.64 + (index % 3) * 0.1;
+		const cableLength = wallHeight - 0.85 - y;
+		const cable = new THREE.Mesh(
+			new THREE.CylinderGeometry(0.011, 0.011, cableLength, 8),
+			cableMaterial
+		);
+		cable.position.set(x, y + cableLength / 2, z);
+		group.add(cable);
+
+		const chip = createHangingReleaseChip(release, room.color, index);
+		chip.position.set(x, y, z);
+		registerAnimation(chip, (object, elapsed) => {
+			object.position.y = y + Math.sin(elapsed * 1.15 + index) * 0.055;
+			object.rotation.y = Math.sin(elapsed * 0.8 + index) * 0.36;
+			object.rotation.z = Math.sin(elapsed * 0.52 + index) * 0.045;
+		});
+		group.add(chip);
+	});
+
+	return group;
+}
+
+function getSuspendedReleaseItems(room) {
+	const items = getEraReleaseItems(room.era);
+	const important = items.filter(({ release }) => release.version.endsWith('.0'));
+	const candidates = important.length >= 3
+		? important
+		: [
+				items[0],
+				items[Math.floor(items.length / 2)],
+				items[items.length - 1],
+			].filter(Boolean);
+	return candidates.slice(0, 5);
+}
+
+function createHangingReleaseChip(release, color, index) {
+	const group = new THREE.Group();
+	const chipMaterial = new THREE.MeshStandardMaterial({
+		color: index % 2 ? 0xf8efd9 : color,
+		emissive: new THREE.Color(color),
+		emissiveIntensity: 0.08,
+		roughness: 0.42,
+		metalness: 0.18,
+	});
+	const chip = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.42, 0.055), chipMaterial);
+	group.add(chip);
+
+	const label = createReadableLabel(
+		createSmallSignTexture(`WP ${release.version}`, color),
+		0.58,
+		0.17
+	);
+	label.position.z = -0.044;
+	group.add(label);
+
+	const rim = new THREE.Mesh(
+		new THREE.BoxGeometry(0.76, 0.035, 0.065),
+		new THREE.MeshBasicMaterial({ color: 0xfff5df, transparent: true, opacity: 0.62 })
+	);
+	rim.position.y = 0.245;
+	group.add(rim);
 	return group;
 }
 
@@ -2009,6 +2221,7 @@ function createAtriumDecor() {
 	group.add(createAtriumFloorMedallion(color, secondary));
 	if (isCurrentVariant) {
 		group.add(createAtriumVersionOrbit());
+		group.add(createAtriumRopeArcs(color, secondary));
 	}
 	addAtriumFeature(group, activeVariant.atriumFeature, color, secondary);
 	addAtriumBenches(group);
@@ -2079,6 +2292,74 @@ function createAtriumVersionOrbit() {
 			object.position.y = 0.12 + Math.sin(elapsed * 1.25 + index) * 0.018;
 		});
 		group.add(marker);
+
+		if (release.version.endsWith('.0')) {
+			const label = createReadableLabel(
+				createSmallSignTexture(`WP ${release.version}`, color),
+				0.92,
+				0.22
+			);
+			label.position.set(Math.cos(angle) * (radius + 0.44), 0.42, Math.sin(angle) * (radius + 0.44));
+			label.rotation.y = getRotationForNormal(new THREE.Vector3(-label.position.x, 0, -label.position.z).normalize());
+			registerAnimation(label, (object, elapsed) => {
+				object.position.y = 0.42 + Math.sin(elapsed * 1.05 + index) * 0.025;
+			});
+			group.add(label);
+		}
+	});
+	return group;
+}
+
+function createAtriumRopeArcs(color, secondary) {
+	const group = new THREE.Group();
+	group.add(createMuseumRopeArc(0, 0, 3.32, Math.PI * 0.12, Math.PI * 0.88, color));
+	group.add(createMuseumRopeArc(0, 0, 3.32, Math.PI * 1.12, Math.PI * 1.88, secondary));
+	group.add(createFloorGlowArc(0, 0, 3.95, Math.PI * 0.08, Math.PI * 0.92, color));
+	group.add(createFloorGlowArc(0, 0, 3.95, Math.PI * 1.08, Math.PI * 1.92, secondary));
+	return group;
+}
+
+function createMuseumRopeArc(centerX, centerZ, radius, startAngle, endAngle, color) {
+	const points = [];
+	const segmentCount = 8;
+	for (let index = 0; index <= segmentCount; index++) {
+		const progress = index / segmentCount;
+		const angle = startAngle + (endAngle - startAngle) * progress;
+		points.push({
+			x: centerX + Math.cos(angle) * radius,
+			z: centerZ + Math.sin(angle) * radius,
+		});
+	}
+	return createMuseumRopeLine(points, color, {
+		postHeight: 0.74,
+		ropeY: 0.77,
+		postRadius: 0.04,
+		capRadius: 0.07,
+	});
+}
+
+function createFloorGlowArc(centerX, centerZ, radius, startAngle, endAngle, color) {
+	const group = new THREE.Group();
+	const material = new THREE.MeshBasicMaterial({
+		color,
+		transparent: true,
+		opacity: 0.22,
+		side: THREE.DoubleSide,
+		depthWrite: false,
+	});
+	const segmentCount = 18;
+	for (let index = 0; index < segmentCount; index++) {
+		const progress = (index + 0.5) / segmentCount;
+		const angle = startAngle + (endAngle - startAngle) * progress;
+		const tick = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.018, 0.46), material.clone());
+		tick.position.set(centerX + Math.cos(angle) * radius, 0.078, centerZ + Math.sin(angle) * radius);
+		tick.rotation.y = -angle;
+		group.add(tick);
+	}
+	registerAnimation(group, (object, elapsed) => {
+		for (const [index, child] of object.children.entries()) {
+			child.material.opacity = 0.16 + Math.sin(elapsed * 1.45 + index * 0.42) * 0.045;
+		}
 	});
 	return group;
 }
@@ -2120,6 +2401,7 @@ function createAtriumMuseumArchitecture(color, secondary) {
 		group.add(lintel);
 		if (!isMural && side.era) {
 			group.add(createAtriumDoorBanner(side, eraColors.get(side.era)));
+			group.add(createAtriumGalleryBeacon(side, eraColors.get(side.era)));
 		}
 	}
 
@@ -2143,6 +2425,56 @@ function createAtriumMuseumArchitecture(color, secondary) {
 			group.add(glow);
 		}
 	}
+	return group;
+}
+
+function createAtriumGalleryBeacon(side, color) {
+	const group = new THREE.Group();
+	const sideIndex = roomSides.findIndex((roomSide) => roomSide.era === side.era);
+	const offset = (sideIndex % 2 ? 1 : -1) * (roomDoorHalfWidth + 0.92);
+	const position = side.midpoint
+		.clone()
+		.add(side.tangent.clone().multiplyScalar(offset))
+		.add(side.normal.clone().multiplyScalar(-0.92));
+	group.position.set(position.x, 0, position.z);
+	group.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
+
+	const baseMaterial = new THREE.MeshStandardMaterial({
+		color: 0xf4ecda,
+		roughness: 0.68,
+		metalness: 0.06,
+	});
+	const glassMaterial = new THREE.MeshBasicMaterial({
+		color,
+		transparent: true,
+		opacity: 0.36,
+		depthWrite: false,
+	});
+	const base = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 0.2, 18), baseMaterial);
+	base.position.y = 0.1;
+	group.add(base);
+
+	const column = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.075, 1.35, 14), glassMaterial);
+	column.position.y = 0.88;
+	registerAnimation(column, (object, elapsed) => {
+		object.material.opacity = 0.28 + Math.sin(elapsed * 1.3 + sideIndex) * 0.08;
+	});
+	group.add(column);
+
+	const cap = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 10), new THREE.MeshBasicMaterial({ color }));
+	cap.position.y = 1.62;
+	group.add(cap);
+
+	const label = createReadableLabel(createSmallSignTexture(side.era.split(' ')[0].toUpperCase(), color), 0.86, 0.2);
+	label.position.set(0, 0.52, -0.17);
+	group.add(label);
+
+	const light = new THREE.PointLight(new THREE.Color(color), 0.28, 4.6);
+	light.position.y = 1.35;
+	registerAnimation(light, (object, elapsed) => {
+		object.intensity = 0.22 + Math.sin(elapsed * 1.6 + sideIndex) * 0.05;
+	});
+	group.add(light);
 	return group;
 }
 
@@ -2432,12 +2764,52 @@ function createWapuuDocent(color, secondary) {
 	label.position.set(0, 0.54, -0.66);
 	group.add(label);
 
+	const docentSign = createReadableLabel(createSmallSignTexture('OPEN SOURCE', secondary), 1.38, 0.28);
+	docentSign.position.set(0.78, 2.66, -0.44);
+	docentSign.rotation.z = -0.05;
+	group.add(docentSign);
+	group.add(createWapuuSparkles(color, secondary));
+
 	const glow = new THREE.PointLight(new THREE.Color(secondary), 0.82, 6.8);
 	glow.position.set(0, 1.46, -0.38);
 	registerAnimation(glow, (object, elapsed) => {
 		object.intensity = 0.72 + Math.sin(elapsed * 1.8) * 0.11;
 	});
 	group.add(glow);
+	return group;
+}
+
+function createWapuuSparkles(color, secondary) {
+	const group = new THREE.Group();
+	const colors = [color, secondary, 0xfff5df];
+	for (let index = 0; index < 7; index++) {
+		const sparkle = new THREE.Mesh(
+			new THREE.OctahedronGeometry(0.055 + (index % 3) * 0.014, 0),
+			new THREE.MeshBasicMaterial({
+				color: colors[index % colors.length],
+				transparent: true,
+				opacity: 0.88,
+				depthWrite: false,
+			})
+		);
+		const angle = -0.8 + index * 0.32;
+		const radius = 0.82 + (index % 2) * 0.18;
+		sparkle.userData.base = {
+			x: Math.cos(angle) * radius,
+			y: 1.34 + (index % 4) * 0.34,
+			z: -0.36 - (index % 2) * 0.1,
+		};
+		sparkle.position.set(sparkle.userData.base.x, sparkle.userData.base.y, sparkle.userData.base.z);
+		registerAnimation(sparkle, (object, elapsed) => {
+			const base = object.userData.base;
+			const pulse = 0.76 + Math.sin(elapsed * 2.1 + index) * 0.18;
+			object.position.y = base.y + Math.sin(elapsed * 1.2 + index) * 0.035;
+			object.rotation.y += 0.018 + index * 0.001;
+			object.scale.setScalar(pulse);
+			object.material.opacity = 0.66 + Math.sin(elapsed * 2.3 + index) * 0.16;
+		});
+		group.add(sparkle);
+	}
 	return group;
 }
 

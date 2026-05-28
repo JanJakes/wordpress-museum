@@ -280,7 +280,7 @@
 				'detailBench',
 				'bookcaseOpenLow',
 			],
-			scene: scene('#d8e4f0', '#d8e4f0', '#fff7df', '#9bacbf', 3.7, 3.2),
+			scene: scene('#cbd9e6', '#d8e4f0', '#fff7df', '#8fa1b8', 2.75, 2.45),
 			eraColors: defaultEraColors,
 			wall: ['#cbd7e7', '#9fb1c9', '#f3f0dd'],
 			floor: ['#2f3f5f', '#1f2b44', '#ffcf6a'],
