@@ -3305,23 +3305,54 @@ function createFloorTrim(side, color) {
 
 function createDoorFrame(room) {
 	const group = new THREE.Group();
-	const pillarGeometry = new THREE.BoxGeometry(0.25, wallHeight, 0.3);
-	const beamGeometry = new THREE.BoxGeometry(5.2, 0.25, 0.3);
-	const material = new THREE.MeshBasicMaterial({ color: room.color });
-	const first = new THREE.Mesh(pillarGeometry, material);
-	const second = first.clone();
-	const beam = new THREE.Mesh(beamGeometry, material);
+	const z = -roomDepth / 2;
 	const gap = roomDoorHalfWidth;
-	first.position.set(-gap, wallHeight / 2, -roomDepth / 2);
-	second.position.set(gap, wallHeight / 2, -roomDepth / 2);
-	beam.position.set(0, 4.35, -roomDepth / 2);
-	group.add(first, second, beam);
+	const jambMaterial = new THREE.MeshStandardMaterial({
+		color: 0xf2eadc,
+		roughness: 0.7,
+		metalness: 0.04,
+	});
+	const accentMaterial = new THREE.MeshStandardMaterial({
+		color: room.color,
+		emissive: new THREE.Color(room.color),
+		emissiveIntensity: 0.16,
+		roughness: 0.4,
+		metalness: 0.1,
+	});
+	const brassMaterial = new THREE.MeshStandardMaterial({
+		color: 0xc79b43,
+		emissive: 0x2a1c06,
+		emissiveIntensity: 0.1,
+		roughness: 0.32,
+		metalness: 0.5,
+	});
+
+	// Marble jambs with a thin coloured reveal facing the atrium.
+	for (const sx of [-1, 1]) {
+		const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.34, wallHeight, 0.42), jambMaterial);
+		jamb.position.set(sx * gap, wallHeight / 2, z);
+		group.add(jamb);
+		const reveal = new THREE.Mesh(new THREE.BoxGeometry(0.1, wallHeight - 0.3, 0.46), accentMaterial);
+		reveal.position.set(sx * (gap - 0.13), wallHeight / 2, z - 0.02);
+		group.add(reveal);
+	}
+
+	const lintel = new THREE.Mesh(new THREE.BoxGeometry(gap * 2 + 0.34, 0.42, 0.42), jambMaterial);
+	lintel.position.set(0, 4.45, z);
+	group.add(lintel);
+	const lintelBand = new THREE.Mesh(new THREE.BoxGeometry(gap * 2 + 0.1, 0.08, 0.48), brassMaterial);
+	lintelBand.position.set(0, 4.2, z - 0.02);
+	group.add(lintelBand);
+	const accentBand = new THREE.Mesh(new THREE.BoxGeometry(gap * 2, 0.06, 0.5), accentMaterial);
+	accentBand.position.set(0, 4.66, z - 0.02);
+	group.add(accentBand);
+
 	const signMaterial = new THREE.MeshBasicMaterial({
 		map: createEraTexture(room.era, room.color, room.yearRange),
 		transparent: true,
 	});
-	group.add(createDoorSign(signMaterial, -roomDepth / 2 - 0.08, Math.PI));
-	group.add(createDoorSign(signMaterial, -roomDepth / 2 + 0.08, 0));
+	group.add(createDoorSign(signMaterial, z - 0.08, Math.PI));
+	group.add(createDoorSign(signMaterial, z + 0.08, 0));
 	return group;
 }
 
@@ -4511,6 +4542,7 @@ function addAtriumFeature(group, feature, color, secondary) {
 }
 
 function addUltimateAtriumFeature(group, color, secondary) {
+	// Planters flank the Mercantile (gift-shop) doorway on the mural side.
 	addPlaced(group, createAtriumPlanter(color, secondary), -6.7, 14.62, 0);
 	addPlaced(group, createAtriumPlanter(secondary, color), 6.7, 14.62, 0);
 	addPlaced(group, createWapuuDocent(color, secondary), -6.18, -2.72, 0.48);
@@ -4518,14 +4550,22 @@ function addUltimateAtriumFeature(group, color, secondary) {
 	const engineRoom = createOpenSourceEngineRoom(color, secondary);
 	engineRoom.scale.setScalar(0.68);
 	addPlaced(group, engineRoom, 11.35, 5.52, -1.1);
-	addPlaced(group, createLoadedModel('scaffoldingStructure', {
-		targetHeight: 2.2,
-		fallback: 'column',
-	}), -9.65, 9.45, Math.PI / 4);
-	addPlaced(group, createLoadedModel('wallDoorwayRound', {
-		targetHeight: 1.58,
-		fallback: 'portal',
-	}), 12.2, 9.65, -Math.PI / 4);
+
+	// Large potted trees soften the periphery, placed symmetrically.
+	addPlaced(group, createLoadedModel('treeParkLarge', {
+		targetHeight: 1.9,
+		fallback: 'plant',
+	}), -9.8, 9.3, 0.3);
+	addPlaced(group, createLoadedModel('treeParkLarge', {
+		targetHeight: 1.7,
+		fallback: 'plant',
+	}), -10.25, -1.35, 0.3);
+	addPlaced(group, createLoadedModel('treeParkLarge', {
+		targetHeight: 1.8,
+		fallback: 'plant',
+	}), 10.25, -1.35, -0.3);
+
+	// A small retro lounge near the entrance/Playground desk.
 	addPlaced(group, createLoadedModel('televisionVintage', {
 		targetHeight: 0.82,
 		fallback: 'screen',
@@ -4538,14 +4578,6 @@ function addUltimateAtriumFeature(group, color, secondary) {
 		targetHeight: 0.34,
 		fallback: 'block',
 	}), 4.7, -3.25, -0.12);
-	addPlaced(group, createLoadedModel('treeParkLarge', {
-		targetHeight: 1.7,
-		fallback: 'plant',
-	}), -10.25, -1.35, 0.3);
-	addPlaced(group, createLoadedModel('truckGreen', {
-		targetHeight: 0.6,
-		fallback: 'crate',
-	}), 11.9, -3.65, -0.45);
 }
 
 function createOpenSourceEngineRoom(color, secondary) {
