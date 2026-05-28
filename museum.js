@@ -185,12 +185,12 @@ function initRenderer() {
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.35));
 	renderer.outputColorSpace = THREE.SRGBColorSpace;
 	renderer.toneMapping = THREE.ACESFilmicToneMapping;
-	renderer.toneMappingExposure = isCurrentVariant ? 0.9 : 1;
+	renderer.toneMappingExposure = isCurrentVariant ? 0.86 : 1;
 	scene.background = new THREE.Color(activeVariant.scene.background);
 	scene.fog = new THREE.Fog(
 		activeVariant.scene.fog,
-		isCurrentVariant ? 68 : 52,
-		isCurrentVariant ? 142 : 118
+		isCurrentVariant ? 38 : 52,
+		isCurrentVariant ? 105 : 118
 	);
 
 	scene.add(
@@ -1299,6 +1299,10 @@ function createCeilingDetails(bounds) {
 	if (isCurrentVariant) {
 		group.add(createGrandCeilingOculus(bounds));
 		group.add(createCathedralVaultSystem(bounds));
+		group.add(createCathedralRoseWindow(bounds));
+		group.add(createCathedralLightShafts(bounds));
+		group.add(createCathedralEraBanners(bounds));
+		group.add(createCathedralDustMotes(bounds));
 		group.add(createOpenSourceConstellation());
 	}
 
@@ -1788,6 +1792,351 @@ function createCeilingBeamCone(color, radius, height, opacity, x, z) {
 	);
 	cone.position.set(x, shellHeight - height / 2 - 0.58, z);
 	return cone;
+}
+
+function createCathedralRoseWindow(bounds) {
+	const group = new THREE.Group();
+	const centerX = (bounds.minX + bounds.maxX) / 2;
+	const centerZ = (bounds.minZ + bounds.maxZ) / 2;
+	const y = shellHeight - 0.42;
+
+	const rose = new THREE.Mesh(
+		new THREE.CircleGeometry(5.4, 96),
+		new THREE.MeshBasicMaterial({
+			map: createRoseWindowTexture(),
+			transparent: true,
+			side: THREE.DoubleSide,
+			depthWrite: false,
+		})
+	);
+	rose.rotation.x = Math.PI / 2;
+	rose.position.set(centerX, y, centerZ);
+	registerAnimation(rose, (object, elapsed) => {
+		object.rotation.z = elapsed * 0.04;
+	});
+	group.add(rose);
+
+	const counterRose = new THREE.Mesh(
+		new THREE.CircleGeometry(4.6, 80),
+		new THREE.MeshBasicMaterial({
+			map: createRoseWindowTexture(true),
+			transparent: true,
+			side: THREE.DoubleSide,
+			opacity: 0.78,
+			depthWrite: false,
+		})
+	);
+	counterRose.rotation.x = Math.PI / 2;
+	counterRose.position.set(centerX, y - 0.04, centerZ);
+	registerAnimation(counterRose, (object, elapsed) => {
+		object.rotation.z = -elapsed * 0.07;
+	});
+	group.add(counterRose);
+
+	const brass = new THREE.MeshStandardMaterial({
+		color: 0xf5d088,
+		emissive: 0x402208,
+		emissiveIntensity: 0.18,
+		roughness: 0.28,
+		metalness: 0.6,
+	});
+	const outer = new THREE.Mesh(
+		new THREE.TorusGeometry(5.4, 0.092, 14, 96),
+		brass
+	);
+	outer.rotation.x = Math.PI / 2;
+	outer.position.set(centerX, y, centerZ);
+	group.add(outer);
+	const inner = new THREE.Mesh(
+		new THREE.TorusGeometry(2.1, 0.046, 12, 72),
+		brass
+	);
+	inner.rotation.x = Math.PI / 2;
+	inner.position.set(centerX, y - 0.03, centerZ);
+	group.add(inner);
+
+	for (let index = 0; index < 12; index++) {
+		const angle = (Math.PI * 2 * index) / 12;
+		const spoke = new THREE.Mesh(
+			new THREE.BoxGeometry(0.054, 0.04, 3.2),
+			brass
+		);
+		spoke.position.set(centerX, y - 0.045, centerZ);
+		spoke.rotation.y = -angle;
+		spoke.position.x = centerX + Math.cos(angle) * 3.65;
+		spoke.position.z = centerZ + Math.sin(angle) * 3.65;
+		group.add(spoke);
+	}
+
+	return group;
+}
+
+function createRoseWindowTexture(inverted = false) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 1024;
+	canvas.height = 1024;
+	const ctx = canvas.getContext('2d');
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	const cx = canvas.width / 2;
+	const cy = canvas.height / 2;
+
+	const baseGrad = ctx.createRadialGradient(cx, cy, 40, cx, cy, 512);
+	baseGrad.addColorStop(0, 'rgba(255, 245, 200, 0.95)');
+	baseGrad.addColorStop(0.4, 'rgba(255, 209, 102, 0.45)');
+	baseGrad.addColorStop(1, 'rgba(43, 183, 255, 0.18)');
+	ctx.fillStyle = baseGrad;
+	ctx.beginPath();
+	ctx.arc(cx, cy, 510, 0, Math.PI * 2);
+	ctx.fill();
+
+	const colors = ['#ff4f64', '#ffd166', '#50d890', '#2bb7ff', '#b37cff', '#ff9b54', '#78e0dc'];
+
+	const petals = inverted ? 8 : 12;
+	for (let index = 0; index < petals; index++) {
+		const angle = (Math.PI * 2 * index) / petals + (inverted ? Math.PI / petals : 0);
+		const radius = inverted ? 280 : 380;
+		const petalSize = inverted ? 130 : 165;
+		const color = colors[index % colors.length];
+		ctx.save();
+		ctx.translate(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius);
+		ctx.rotate(angle + Math.PI / 2);
+		ctx.fillStyle = color;
+		ctx.globalAlpha = 0.74;
+		ctx.beginPath();
+		ctx.ellipse(0, 0, petalSize * 0.55, petalSize, 0, 0, Math.PI * 2);
+		ctx.fill();
+		ctx.globalAlpha = 0.36;
+		ctx.fillStyle = '#fff5df';
+		ctx.beginPath();
+		ctx.ellipse(0, -petalSize * 0.4, petalSize * 0.32, petalSize * 0.5, 0, 0, Math.PI * 2);
+		ctx.fill();
+		ctx.restore();
+	}
+
+	const inner = inverted ? 4 : 6;
+	for (let index = 0; index < inner; index++) {
+		const angle = (Math.PI * 2 * index) / inner;
+		ctx.save();
+		ctx.translate(cx + Math.cos(angle) * 130, cy + Math.sin(angle) * 130);
+		ctx.fillStyle = colors[index % colors.length];
+		ctx.globalAlpha = 0.82;
+		ctx.beginPath();
+		ctx.arc(0, 0, 70, 0, Math.PI * 2);
+		ctx.fill();
+		ctx.restore();
+	}
+
+	ctx.globalAlpha = 0.95;
+	ctx.fillStyle = '#fff5df';
+	ctx.beginPath();
+	ctx.arc(cx, cy, 64, 0, Math.PI * 2);
+	ctx.fill();
+
+	ctx.fillStyle = '#0a4660';
+	ctx.font = '900 88px Arial Black, Impact, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('W', cx, cy + 6);
+
+	ctx.strokeStyle = 'rgba(15, 30, 50, 0.55)';
+	ctx.lineWidth = 6;
+	for (let index = 0; index < petals; index++) {
+		const angle = (Math.PI * 2 * index) / petals;
+		ctx.beginPath();
+		ctx.moveTo(cx + Math.cos(angle) * 70, cy + Math.sin(angle) * 70);
+		ctx.lineTo(cx + Math.cos(angle) * 500, cy + Math.sin(angle) * 500);
+		ctx.stroke();
+	}
+
+	ctx.lineWidth = 4;
+	[180, 260, 360, 460].forEach((r) => {
+		ctx.beginPath();
+		ctx.arc(cx, cy, r, 0, Math.PI * 2);
+		ctx.stroke();
+	});
+
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
+}
+
+function createCathedralLightShafts(bounds) {
+	const group = new THREE.Group();
+	const centerX = (bounds.minX + bounds.maxX) / 2;
+	const centerZ = (bounds.minZ + bounds.maxZ) / 2;
+	const sourceY = shellHeight - 0.6;
+	const baseY = 0.05;
+	const colors = activeVariant.eraColors;
+
+	for (let index = 0; index < 8; index++) {
+		const angle = (Math.PI * 2 * index) / 8 + Math.PI / 8;
+		const radius = 2.4 + (index % 2) * 0.7;
+		const targetX = centerX + Math.cos(angle) * (hubApothem - 2.6 + (index % 3) * 0.4);
+		const targetZ = centerZ + Math.sin(angle) * (hubApothem - 2.6 + (index % 3) * 0.4);
+		const color = colors[index % colors.length];
+
+		const height = sourceY - baseY;
+		const geometry = new THREE.ConeGeometry(radius, height, 18, 1, true);
+		const material = new THREE.MeshBasicMaterial({
+			color,
+			transparent: true,
+			opacity: 0.06,
+			side: THREE.DoubleSide,
+			depthWrite: false,
+			blending: THREE.AdditiveBlending,
+		});
+		const cone = new THREE.Mesh(geometry, material);
+		cone.position.set(
+			(centerX + targetX) / 2,
+			(sourceY + baseY) / 2,
+			(centerZ + targetZ) / 2
+		);
+		const dirX = targetX - centerX;
+		const dirZ = targetZ - centerZ;
+		cone.rotation.set(0, Math.atan2(dirX, dirZ), 0);
+		cone.rotation.x = Math.PI;
+		registerAnimation(cone, (object, elapsed) => {
+			object.material.opacity = 0.04 + (Math.sin(elapsed * 0.6 + index * 0.7) * 0.5 + 0.5) * 0.06;
+		});
+		group.add(cone);
+	}
+	return group;
+}
+
+function createCathedralEraBanners(bounds) {
+	const group = new THREE.Group();
+	const centerX = (bounds.minX + bounds.maxX) / 2;
+	const centerZ = (bounds.minZ + bounds.maxZ) / 2;
+	const eraList = window.WP_MUSEUM_ERAS;
+	roomSides.forEach((side, index) => {
+		const eraName = side.era;
+		const eraIndex = eraList.indexOf(eraName);
+		const color = activeVariant.eraColors[eraIndex % activeVariant.eraColors.length];
+		const radius = hubApothem - 1.5;
+		const x = centerX + Math.sin(side.angle) * radius;
+		const z = centerZ - Math.cos(side.angle) * radius;
+		const banner = new THREE.Mesh(
+			new THREE.PlaneGeometry(1.2, 3.4),
+			new THREE.MeshBasicMaterial({
+				map: createEraBannerTexture(eraName, color),
+				transparent: true,
+				side: THREE.DoubleSide,
+				depthWrite: false,
+			})
+		);
+		banner.position.set(x, wallHeight + 1.7, z);
+		banner.rotation.y = side.angle;
+		registerAnimation(banner, (object, elapsed) => {
+			object.rotation.z = Math.sin(elapsed * 0.85 + index) * 0.045;
+			object.position.y = wallHeight + 1.7 + Math.sin(elapsed * 0.65 + index) * 0.06;
+		});
+		group.add(banner);
+
+		const rod = new THREE.Mesh(
+			new THREE.CylinderGeometry(0.045, 0.045, 1.42, 12),
+			new THREE.MeshStandardMaterial({ color: 0xf2cf86, roughness: 0.35, metalness: 0.62 })
+		);
+		rod.rotation.z = Math.PI / 2;
+		rod.position.set(x, wallHeight + 3.42, z);
+		rod.rotation.y = side.angle;
+		group.add(rod);
+
+		const cap = new THREE.Mesh(
+			new THREE.SphereGeometry(0.085, 14, 10),
+			new THREE.MeshStandardMaterial({
+				color: 0xfff5df,
+				emissive: new THREE.Color(color),
+				emissiveIntensity: 0.22,
+				roughness: 0.3,
+				metalness: 0.4,
+			})
+		);
+		cap.position.set(x, wallHeight + 1.05, z);
+		group.add(cap);
+	});
+	return group;
+}
+
+function createEraBannerTexture(era, color) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 256;
+	canvas.height = 768;
+	const ctx = canvas.getContext('2d');
+	const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+	grad.addColorStop(0, color);
+	grad.addColorStop(0.5, 'rgba(20, 26, 42, 0.92)');
+	grad.addColorStop(1, color);
+	ctx.fillStyle = grad;
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	ctx.fillStyle = 'rgba(20, 26, 42, 0.55)';
+	ctx.fillRect(14, 14, canvas.width - 28, canvas.height - 28);
+
+	ctx.strokeStyle = color;
+	ctx.lineWidth = 6;
+	ctx.strokeRect(22, 22, canvas.width - 44, canvas.height - 44);
+
+	ctx.save();
+	ctx.translate(canvas.width / 2, canvas.height / 2);
+	ctx.rotate(-Math.PI / 2);
+	ctx.fillStyle = '#fff5df';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.font = '900 64px Arial Black, Impact, sans-serif';
+	ctx.fillText(era.toUpperCase(), 0, 0);
+	ctx.restore();
+
+	const trim = 70;
+	ctx.fillStyle = color;
+	ctx.beginPath();
+	ctx.moveTo(28, canvas.height - 28);
+	ctx.lineTo(canvas.width / 2, canvas.height - 28 + trim);
+	ctx.lineTo(canvas.width - 28, canvas.height - 28);
+	ctx.fill();
+
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
+}
+
+function createCathedralDustMotes(bounds) {
+	const group = new THREE.Group();
+	const centerX = (bounds.minX + bounds.maxX) / 2;
+	const centerZ = (bounds.minZ + bounds.maxZ) / 2;
+	const material = new THREE.MeshBasicMaterial({
+		color: 0xfff2c8,
+		transparent: true,
+		opacity: 0.68,
+		depthWrite: false,
+		blending: THREE.AdditiveBlending,
+	});
+	const motes = 28;
+	for (let index = 0; index < motes; index++) {
+		const angle = (Math.PI * 2 * index) / motes + Math.random();
+		const radius = 3 + (index % 4) * 1.8;
+		const mote = new THREE.Mesh(
+			new THREE.SphereGeometry(0.04 + (index % 3) * 0.012, 6, 6),
+			material.clone()
+		);
+		mote.userData.base = {
+			x: centerX + Math.cos(angle) * radius,
+			z: centerZ + Math.sin(angle) * radius,
+			y: 2 + Math.random() * (shellHeight - 4),
+			speed: 0.25 + Math.random() * 0.35,
+			phase: Math.random() * Math.PI * 2,
+		};
+		mote.position.set(mote.userData.base.x, mote.userData.base.y, mote.userData.base.z);
+		registerAnimation(mote, (object, elapsed) => {
+			const base = object.userData.base;
+			object.position.y = base.y + Math.sin(elapsed * base.speed + base.phase) * 0.8;
+			object.position.x = base.x + Math.sin(elapsed * 0.32 + base.phase) * 0.3;
+			object.material.opacity = 0.32 + (Math.sin(elapsed * 0.7 + index) * 0.5 + 0.5) * 0.3;
+		});
+		group.add(mote);
+	}
+	return group;
 }
 
 function createOpenSourceConstellation() {
@@ -4434,6 +4783,7 @@ function createWapuu3D(options = {}) {
 	group.add(handR);
 
 	if (options.idle !== false) {
+		const baseY = group.position.y;
 		registerAnimation(group, (object, elapsed) => {
 			body.position.y = (0.55 + Math.sin(elapsed * 1.4) * 0.012) * unit;
 			belly.position.y = (0.46 + Math.sin(elapsed * 1.4) * 0.012) * unit;
@@ -4660,8 +5010,153 @@ function addEraVignette(group, room, roomIndex) {
 	});
 	if (isCurrentVariant) {
 		addEraModelProps(group, room, roomIndex, color, secondary);
+		group.add(createEraCatchphraseSign(room, color, secondary));
+		group.add(createRoomDustMotes(color));
 	}
 	addRoomVignetteLights(group, color);
+}
+
+function createEraCatchphraseSign(room, color, secondary) {
+	const group = new THREE.Group();
+	const phrase = getEraCatchphrase(room.era);
+	const board = new THREE.Mesh(
+		new THREE.PlaneGeometry(4.8, 1.05),
+		new THREE.MeshBasicMaterial({
+			map: createNeonSignTexture(phrase, color, secondary),
+			transparent: true,
+			depthWrite: false,
+			side: THREE.DoubleSide,
+		})
+	);
+	const baseY = wallHeight - 1.85;
+	const signZ = 0.6;
+	board.position.set(0, baseY, signZ);
+	board.rotation.y = Math.PI;
+	registerAnimation(board, (object, elapsed) => {
+		object.position.y = baseY + Math.sin(elapsed * 0.95) * 0.045;
+	});
+	group.add(board);
+
+	const halo = new THREE.Mesh(
+		new THREE.PlaneGeometry(5.4, 1.6),
+		new THREE.MeshBasicMaterial({
+			color,
+			transparent: true,
+			opacity: 0.12,
+			depthWrite: false,
+			blending: THREE.AdditiveBlending,
+			side: THREE.DoubleSide,
+		})
+	);
+	halo.position.set(0, baseY, signZ + 0.06);
+	halo.rotation.y = Math.PI;
+	registerAnimation(halo, (object, elapsed) => {
+		object.material.opacity = 0.08 + (Math.sin(elapsed * 2.4) * 0.5 + 0.5) * 0.18;
+	});
+	group.add(halo);
+
+	const lineMat = new THREE.MeshBasicMaterial({
+		color: 0xfff5df,
+		transparent: true,
+		opacity: 0.5,
+	});
+	for (const xSign of [-1, 1]) {
+		const cable = new THREE.Mesh(
+			new THREE.CylinderGeometry(0.018, 0.018, 0.95, 6),
+			lineMat
+		);
+		cable.position.set(xSign * 1.95, wallHeight - 0.9, signZ);
+		group.add(cable);
+	}
+	const pointLight = new THREE.PointLight(new THREE.Color(secondary), 0.42, 6);
+	pointLight.position.set(0, baseY, signZ - 0.6);
+	registerAnimation(pointLight, (object, elapsed) => {
+		object.intensity = 0.34 + Math.sin(elapsed * 2.2) * 0.08;
+	});
+	group.add(pointLight);
+	return group;
+}
+
+function createNeonSignTexture(text, color, secondary) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 1024;
+	canvas.height = 224;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = 'rgba(8, 12, 24, 0.94)';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = color;
+	ctx.globalAlpha = 0.22;
+	ctx.fillRect(12, 12, canvas.width - 24, canvas.height - 24);
+	ctx.globalAlpha = 1;
+	ctx.strokeStyle = color;
+	ctx.lineWidth = 4;
+	ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+	ctx.strokeStyle = secondary;
+	ctx.lineWidth = 1.5;
+	ctx.strokeRect(28, 28, canvas.width - 56, canvas.height - 56);
+
+	const phraseColor = color;
+	ctx.fillStyle = phraseColor;
+	ctx.font = '900 92px Arial Black, Impact, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.shadowColor = phraseColor;
+	ctx.shadowBlur = 22;
+	ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 4);
+	ctx.shadowBlur = 0;
+	ctx.fillStyle = '#fff5df';
+	ctx.font = '900 92px Arial Black, Impact, sans-serif';
+	ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+function getEraCatchphrase(era) {
+	return {
+		'Blogging Roots': 'Hello, world.',
+		'Dashboard Foundations': 'Just write.',
+		'CMS Toolkit': 'Not just a blog.',
+		'Modern Admin': 'MP6 is here.',
+		'API and Customizer': '/wp-json',
+		'Block Editor': '/ to add a block',
+		'Blocks Everywhere': 'Everything is a block.',
+	}[era] || 'Code is poetry.';
+}
+
+function createRoomDustMotes(color) {
+	const group = new THREE.Group();
+	const material = new THREE.MeshBasicMaterial({
+		color: 0xfff2c8,
+		transparent: true,
+		opacity: 0.5,
+		depthWrite: false,
+		blending: THREE.AdditiveBlending,
+	});
+	for (let index = 0; index < 16; index++) {
+		const mote = new THREE.Mesh(
+			new THREE.SphereGeometry(0.035 + (index % 3) * 0.01, 6, 6),
+			material.clone()
+		);
+		const baseX = -roomWidth / 2 + 0.6 + Math.random() * (roomWidth - 1.2);
+		const baseZ = -roomDepth / 2 + 0.6 + Math.random() * (roomDepth - 1.2);
+		const baseY = 1.4 + Math.random() * (wallHeight - 2.4);
+		mote.userData.base = {
+			x: baseX, y: baseY, z: baseZ,
+			speed: 0.18 + Math.random() * 0.3,
+			phase: Math.random() * Math.PI * 2,
+		};
+		mote.position.set(baseX, baseY, baseZ);
+		registerAnimation(mote, (object, elapsed) => {
+			const b = object.userData.base;
+			object.position.y = b.y + Math.sin(elapsed * b.speed + b.phase) * 0.4;
+			object.material.opacity = 0.26 + (Math.sin(elapsed * 0.9 + index) * 0.5 + 0.5) * 0.26;
+		});
+		group.add(mote);
+	}
+	return group;
 }
 
 function addEraModelProps(group, room, roomIndex, color, secondary) {
