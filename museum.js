@@ -179,9 +179,13 @@ function initRenderer() {
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.35));
 	renderer.outputColorSpace = THREE.SRGBColorSpace;
 	renderer.toneMapping = THREE.ACESFilmicToneMapping;
-	renderer.toneMappingExposure = isCurrentVariant ? 0.94 : 1;
+	renderer.toneMappingExposure = isCurrentVariant ? 0.9 : 1;
 	scene.background = new THREE.Color(activeVariant.scene.background);
-	scene.fog = new THREE.Fog(activeVariant.scene.fog, 52, 118);
+	scene.fog = new THREE.Fog(
+		activeVariant.scene.fog,
+		isCurrentVariant ? 68 : 52,
+		isCurrentVariant ? 142 : 118
+	);
 
 	scene.add(
 		new THREE.HemisphereLight(
@@ -190,9 +194,9 @@ function initRenderer() {
 			activeVariant.scene.hemiIntensity
 		)
 	);
-	scene.add(new THREE.AmbientLight(0xe8edff, isCurrentVariant ? 0.58 : 0.72));
+	scene.add(new THREE.AmbientLight(0xe8edff, isCurrentVariant ? 0.49 : 0.72));
 	const keyLight = new THREE.DirectionalLight(0xffe2b0, 2.8);
-	keyLight.intensity = activeVariant.scene.keyIntensity * (isCurrentVariant ? 0.86 : 1);
+	keyLight.intensity = activeVariant.scene.keyIntensity * (isCurrentVariant ? 0.92 : 1);
 	keyLight.position.set(2, 8, -6);
 	scene.add(keyLight);
 
@@ -1269,7 +1273,7 @@ function createCathedralKeystoneChandelier(centerX, centerZ, springY, crownY, br
 		depthWrite: false,
 	});
 	const top = new THREE.Vector3(centerX, crownY + 0.02, centerZ);
-	const hanger = new THREE.Vector3(centerX, springY + 1.9, centerZ);
+	const hanger = new THREE.Vector3(centerX, springY + 1.25, centerZ);
 	group.add(createCylinderBetween(top, hanger, 0.016, chainMaterial, 8));
 
 	[0.68, 1.12, 1.72].forEach((radius, ringIndex) => {
@@ -2019,7 +2023,7 @@ function createRoom(room) {
 	if (isCurrentVariant) {
 		group.add(createRoomMuseumArchitecture(room));
 		group.add(createRoomStoryWall(room));
-		group.add(createRoomFloorWayfinding(room.color));
+		group.add(createRoomFloorWayfinding(room));
 		group.add(createSuspendedReleaseMobile(room));
 	}
 	if (shouldDecorateScene) {
@@ -2448,8 +2452,10 @@ function createRoomLight(color) {
 	return group;
 }
 
-function createRoomFloorWayfinding(color) {
+function createRoomFloorWayfinding(room) {
 	const group = new THREE.Group();
+	const color = room.color;
+	const roomIndex = eras.indexOf(room.era);
 	const stripeMaterial = new THREE.MeshBasicMaterial({
 		color,
 		transparent: true,
@@ -2467,7 +2473,7 @@ function createRoomFloorWayfinding(color) {
 	group.add(createFloorStripe(2.25, -1.95, 0.055, 4.1, -Math.PI / 4, stripeMaterial));
 	group.add(createFloorStripe(0, 3.65, 4.8, 0.055, 0, softMaterial));
 
-	for (const station of getEraVignetteStations()) {
+	for (const station of getEraVignetteStations(roomIndex)) {
 		const ring = new THREE.Mesh(
 			new THREE.RingGeometry(0.38, 0.48, 40),
 			new THREE.MeshBasicMaterial({
@@ -2855,14 +2861,20 @@ function createRoomPilasterGrid(color, marbleMaterial, brassMaterial) {
 			group.add(lamp);
 		}
 	}
-	for (const x of [-4.8, -2.4, 0, 2.4, 4.8]) {
-		const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.28, wallHeight - 0.78, 0.14), marbleMaterial);
-		shaft.position.set(x, wallHeight / 2 + 0.08, roomDepth / 2 - wallThickness / 2 - 0.035);
+	for (const x of [-roomWidth / 2 + 0.78, roomWidth / 2 - 0.78]) {
+		const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.22, wallHeight - 1.12, 0.12), marbleMaterial);
+		shaft.position.set(x, wallHeight / 2 + 0.02, roomDepth / 2 - wallThickness / 2 - 0.035);
 		group.add(shaft);
-		const cap = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.12, 0.18), brassMaterial);
+		const cap = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.1, 0.17), brassMaterial);
 		cap.position.set(x, wallHeight - 0.36, roomDepth / 2 - wallThickness / 2 - 0.055);
 		group.add(cap);
 	}
+	const upperLedger = new THREE.Mesh(
+		new THREE.BoxGeometry(roomWidth - 2.1, 0.07, 0.12),
+		brassMaterial
+	);
+	upperLedger.position.set(0, wallHeight - 0.94, roomDepth / 2 - wallThickness / 2 - 0.05);
+	group.add(upperLedger);
 	return group;
 }
 
@@ -3532,8 +3544,8 @@ function addAtriumFeature(group, feature, color, secondary) {
 function addUltimateAtriumFeature(group, color, secondary) {
 	addPlaced(group, createAtriumPlanter(color, secondary), -6.7, 14.62, 0);
 	addPlaced(group, createAtriumPlanter(secondary, color), 6.7, 14.62, 0);
-	addPlaced(group, createWapuuDocent(color, secondary), -5.72, -2.32, 0.54);
-	addPlaced(group, createMuseumInfoDesk(color, secondary), 0.35, -5.18, 0.04);
+	addPlaced(group, createWapuuDocent(color, secondary), -6.18, -2.72, 0.48);
+	addPlaced(group, createMuseumInfoDesk(color, secondary), 0.2, -5.72, 0.03);
 	const engineRoom = createOpenSourceEngineRoom(color, secondary);
 	engineRoom.scale.setScalar(0.68);
 	addPlaced(group, engineRoom, 11.35, 5.52, -1.1);
@@ -3641,14 +3653,14 @@ function createAtriumPlanter(color, secondary) {
 
 function createWapuuDocent(color, secondary) {
 	const group = new THREE.Group();
-	const pedestal = createPedestal(1.58, 0.36, color);
+	const pedestal = createPedestal(1.36, 0.32, color);
 	group.add(pedestal);
-	const cutout = createWapuuCutout(2.34, {
+	const cutout = createWapuuCutout(2.08, {
 		glow: secondary,
 	});
-	cutout.position.y = 0.34;
+	cutout.position.y = 0.3;
 	registerAnimation(cutout, (object, elapsed) => {
-		object.position.y = 0.34 + Math.sin(elapsed * 1.15) * 0.035;
+		object.position.y = 0.3 + Math.sin(elapsed * 1.15) * 0.035;
 		const parent = object.parent;
 		if (parent) {
 			const cameraLocal = camera.position.clone();
@@ -3667,17 +3679,17 @@ function createWapuuDocent(color, secondary) {
 	group.add(cutout);
 
 	const label = createReadableLabel(createSmallSignTexture('WAPUU', color), 1.12, 0.26);
-	label.position.set(0, 0.54, -0.66);
+	label.position.set(0, 0.48, -0.58);
 	group.add(label);
 
 	const docentSign = createReadableLabel(createSmallSignTexture('OPEN SOURCE', secondary), 1.38, 0.28);
-	docentSign.position.set(0.78, 2.66, -0.44);
+	docentSign.position.set(0.68, 2.34, -0.42);
 	docentSign.rotation.z = -0.05;
 	group.add(docentSign);
 	group.add(createWapuuSparkles(color, secondary));
 
 	const glow = new THREE.PointLight(new THREE.Color(secondary), 0.82, 6.8);
-	glow.position.set(0, 1.46, -0.38);
+	glow.position.set(0, 1.32, -0.34);
 	registerAnimation(glow, (object, elapsed) => {
 		object.intensity = 0.72 + Math.sin(elapsed * 1.8) * 0.11;
 	});
@@ -3722,30 +3734,30 @@ function createWapuuSparkles(color, secondary) {
 function createMuseumInfoDesk(color, secondary) {
 	const group = new THREE.Group();
 	const desk = new THREE.Mesh(
-		new THREE.BoxGeometry(2.35, 0.58, 0.82),
+		new THREE.BoxGeometry(1.92, 0.46, 0.66),
 		new THREE.MeshStandardMaterial({ color: 0xf8efd9, roughness: 0.62, metalness: 0.04 })
 	);
-	desk.position.y = 0.29;
+	desk.position.y = 0.23;
 	group.add(desk);
 	const stripe = new THREE.Mesh(
-		new THREE.BoxGeometry(2.42, 0.08, 0.86),
+		new THREE.BoxGeometry(1.98, 0.07, 0.7),
 		new THREE.MeshBasicMaterial({ color })
 	);
-	stripe.position.y = 0.62;
+	stripe.position.y = 0.5;
 	group.add(stripe);
-	const screen = createAdminScreenPanel(color, secondary, 0.82, 0.48);
-	screen.position.set(-0.58, 0.96, -0.44);
+	const screen = createAdminScreenPanel(color, secondary, 0.72, 0.42);
+	screen.position.set(-0.47, 0.8, -0.35);
 	screen.rotation.x = -0.06;
 	group.add(screen);
 	const laptop = createLoadedModel('laptop', {
-		targetHeight: 0.42,
+		targetHeight: 0.34,
 		fallback: 'screen',
 	});
-	laptop.position.set(0.58, 0.64, -0.18);
+	laptop.position.set(0.47, 0.52, -0.14);
 	laptop.rotation.y = -0.24;
 	group.add(laptop);
-	const sign = createReadableLabel(createSmallSignTexture('PLAYGROUND', secondary), 1.58, 0.3);
-	sign.position.set(0, 0.78, -0.48);
+	const sign = createReadableLabel(createSmallSignTexture('PLAYGROUND', secondary), 1.3, 0.25);
+	sign.position.set(0, 0.66, -0.39);
 	group.add(sign);
 	return group;
 }
@@ -3848,12 +3860,15 @@ function addRoomFeature(group, room, roomIndex) {
 function addEraVignette(group, room, roomIndex) {
 	const color = room.color;
 	const secondary = activeVariant.eraColors[(roomIndex + 2) % activeVariant.eraColors.length];
-	const stations = getEraVignetteStations();
+	const stations = getEraVignetteStations(roomIndex);
 	getEraVignetteItems(room, color, secondary).forEach((item, index) => {
 		const station = stations[index];
 		addLocal(
 			group,
-			createVignetteStation(color, item.label, item.object, item),
+			createVignetteStation(color, item.label, item.object, {
+				...item,
+				objectScale: index === 2 ? 0.72 : 1,
+			}),
 			station.x,
 			station.z,
 			station.rotation
@@ -3909,12 +3924,17 @@ function addEraModelProps(group, room, roomIndex, color, secondary) {
 	addLocal(group, floorLight, roomIndex % 2 ? -5.1 : 5.1, -4.05, 0);
 }
 
-function getEraVignetteStations() {
-	const sideStationZ = -roomDepth / 2 + 4.35;
+function getEraVignetteStations(roomIndex = 0) {
+	const sideStationZ = -roomDepth / 2 + 3.86;
+	const centerOffset = roomIndex % 2 ? -2.05 : 2.05;
 	return [
 		{ x: -4.85, z: sideStationZ, rotation: -Math.PI / 2 },
 		{ x: 4.85, z: sideStationZ, rotation: Math.PI / 2 },
-		{ x: 0, z: roomDepth / 2 - 1.72, rotation: 0 },
+		{
+			x: centerOffset,
+			z: -0.78,
+			rotation: roomIndex % 2 ? -Math.PI / 5 : Math.PI / 5,
+		},
 	];
 }
 
@@ -3960,9 +3980,9 @@ function getEraVignetteItems(room, color, secondary) {
 
 function createVignetteStation(color, labelText, object, options = {}) {
 	const group = new THREE.Group();
-	const width = (options.width || 1.5) * 1.08;
-	const depth = (options.depth || 1.02) * 1.08;
-	const baseHeight = 0.34;
+	const width = (options.width || 1.5) * 0.96;
+	const depth = (options.depth || 1.02) * 0.96;
+	const baseHeight = 0.28;
 	const base = new THREE.Mesh(
 		new THREE.BoxGeometry(width, baseHeight, depth),
 		new THREE.MeshStandardMaterial({ color: 0xf8efd9, roughness: 0.66 })
@@ -3974,7 +3994,7 @@ function createVignetteStation(color, labelText, object, options = {}) {
 		new THREE.BoxGeometry(width * 0.82, 0.12, depth * 0.78),
 		new THREE.MeshStandardMaterial({ color: 0xe5dbc6, roughness: 0.7 })
 	);
-	plinth.position.y = baseHeight + 0.06;
+	plinth.position.y = baseHeight + 0.05;
 	group.add(plinth);
 
 	const accent = new THREE.Mesh(
@@ -3985,12 +4005,13 @@ function createVignetteStation(color, labelText, object, options = {}) {
 	group.add(accent);
 
 	const objectAnchor = new THREE.Group();
-	object.position.y += baseHeight + 0.12;
+	object.position.y += baseHeight + 0.08;
+	object.scale.multiplyScalar(options.objectScale || 1);
 	objectAnchor.add(object);
 	group.add(objectAnchor);
 
-	const label = createReadableLabel(createSmallSignTexture(labelText, color), Math.min(width * 0.8, 1.24), 0.25);
-	label.position.set(0, baseHeight + 0.2, -depth / 2 - 0.16);
+	const label = createReadableLabel(createSmallSignTexture(labelText, color), Math.min(width * 0.82, 1.14), 0.23);
+	label.position.set(0, baseHeight + 0.16, -depth / 2 - 0.14);
 	group.add(label);
 	return group;
 }
