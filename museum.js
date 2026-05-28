@@ -1341,18 +1341,142 @@ function createCeiling(bounds) {
 	const depth = bounds.maxZ - bounds.minZ;
 	const centerX = (bounds.minX + bounds.maxX) / 2;
 	const centerZ = (bounds.minZ + bounds.maxZ) / 2;
-	const panel = new THREE.Mesh(
-		new THREE.PlaneGeometry(width, depth),
-		new THREE.MeshStandardMaterial({
-			map: createMuseumTexture('ceiling', width / 8, depth / 8),
-			roughness: 0.9,
-			metalness: 0.02,
+
+	if (!isCurrentVariant) {
+		const panel = new THREE.Mesh(
+			new THREE.PlaneGeometry(width, depth),
+			new THREE.MeshStandardMaterial({
+				map: createMuseumTexture('ceiling', width / 8, depth / 8),
+				roughness: 0.9,
+				metalness: 0.02,
+				side: THREE.DoubleSide,
+			})
+		);
+		panel.rotation.x = Math.PI / 2;
+		panel.position.set(centerX, shellHeight, centerZ);
+		group.add(panel);
+		return group;
+	}
+
+	// Flat glazed roof over the room wings, with an octagonal opening over
+	// the rotunda so visitors look up into a glass cathedral dome.
+	const shape = new THREE.Shape();
+	shape.moveTo(bounds.minX, bounds.minZ);
+	shape.lineTo(bounds.maxX, bounds.minZ);
+	shape.lineTo(bounds.maxX, bounds.maxZ);
+	shape.lineTo(bounds.minX, bounds.maxZ);
+	shape.closePath();
+	const hole = new THREE.Path();
+	const holeRadius = hubCircumradius + 0.35;
+	for (let index = 0; index <= 8; index++) {
+		const angle = Math.PI / 8 + (index * Math.PI) / 4;
+		const px = centerX + Math.cos(angle) * holeRadius;
+		const pz = centerZ + Math.sin(angle) * holeRadius;
+		if (index === 0) {
+			hole.moveTo(px, pz);
+		} else {
+			hole.lineTo(px, pz);
+		}
+	}
+	shape.holes.push(hole);
+	const roof = new THREE.Mesh(
+		new THREE.ShapeGeometry(shape),
+		new THREE.MeshBasicMaterial({
+			color: 0xdfeeff,
+			transparent: true,
+			opacity: 0.6,
 			side: THREE.DoubleSide,
+			depthWrite: false,
 		})
 	);
-	panel.rotation.x = Math.PI / 2;
-	panel.position.set(centerX, shellHeight, centerZ);
-	group.add(panel);
+	roof.rotation.x = Math.PI / 2;
+	roof.position.set(0, shellHeight, 0);
+	group.add(roof);
+
+	group.add(createAtriumGlassDome(centerX, centerZ));
+	return group;
+}
+
+// A faceted octagonal glass cupola that rises above the rotunda opening,
+// echoing the brass rib structure below and crowned by a glowing lantern.
+function createAtriumGlassDome(centerX, centerZ) {
+	const group = new THREE.Group();
+	const brass = new THREE.MeshStandardMaterial({
+		color: 0xc79b43,
+		emissive: 0x2a1c06,
+		emissiveIntensity: 0.12,
+		roughness: 0.3,
+		metalness: 0.55,
+	});
+	const baseY = shellHeight - 0.25;
+	const rings = [
+		{ y: baseY, r: hubCircumradius + 0.1 },
+		{ y: baseY + 1.8, r: (hubCircumradius + 0.1) * 0.72 },
+		{ y: baseY + 3.2, r: (hubCircumradius + 0.1) * 0.42 },
+		{ y: baseY + 4.2, r: 1.5 },
+	];
+
+	// Glass facets between successive rings (8-sided open frusta).
+	for (let i = 0; i < rings.length - 1; i++) {
+		const lower = rings[i];
+		const upper = rings[i + 1];
+		const height = upper.y - lower.y;
+		const facets = new THREE.Mesh(
+			new THREE.CylinderGeometry(upper.r, lower.r, height, 8, 1, true, Math.PI / 8),
+			new THREE.MeshBasicMaterial({
+				color: 0xd6ecff,
+				transparent: true,
+				opacity: 0.34,
+				side: THREE.DoubleSide,
+				depthWrite: false,
+			})
+		);
+		facets.position.set(centerX, (lower.y + upper.y) / 2, centerZ);
+		group.add(facets);
+	}
+
+	// Brass glazing bars: vertical ribs at the 8 corners + horizontal rings.
+	for (let k = 0; k < 8; k++) {
+		const angle = Math.PI / 8 + (k * Math.PI) / 4;
+		for (let i = 0; i < rings.length - 1; i++) {
+			const lower = rings[i];
+			const upper = rings[i + 1];
+			const p0 = new THREE.Vector3(centerX + Math.cos(angle) * lower.r, lower.y, centerZ + Math.sin(angle) * lower.r);
+			const p1 = new THREE.Vector3(centerX + Math.cos(angle) * upper.r, upper.y, centerZ + Math.sin(angle) * upper.r);
+			group.add(createCylinderBetween(p0, p1, 0.05, brass, 6));
+		}
+	}
+	for (const ring of rings) {
+		for (let k = 0; k < 8; k++) {
+			const a0 = Math.PI / 8 + (k * Math.PI) / 4;
+			const a1 = Math.PI / 8 + ((k + 1) * Math.PI) / 4;
+			const p0 = new THREE.Vector3(centerX + Math.cos(a0) * ring.r, ring.y, centerZ + Math.sin(a0) * ring.r);
+			const p1 = new THREE.Vector3(centerX + Math.cos(a1) * ring.r, ring.y, centerZ + Math.sin(a1) * ring.r);
+			group.add(createCylinderBetween(p0, p1, 0.04, brass, 6));
+		}
+	}
+
+	// Glowing lantern at the crown.
+	const crown = rings[rings.length - 1];
+	const skyCap = new THREE.Mesh(
+		new THREE.CircleGeometry(crown.r * 1.25, 24),
+		new THREE.MeshBasicMaterial({ color: 0xfff3da, side: THREE.DoubleSide })
+	);
+	skyCap.rotation.x = Math.PI / 2;
+	skyCap.position.set(centerX, crown.y + 0.25, centerZ);
+	group.add(skyCap);
+	const finial = new THREE.Mesh(
+		new THREE.SphereGeometry(0.22, 18, 12),
+		new THREE.MeshStandardMaterial({ color: 0xf2cf86, emissive: 0xffd166, emissiveIntensity: 0.4, roughness: 0.3, metalness: 0.5 })
+	);
+	finial.position.set(centerX, crown.y + 0.5, centerZ);
+	group.add(finial);
+	const lantern = new THREE.PointLight(0xfff0d0, 0.85, 34);
+	lantern.position.set(centerX, crown.y - 0.8, centerZ);
+	registerAnimation(lantern, (object, elapsed) => {
+		object.intensity = 0.74 + Math.sin(elapsed * 0.7) * 0.1;
+	});
+	group.add(lantern);
 	return group;
 }
 
