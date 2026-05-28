@@ -27,6 +27,7 @@ const textureLoader = new THREE.TextureLoader();
 const gltfLoader = new GLTFLoader();
 const modelCache = new Map();
 let wapuuTexture = null;
+let wapuuWordmarkTexture = null;
 let deferredAssetTaskIndex = 0;
 const modelDefinitions = {
 	benchCushion: './assets/models/kenney/furniture/benchCushion.glb',
@@ -3655,12 +3656,11 @@ function createWapuuDocent(color, secondary) {
 	const group = new THREE.Group();
 	const pedestal = createPedestal(1.36, 0.32, color);
 	group.add(pedestal);
-	const cutout = createWapuuCutout(2.08, {
-		glow: secondary,
-	});
-	cutout.position.y = 0.3;
-	registerAnimation(cutout, (object, elapsed) => {
-		object.position.y = 0.3 + Math.sin(elapsed * 1.15) * 0.035;
+
+	const wapuu = createWapuu3D({ height: 2.1, accent: secondary });
+	wapuu.position.y = 0.3;
+	registerAnimation(wapuu, (object, elapsed) => {
+		object.position.y = 0.3 + Math.sin(elapsed * 1.15) * 0.05;
 		const parent = object.parent;
 		if (parent) {
 			const cameraLocal = camera.position.clone();
@@ -3671,19 +3671,20 @@ function createWapuuDocent(color, secondary) {
 				cameraLocal.z - object.position.z
 			);
 			if (direction.lengthSq() > 0.001) {
-				object.rotation.y = getRotationForNormal(direction.normalize());
+				const targetAngle = getRotationForNormal(direction.normalize());
+				object.rotation.y = lerpAngle(object.rotation.y, targetAngle, 0.08);
 			}
 		}
 		object.rotation.z = Math.sin(elapsed * 0.75) * 0.018;
 	});
-	group.add(cutout);
+	group.add(wapuu);
 
 	const label = createReadableLabel(createSmallSignTexture('WAPUU', color), 1.12, 0.26);
 	label.position.set(0, 0.48, -0.58);
 	group.add(label);
 
 	const docentSign = createReadableLabel(createSmallSignTexture('OPEN SOURCE', secondary), 1.38, 0.28);
-	docentSign.position.set(0.68, 2.34, -0.42);
+	docentSign.position.set(0.68, 2.42, -0.42);
 	docentSign.rotation.z = -0.05;
 	group.add(docentSign);
 	group.add(createWapuuSparkles(color, secondary));
@@ -3695,6 +3696,224 @@ function createWapuuDocent(color, secondary) {
 	});
 	group.add(glow);
 	return group;
+}
+
+function createWapuu3D(options = {}) {
+	const height = options.height ?? 2;
+	const unit = height / 2.4;
+	const accent = options.accent ?? 0xffd166;
+	const tailColor = options.tailColor ?? 0xff8a3c;
+	const group = new THREE.Group();
+
+	const bodyMat = new THREE.MeshStandardMaterial({
+		color: 0x108fbf,
+		roughness: 0.46,
+		metalness: 0.05,
+	});
+	const bodyShadowMat = new THREE.MeshStandardMaterial({
+		color: 0x046790,
+		roughness: 0.5,
+	});
+	const cheekMat = new THREE.MeshBasicMaterial({
+		color: 0xffb1bc,
+		transparent: true,
+		opacity: 0.78,
+		depthWrite: false,
+	});
+	const bellyMat = new THREE.MeshStandardMaterial({
+		color: 0xfff4d8,
+		roughness: 0.58,
+	});
+	const accentMat = new THREE.MeshStandardMaterial({
+		color: accent,
+		emissive: new THREE.Color(accent),
+		emissiveIntensity: 0.05,
+		roughness: 0.4,
+	});
+	const tailMat = new THREE.MeshStandardMaterial({
+		color: tailColor,
+		roughness: 0.45,
+	});
+	const blackMat = new THREE.MeshStandardMaterial({
+		color: 0x14121a,
+		roughness: 0.36,
+		metalness: 0.06,
+	});
+	const whiteMat = new THREE.MeshStandardMaterial({
+		color: 0xfdfcf4,
+		roughness: 0.28,
+	});
+	const logoMat = new THREE.MeshStandardMaterial({
+		color: 0xfff7e0,
+		roughness: 0.5,
+		emissive: 0x123546,
+		emissiveIntensity: 0.04,
+	});
+
+	const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 32, 24), bodyMat);
+	body.scale.set(0.98 * unit, 1.08 * unit, 0.88 * unit);
+	body.position.y = 0.55 * unit;
+	group.add(body);
+
+	const bottom = new THREE.Mesh(new THREE.SphereGeometry(0.36, 22, 16), bodyShadowMat);
+	bottom.scale.set(1.05 * unit, 0.62 * unit, 0.95 * unit);
+	bottom.position.y = 0.16 * unit;
+	group.add(bottom);
+
+	const belly = new THREE.Mesh(new THREE.SphereGeometry(0.34, 24, 18), bellyMat);
+	belly.scale.set(0.9 * unit, 1.1 * unit, 0.6 * unit);
+	belly.position.set(0, 0.46 * unit, 0.34 * unit);
+	group.add(belly);
+
+	const wDisc = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.13 * unit, 0.13 * unit, 0.025 * unit, 32),
+		logoMat
+	);
+	wDisc.rotation.x = Math.PI / 2;
+	wDisc.position.set(0, 0.52 * unit, 0.5 * unit);
+	group.add(wDisc);
+	const wMark = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.22 * unit, 0.22 * unit),
+		new THREE.MeshBasicMaterial({
+			map: createWapuuWordmarkTexture(),
+			transparent: true,
+			depthWrite: false,
+		})
+	);
+	wMark.position.set(0, 0.52 * unit, 0.515 * unit);
+	group.add(wMark);
+
+	const earGeom = new THREE.ConeGeometry(0.13, 0.42, 22);
+	const earL = new THREE.Mesh(earGeom, accentMat);
+	earL.position.set(-0.3 * unit, 1.08 * unit, -0.08 * unit);
+	earL.scale.setScalar(unit);
+	earL.rotation.set(-0.18, 0, -0.34);
+	group.add(earL);
+	const earR = new THREE.Mesh(earGeom, accentMat);
+	earR.position.set(0.3 * unit, 1.08 * unit, -0.08 * unit);
+	earR.scale.setScalar(unit);
+	earR.rotation.set(-0.18, 0, 0.34);
+	group.add(earR);
+
+	const earTipMat = new THREE.MeshStandardMaterial({ color: tailColor, roughness: 0.42 });
+	const earTipGeom = new THREE.ConeGeometry(0.082, 0.24, 18);
+	const earTipL = new THREE.Mesh(earTipGeom, earTipMat);
+	earTipL.position.set(-0.345 * unit, 1.18 * unit, -0.085 * unit);
+	earTipL.scale.setScalar(unit);
+	earTipL.rotation.set(-0.18, 0, -0.34);
+	group.add(earTipL);
+	const earTipR = new THREE.Mesh(earTipGeom, earTipMat);
+	earTipR.position.set(0.345 * unit, 1.18 * unit, -0.085 * unit);
+	earTipR.scale.setScalar(unit);
+	earTipR.rotation.set(-0.18, 0, 0.34);
+	group.add(earTipR);
+
+	const eyeGeom = new THREE.SphereGeometry(0.075, 18, 14);
+	const eyeL = new THREE.Mesh(eyeGeom, blackMat);
+	eyeL.position.set(-0.14 * unit, 0.78 * unit, 0.43 * unit);
+	eyeL.scale.setScalar(unit);
+	group.add(eyeL);
+	const eyeR = new THREE.Mesh(eyeGeom, blackMat);
+	eyeR.position.set(0.14 * unit, 0.78 * unit, 0.43 * unit);
+	eyeR.scale.setScalar(unit);
+	group.add(eyeR);
+
+	const hlGeom = new THREE.SphereGeometry(0.028, 12, 10);
+	const hlL = new THREE.Mesh(hlGeom, whiteMat);
+	hlL.position.set(-0.115 * unit, 0.81 * unit, 0.49 * unit);
+	hlL.scale.setScalar(unit);
+	group.add(hlL);
+	const hlR = new THREE.Mesh(hlGeom, whiteMat);
+	hlR.position.set(0.165 * unit, 0.81 * unit, 0.49 * unit);
+	hlR.scale.setScalar(unit);
+	group.add(hlR);
+
+	const noseGeom = new THREE.SphereGeometry(0.045, 14, 10);
+	const nose = new THREE.Mesh(noseGeom, blackMat);
+	nose.position.set(-0.02 * unit, 0.69 * unit, 0.5 * unit);
+	nose.scale.setScalar(unit);
+	group.add(nose);
+
+	const cheekGeom = new THREE.SphereGeometry(0.07, 16, 12);
+	const cheekL = new THREE.Mesh(cheekGeom, cheekMat);
+	cheekL.position.set(-0.27 * unit, 0.66 * unit, 0.4 * unit);
+	cheekL.scale.setScalar(unit);
+	group.add(cheekL);
+	const cheekR = new THREE.Mesh(cheekGeom, cheekMat);
+	cheekR.position.set(0.27 * unit, 0.66 * unit, 0.4 * unit);
+	cheekR.scale.setScalar(unit);
+	group.add(cheekR);
+
+	const tail = new THREE.Mesh(new THREE.SphereGeometry(0.18, 18, 14), tailMat);
+	tail.position.set(-0.05 * unit, 0.34 * unit, -0.46 * unit);
+	tail.scale.set(1.05 * unit, 0.74 * unit, 1.18 * unit);
+	group.add(tail);
+	const tailTip = new THREE.Mesh(new THREE.SphereGeometry(0.09, 14, 10), tailMat);
+	tailTip.position.set(-0.18 * unit, 0.46 * unit, -0.6 * unit);
+	tailTip.scale.setScalar(unit);
+	group.add(tailTip);
+
+	const footGeom = new THREE.SphereGeometry(0.15, 22, 14);
+	const footL = new THREE.Mesh(footGeom, accentMat);
+	footL.scale.set(0.9 * unit, 0.58 * unit, 1.45 * unit);
+	footL.position.set(-0.21 * unit, 0.075 * unit, 0.12 * unit);
+	group.add(footL);
+	const footR = new THREE.Mesh(footGeom, accentMat);
+	footR.scale.set(0.9 * unit, 0.58 * unit, 1.45 * unit);
+	footR.position.set(0.21 * unit, 0.075 * unit, 0.12 * unit);
+	group.add(footR);
+
+	const handGeom = new THREE.SphereGeometry(0.1, 16, 12);
+	const handL = new THREE.Mesh(handGeom, accentMat);
+	handL.position.set(-0.48 * unit, 0.46 * unit, 0.06 * unit);
+	handL.scale.setScalar(unit);
+	group.add(handL);
+	const handR = new THREE.Mesh(handGeom, accentMat);
+	handR.position.set(0.48 * unit, 0.46 * unit, 0.06 * unit);
+	handR.scale.setScalar(unit);
+	group.add(handR);
+
+	if (options.idle !== false) {
+		registerAnimation(group, (object, elapsed) => {
+			body.position.y = (0.55 + Math.sin(elapsed * 1.4) * 0.012) * unit;
+			belly.position.y = (0.46 + Math.sin(elapsed * 1.4) * 0.012) * unit;
+			wDisc.position.y = (0.52 + Math.sin(elapsed * 1.4) * 0.012) * unit;
+			wMark.position.y = (0.52 + Math.sin(elapsed * 1.4) * 0.012) * unit;
+			earL.rotation.z = -0.34 + Math.sin(elapsed * 1.7) * 0.07;
+			earR.rotation.z = 0.34 - Math.sin(elapsed * 1.7) * 0.07;
+			earTipL.rotation.z = earL.rotation.z;
+			earTipR.rotation.z = earR.rotation.z;
+		});
+	}
+	return group;
+}
+
+function createWapuuWordmarkTexture() {
+	if (wapuuWordmarkTexture) {
+		return wapuuWordmarkTexture;
+	}
+	const canvas = document.createElement('canvas');
+	canvas.width = 256;
+	canvas.height = 256;
+	const ctx = canvas.getContext('2d');
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#0a4660';
+	ctx.beginPath();
+	ctx.arc(128, 128, 92, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.fillStyle = '#fff7e0';
+	ctx.beginPath();
+	ctx.arc(128, 128, 80, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.fillStyle = '#0a4660';
+	ctx.font = '900 130px Arial Black, Impact, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('W', 128, 142);
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	wapuuWordmarkTexture = texture;
+	return texture;
 }
 
 function createWapuuSparkles(color, secondary) {
@@ -3759,6 +3978,11 @@ function createMuseumInfoDesk(color, secondary) {
 	const sign = createReadableLabel(createSmallSignTexture('PLAYGROUND', secondary), 1.3, 0.25);
 	sign.position.set(0, 0.66, -0.39);
 	group.add(sign);
+
+	const miniWapuu = createWapuu3D({ height: 0.5, accent: 0xffd166 });
+	miniWapuu.position.set(0.73, 0.46, 0.16);
+	miniWapuu.rotation.y = -0.45;
+	group.add(miniWapuu);
 	return group;
 }
 
