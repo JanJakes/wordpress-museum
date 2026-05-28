@@ -28,6 +28,7 @@ const gltfLoader = new GLTFLoader();
 const modelCache = new Map();
 let wapuuTexture = null;
 let wapuuWordmarkTexture = null;
+const deviceScreenTextures = new Map();
 let deferredAssetTaskIndex = 0;
 const modelDefinitions = {
 	benchCushion: './assets/models/kenney/furniture/benchCushion.glb',
@@ -3445,12 +3446,21 @@ function createDoorSign(material, z, rotationY) {
 
 function createRoomLight(color) {
 	const group = new THREE.Group();
-	const light = new THREE.PointLight(new THREE.Color(color), 1.35, 22);
-	light.position.set(0, wallHeight - 1.05, 0);
-	registerAnimation(light, (object, elapsed) => {
-		object.intensity = 1.2 + Math.sin(elapsed * 1.2) * 0.14;
+	// Warm-white fill keeps the marble reading as warm stone; the era
+	// colour stays an accent rather than flooding the whole room.
+	const fill = new THREE.PointLight(0xfff1d6, 1.0, 24);
+	fill.position.set(0, wallHeight - 1.05, 0);
+	registerAnimation(fill, (object, elapsed) => {
+		object.intensity = 0.92 + Math.sin(elapsed * 1.2) * 0.08;
 	});
-	group.add(light);
+	group.add(fill);
+
+	const accent = new THREE.PointLight(new THREE.Color(color), 0.5, 16);
+	accent.position.set(0, wallHeight - 1.8, -1.4);
+	registerAnimation(accent, (object, elapsed) => {
+		object.intensity = 0.42 + Math.sin(elapsed * 1.5) * 0.1;
+	});
+	group.add(accent);
 
 	const fixture = new THREE.Mesh(
 		new THREE.BoxGeometry(4.4, 0.09, 0.36),
@@ -3465,7 +3475,7 @@ function createRoomLight(color) {
 	fixture.position.set(0, wallHeight - 0.42, 0);
 	group.add(fixture);
 	for (const x of [-3.2, 3.2]) {
-		group.add(createLightCone(color, 1.95, 4.6, 0.075, x, -0.55));
+		group.add(createLightCone(color, 1.95, 4.6, 0.06, x, -0.55));
 	}
 	return group;
 }
@@ -5355,16 +5365,16 @@ function addEraModelProps(group, room, roomIndex, color, secondary) {
 		createLoadedModel(key, { targetHeight: height, fallback });
 	const propSets = {
 		'Blogging Roots': [
-			{ obj: model('radio', 0.46, 'radio'), x: -4.6, z: -3.74, rot: 0.5 },
-			{ obj: createRetroCRT(color, secondary), x: 4.55, z: -3.7, rot: -0.5 },
+			{ obj: model('radio', 0.46, 'radio'), x: -4.6, z: -4.2, rot: 0.5 },
+			{ obj: createIMacG4Exhibit(color), x: 4.55, z: -4.3, rot: -0.62 },
 		],
 		'Dashboard Foundations': [
-			{ obj: createRetroCRT(color, secondary), x: -4.55, z: -3.7, rot: 0.5 },
-			{ obj: model('loungeDesignChair', 0.62, 'bench'), x: 4.65, z: -3.78, rot: -0.5 },
+			{ obj: createIPhoneExhibit(color), x: -4.55, z: -4.3, rot: 0.62 },
+			{ obj: model('loungeDesignChair', 0.62, 'bench'), x: 4.65, z: -4.2, rot: -0.5 },
 		],
 		'CMS Toolkit': [
-			{ obj: createRetroCRT(secondary, color), x: -4.55, z: -3.7, rot: 0.5 },
-			{ obj: model('bookcaseOpenLow', 0.86, 'bookcase'), x: 4.65, z: -3.7, rot: -0.5 },
+			{ obj: createIPadEaselExhibit(color), x: -4.55, z: -4.3, rot: 0.62 },
+			{ obj: model('bookcaseOpenLow', 0.86, 'bookcase'), x: 4.65, z: -4.2, rot: -0.5 },
 		],
 		'Modern Admin': [
 			{ obj: model('laptop', 0.46, 'screen'), x: -4.6, z: -3.66, rot: 0.5 },
@@ -6067,6 +6077,224 @@ function createRetroCRT(accent, secondary) {
 	group.add(keyboard);
 
 	return group;
+}
+
+// --- Iconic era hardware, presented as spotlit museum artifacts. ---
+
+function createArtifactStand(color, label, height) {
+	const group = new THREE.Group();
+	group.add(createPedestal(0.86, height, color));
+	const ring = new THREE.Mesh(
+		new THREE.TorusGeometry(0.47, 0.012, 8, 40),
+		new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.5 })
+	);
+	ring.rotation.x = Math.PI / 2;
+	ring.position.y = height + 0.02;
+	registerAnimation(ring, (object, elapsed) => {
+		object.material.opacity = 0.32 + Math.sin(elapsed * 1.6) * 0.12;
+	});
+	group.add(ring);
+	const tag = createReadableLabel(createSmallSignTexture(label, color), 0.86, 0.2);
+	tag.position.set(0, height * 0.5, -0.46);
+	group.add(tag);
+	const glow = new THREE.PointLight(new THREE.Color(color), 0.3, 3);
+	glow.position.set(0, height + 0.6, 0.1);
+	group.add(glow);
+	return group;
+}
+
+function createIMacG4Exhibit(color) {
+	const group = new THREE.Group();
+	const standH = 0.34;
+	group.add(createArtifactStand(color, 'IMAC G4', standH));
+
+	const imac = new THREE.Group();
+	imac.position.y = standH;
+	group.add(imac);
+
+	const white = new THREE.MeshStandardMaterial({ color: 0xf6f4ef, roughness: 0.32, metalness: 0.06 });
+	const chrome = new THREE.MeshStandardMaterial({ color: 0xcfd4da, roughness: 0.24, metalness: 0.7 });
+
+	// Hemispherical dome base.
+	const dome = new THREE.Mesh(
+		new THREE.SphereGeometry(0.2, 28, 18, 0, Math.PI * 2, 0, Math.PI / 2),
+		white
+	);
+	dome.position.y = 0.02;
+	dome.scale.set(1, 0.7, 1);
+	imac.add(dome);
+
+	// Chrome gooseneck arm.
+	const armBottom = new THREE.Vector3(0, 0.12, 0.02);
+	const armTop = new THREE.Vector3(0, 0.4, 0.12);
+	imac.add(createCylinderBetween(armBottom, armTop, 0.022, chrome, 10));
+
+	// Flat-panel screen on a swivel.
+	const screen = new THREE.Group();
+	screen.position.set(0, 0.5, 0.16);
+	screen.rotation.x = -0.12;
+	imac.add(screen);
+	const bezel = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.34, 0.03), white);
+	screen.add(bezel);
+	const face = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.34, 0.26),
+		new THREE.MeshBasicMaterial({ map: createDeviceScreenTexture('aqua'), side: THREE.DoubleSide })
+	);
+	face.position.z = 0.017;
+	screen.add(face);
+	const chin = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.04), white);
+	chin.position.y = -0.2;
+	screen.add(chin);
+
+	return group;
+}
+
+function createIPhoneExhibit(color) {
+	const group = new THREE.Group();
+	const standH = 0.62;
+	group.add(createArtifactStand(color, 'IPHONE 2007', standH));
+
+	const phone = new THREE.Group();
+	phone.position.set(0, standH + 0.22, 0.04);
+	phone.rotation.x = -0.32;
+	group.add(phone);
+
+	const metal = new THREE.MeshStandardMaterial({ color: 0xd7dade, roughness: 0.3, metalness: 0.66 });
+	const black = new THREE.MeshStandardMaterial({ color: 0x14151a, roughness: 0.3, metalness: 0.2 });
+	const bodyBack = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.4, 0.026), metal);
+	phone.add(bodyBack);
+	const bezel = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.39, 0.03), black);
+	bezel.position.z = 0.004;
+	phone.add(bezel);
+	const face = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.16, 0.27),
+		new THREE.MeshBasicMaterial({ map: createDeviceScreenTexture('home'), side: THREE.DoubleSide })
+	);
+	face.position.set(0, 0.04, 0.021);
+	phone.add(face);
+	const homeButton = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.022, 0.022, 0.006, 18),
+		new THREE.MeshStandardMaterial({ color: 0x2a2c33, roughness: 0.4 })
+	);
+	homeButton.rotation.x = Math.PI / 2;
+	homeButton.position.set(0, -0.16, 0.021);
+	phone.add(homeButton);
+
+	return group;
+}
+
+function createIPadEaselExhibit(color) {
+	const group = new THREE.Group();
+	const standH = 0.5;
+	group.add(createArtifactStand(color, 'IPAD 2010', standH));
+
+	const wood = new THREE.MeshStandardMaterial({ color: 0xb07a3c, roughness: 0.56, metalness: 0.04 });
+	const easel = new THREE.Group();
+	easel.position.y = standH;
+	group.add(easel);
+	for (const sx of [-1, 1]) {
+		const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.6, 10), wood);
+		leg.position.set(sx * 0.14, 0.3, -0.02);
+		leg.rotation.x = 0.16;
+		easel.add(leg);
+	}
+	const restBar = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.03, 0.05), wood);
+	restBar.position.set(0, 0.22, 0.08);
+	easel.add(restBar);
+
+	const tablet = new THREE.Group();
+	tablet.position.set(0, 0.34, 0.06);
+	tablet.rotation.x = -0.28;
+	easel.add(tablet);
+	const metal = new THREE.MeshStandardMaterial({ color: 0xd7dade, roughness: 0.3, metalness: 0.66 });
+	const black = new THREE.MeshStandardMaterial({ color: 0x14151a, roughness: 0.3, metalness: 0.2 });
+	const back = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.32, 0.022), metal);
+	tablet.add(back);
+	const bezel = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.3, 0.026), black);
+	bezel.position.z = 0.004;
+	tablet.add(bezel);
+	const face = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.34, 0.24),
+		new THREE.MeshBasicMaterial({ map: createDeviceScreenTexture('home'), side: THREE.DoubleSide })
+	);
+	face.position.set(0, 0, 0.019);
+	tablet.add(face);
+	const homeButton = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.018, 0.018, 0.006, 16),
+		new THREE.MeshStandardMaterial({ color: 0x2a2c33, roughness: 0.4 })
+	);
+	homeButton.rotation.x = Math.PI / 2;
+	homeButton.position.set(0, -0.13, 0.019);
+	tablet.add(homeButton);
+
+	return group;
+}
+
+function createDeviceScreenTexture(kind) {
+	if (deviceScreenTextures.has(kind)) {
+		return deviceScreenTextures.get(kind);
+	}
+	const canvas = document.createElement('canvas');
+	canvas.width = 256;
+	canvas.height = 256;
+	const ctx = canvas.getContext('2d');
+	if (kind === 'aqua') {
+		const grad = ctx.createLinearGradient(0, 0, 0, 256);
+		grad.addColorStop(0, '#9fd4ff');
+		grad.addColorStop(1, '#2f7fd6');
+		ctx.fillStyle = grad;
+		ctx.fillRect(0, 0, 256, 256);
+		// pinstripe
+		ctx.fillStyle = 'rgba(255,255,255,0.08)';
+		for (let y = 0; y < 256; y += 6) ctx.fillRect(0, y, 256, 2);
+		// menu bar
+		ctx.fillStyle = 'rgba(255,255,255,0.78)';
+		ctx.fillRect(0, 0, 256, 22);
+		// dock
+		ctx.fillStyle = 'rgba(255,255,255,0.45)';
+		ctx.fillRect(34, 210, 188, 34);
+		const dockColors = ['#5b8def', '#2bb7ff', '#50d890', '#ffd166', '#ff6b6b', '#b37cff'];
+		dockColors.forEach((c, i) => {
+			ctx.fillStyle = c;
+			roundRectPath(ctx, 44 + i * 30, 214, 24, 24, 6);
+			ctx.fill();
+		});
+	} else {
+		// iOS-style home grid.
+		const grad = ctx.createLinearGradient(0, 0, 0, 256);
+		grad.addColorStop(0, '#1b2740');
+		grad.addColorStop(1, '#0c1320');
+		ctx.fillStyle = grad;
+		ctx.fillRect(0, 0, 256, 256);
+		ctx.fillStyle = 'rgba(255,255,255,0.85)';
+		ctx.font = '700 12px ui-monospace, monospace';
+		ctx.textAlign = 'center';
+		ctx.fillText('●●●●●  WordPress  ▲', 128, 16);
+		const colors = ['#5b8def', '#2bb7ff', '#50d890', '#ffd166', '#ff6b6b', '#b37cff', '#ff9b54', '#78e0dc', '#f29111'];
+		let i = 0;
+		for (let row = 0; row < 3; row++) {
+			for (let col = 0; col < 4; col++) {
+				ctx.fillStyle = colors[i % colors.length];
+				roundRectPath(ctx, 26 + col * 54, 40 + row * 58, 40, 40, 9);
+				ctx.fill();
+				i++;
+			}
+		}
+	}
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	deviceScreenTextures.set(kind, texture);
+	return texture;
+}
+
+function roundRectPath(ctx, x, y, w, h, r) {
+	ctx.beginPath();
+	ctx.moveTo(x + r, y);
+	ctx.arcTo(x + w, y, x + w, y + h, r);
+	ctx.arcTo(x + w, y + h, x, y + h, r);
+	ctx.arcTo(x, y + h, x, y, r);
+	ctx.arcTo(x, y, x + w, y, r);
+	ctx.closePath();
 }
 
 function createTerminalDesk(color) {
