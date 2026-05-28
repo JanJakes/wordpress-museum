@@ -4933,7 +4933,78 @@ function createMuseumInfoDesk(color, secondary) {
 	miniWapuu.position.set(0.73, 0.46, 0.16);
 	miniWapuu.rotation.y = -0.45;
 	group.add(miniWapuu);
+
+	const counter = createVisitorCounter();
+	counter.position.set(-1.42, 0, 0.18);
+	counter.rotation.y = 0.18;
+	group.add(counter);
 	return group;
+}
+
+function createVisitorCounter() {
+	// A Web 1.0 "hit counter" odometer on a stand — a wink at 2004-era
+	// homepages. Stands on the floor beside the info desk, facing visitors.
+	const group = new THREE.Group();
+	const base = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.16, 0.2, 0.08, 18),
+		new THREE.MeshStandardMaterial({ color: 0xf8efd9, roughness: 0.68 })
+	);
+	base.position.y = 0.04;
+	group.add(base);
+	const post = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.035, 0.045, 0.86, 12),
+		new THREE.MeshStandardMaterial({ color: 0x6b6b78, roughness: 0.4, metalness: 0.5 })
+	);
+	post.position.y = 0.5;
+	group.add(post);
+	const body = new THREE.Mesh(
+		new THREE.BoxGeometry(0.6, 0.28, 0.12),
+		new THREE.MeshStandardMaterial({ color: 0x14121a, roughness: 0.42, metalness: 0.12 })
+	);
+	body.position.y = 1.04;
+	group.add(body);
+	const screen = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.54, 0.2),
+		new THREE.MeshBasicMaterial({ map: createVisitorCounterTexture(), transparent: true })
+	);
+	screen.position.set(0, 1.04, 0.062);
+	group.add(screen);
+	const glow = new THREE.PointLight(0x39ff6a, 0.22, 2.4);
+	glow.position.set(0, 1.04, 0.4);
+	registerAnimation(glow, (object, elapsed) => {
+		object.intensity = 0.16 + Math.sin(elapsed * 3.1) * 0.06;
+	});
+	group.add(glow);
+	return group;
+}
+
+function createVisitorCounterTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 180;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#05060a';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#39ff6a';
+	ctx.font = '700 26px ui-monospace, Menlo, monospace';
+	ctx.textAlign = 'center';
+	ctx.fillText('YOU ARE VISITOR', 256, 40);
+	// odometer digits on little dark cells
+	const digits = '00424242';
+	const cellW = 50;
+	const startX = 256 - (digits.length * cellW) / 2;
+	for (let i = 0; i < digits.length; i++) {
+		const x = startX + i * cellW;
+		ctx.fillStyle = '#0c1530';
+		ctx.fillRect(x + 4, 70, cellW - 8, 86);
+		ctx.fillStyle = '#ffd23f';
+		ctx.font = '900 64px ui-monospace, Menlo, monospace';
+		ctx.fillText(digits[i], x + cellW / 2, 138);
+	}
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
 }
 
 function addAtriumBenches(group) {
