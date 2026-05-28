@@ -5162,43 +5162,43 @@ function createRoomDustMotes(color) {
 }
 
 function addEraModelProps(group, room, roomIndex, color, secondary) {
-	const modelSets = {
+	// Two grounded ambient props tucked into the entrance corners of each
+	// room. Era-appropriate: early rooms get a beige CRT, later rooms get
+	// laptops, TVs, and lounge furniture. No free-floating door/arch models.
+	const model = (key, height, fallback) =>
+		createLoadedModel(key, { targetHeight: height, fallback });
+	const propSets = {
 		'Blogging Roots': [
-			['radio', -4.65, -3.75, 0.5, 0.46, 'radio'],
-			['bookcaseOpenLow', 4.65, -3.72, -0.48, 0.86, 'bookcase'],
+			{ obj: model('radio', 0.46, 'radio'), x: -4.6, z: -3.74, rot: 0.5 },
+			{ obj: createRetroCRT(color, secondary), x: 4.55, z: -3.7, rot: -0.5 },
 		],
 		'Dashboard Foundations': [
-			['computerScreen', -4.65, -3.76, 0.46, 0.62, 'screen'],
-			['loungeDesignChair', 4.65, -3.78, -0.5, 0.62, 'bench'],
+			{ obj: createRetroCRT(color, secondary), x: -4.55, z: -3.7, rot: 0.5 },
+			{ obj: model('loungeDesignChair', 0.62, 'bench'), x: 4.65, z: -3.78, rot: -0.5 },
 		],
 		'CMS Toolkit': [
-			['wallDoorwayRound', -4.8, -3.72, 0.58, 1.35, 'portal'],
-			['doorRotateSquareA', 4.75, -3.74, -0.54, 1.18, 'portal'],
+			{ obj: createRetroCRT(secondary, color), x: -4.55, z: -3.7, rot: 0.5 },
+			{ obj: model('bookcaseOpenLow', 0.86, 'bookcase'), x: 4.65, z: -3.7, rot: -0.5 },
 		],
 		'Modern Admin': [
-			['laptop', -4.65, -3.82, 0.52, 0.46, 'screen'],
-			['televisionVintage', 4.7, -3.78, -0.48, 0.72, 'screen'],
+			{ obj: model('laptop', 0.46, 'screen'), x: -4.6, z: -3.66, rot: 0.5 },
+			{ obj: model('televisionVintage', 0.72, 'screen'), x: 4.7, z: -3.78, rot: -0.5 },
 		],
 		'API and Customizer': [
-			['doorRotateRoundA', -4.78, -3.72, 0.58, 1.2, 'portal'],
-			['columnThin', 4.72, -3.76, -0.34, 1.6, 'column'],
+			{ obj: createRetroCRT(color, secondary), x: -4.55, z: -3.7, rot: 0.5 },
+			{ obj: model('loungeDesignSofa', 0.6, 'bench'), x: 4.7, z: -3.82, rot: -0.5 },
 		],
 		'Block Editor': [
-			['platingDetailed', -4.68, -3.78, 0.4, 0.28, 'block'],
-			['loungeDesignSofa', 4.68, -3.8, -0.44, 0.58, 'bench'],
+			{ obj: model('laptop', 0.46, 'screen'), x: -4.6, z: -3.66, rot: 0.5 },
+			{ obj: model('loungeDesignSofa', 0.58, 'bench'), x: 4.68, z: -3.82, rot: -0.5 },
 		],
 		'Blocks Everywhere': [
-			['tableCoffee', -4.62, -3.76, 0.42, 0.34, 'block'],
-			['pottedPlant', 4.62, -3.78, -0.42, 0.88, 'plant'],
+			{ obj: model('tableCoffee', 0.34, 'block'), x: -4.62, z: -3.74, rot: 0.42 },
+			{ obj: model('pottedPlant', 0.88, 'plant'), x: 4.62, z: -3.78, rot: -0.42 },
 		],
 	};
-	const entries = modelSets[room.era] || [];
-	entries.forEach(([modelKey, x, z, rotation, height, fallback]) => {
-		const model = createLoadedModel(modelKey, {
-			targetHeight: height,
-			fallback,
-		});
-		addLocal(group, model, x, z, rotation);
+	(propSets[room.era] || []).forEach(({ obj, x, z, rot }) => {
+		addLocal(group, obj, x, z, rot);
 	});
 	const floorLight = createMuseumLamp(roomIndex % 2 ? color : secondary);
 	floorLight.scale.setScalar(0.8);
@@ -5836,6 +5836,50 @@ function createMascotMonument(color, secondary) {
 	const group = new THREE.Group();
 	group.add(createMascotStatue(color, secondary));
 	group.add(createPropLabel('OPEN SOURCE', secondary, 1.46));
+	return group;
+}
+
+function createRetroCRT(accent, secondary) {
+	const group = new THREE.Group();
+	const beige = new THREE.MeshStandardMaterial({ color: 0xe9e1c8, roughness: 0.72, metalness: 0.03 });
+	const beigeShade = new THREE.MeshStandardMaterial({ color: 0xd5c9a6, roughness: 0.74 });
+
+	const base = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.07, 18), beigeShade);
+	base.position.y = 0.035;
+	group.add(base);
+	const neck = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.22), beigeShade);
+	neck.position.y = 0.12;
+	group.add(neck);
+
+	// Boxy CRT monitor body, slightly tapered toward the back.
+	const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.36, 0.56, 4), beige);
+	body.rotation.y = Math.PI / 4;
+	body.scale.set(1.0, 1.0, 0.92);
+	body.position.y = 0.46;
+	group.add(body);
+
+	const bezel = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.46, 0.06), beige);
+	bezel.position.set(0, 0.46, 0.27);
+	group.add(bezel);
+	const screen = createAdminScreenPanel(accent, secondary, 0.42, 0.32);
+	screen.rotation.y = Math.PI;
+	screen.position.set(0, 0.46, 0.3);
+	group.add(screen);
+
+	// Power LED.
+	const led = new THREE.Mesh(
+		new THREE.SphereGeometry(0.018, 10, 8),
+		new THREE.MeshBasicMaterial({ color: 0x6cff9c })
+	);
+	led.position.set(0.18, 0.27, 0.3);
+	group.add(led);
+
+	// Chunky keyboard in front.
+	const keyboard = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.2), beige);
+	keyboard.position.set(0, 0.025, 0.46);
+	keyboard.rotation.x = -0.04;
+	group.add(keyboard);
+
 	return group;
 }
 
@@ -7225,6 +7269,9 @@ function initDebugApi() {
 				renderedFrameCount,
 			};
 		},
+		scene,
+		camera,
+		THREE,
 	};
 }
 
