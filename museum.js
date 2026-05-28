@@ -1451,6 +1451,8 @@ function createRoom(room) {
 	group.add(createRoomWall('right'));
 	if (isCurrentVariant) {
 		group.add(createRoomMuseumArchitecture(room));
+		group.add(createRoomStoryWall(room));
+		group.add(createRoomFloorWayfinding(room.color));
 	}
 	if (shouldDecorateScene) {
 		group.add(createRoomMural(room));
@@ -1545,6 +1547,136 @@ function getEraMuralCopy(era) {
 			note: 'Block themes, site editing, style variations, and the Style Book cabinet.',
 		},
 	}[era];
+}
+
+function createRoomStoryWall(room) {
+	const group = new THREE.Group();
+	const panel = new THREE.Mesh(
+		new THREE.PlaneGeometry(roomWidth - 2.1, 1.32),
+		new THREE.MeshBasicMaterial({
+			map: createRoomStoryTexture(room),
+			transparent: true,
+			side: THREE.DoubleSide,
+			depthWrite: false,
+		})
+	);
+	panel.position.set(0, 4.18, roomDepth / 2 - wallThickness / 2 - 0.08);
+	panel.rotation.y = Math.PI;
+	group.add(panel);
+
+	const items = getEraReleaseItems(room.era);
+	const tickMaterial = new THREE.MeshBasicMaterial({ color: room.color });
+	const dotMaterial = new THREE.MeshBasicMaterial({ color: 0xfff5df });
+	const width = roomWidth - 3.4;
+	const sweep = new THREE.Mesh(
+		new THREE.BoxGeometry(0.055, 1.04, 0.035),
+		new THREE.MeshBasicMaterial({
+			color: room.color,
+			transparent: true,
+			opacity: 0.32,
+			depthWrite: false,
+		})
+	);
+	const roomOffset = eras.indexOf(room.era) * 0.11;
+	sweep.position.set(-width / 2, 4.14, roomDepth / 2 - wallThickness / 2 - 0.17);
+	registerAnimation(sweep, (object, elapsed) => {
+		const progress = (elapsed * 0.055 + roomOffset) % 1;
+		object.position.x = -width / 2 + width * progress;
+		object.material.opacity = 0.18 + Math.sin(elapsed * 1.2 + roomOffset) * 0.06;
+	});
+	group.add(sweep);
+	items.forEach(({ release }, index) => {
+		const x = items.length === 1
+			? 0
+			: -width / 2 + (width * index) / (items.length - 1);
+		const y = 3.72 + Math.sin(index * 1.7) * 0.12;
+		const tick = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.34, 0.045), tickMaterial);
+		tick.position.set(x, y, roomDepth / 2 - wallThickness / 2 - 0.13);
+		group.add(tick);
+		if (index === 0 || index === items.length - 1 || release.version.endsWith('.0')) {
+			const dot = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 8), dotMaterial);
+			dot.position.set(x, y + 0.22, roomDepth / 2 - wallThickness / 2 - 0.16);
+			group.add(dot);
+		}
+	});
+
+	const first = items[0]?.release.version;
+	const last = items[items.length - 1]?.release.version;
+	if (first && last && first !== last) {
+		const label = createReadableLabel(
+			createSmallSignTexture(`WP ${first}-${last}`, room.color),
+			1.42,
+			0.28
+		);
+		label.position.set(-(roomWidth / 2) + 1.52, 3.52, roomDepth / 2 - wallThickness / 2 - 0.18);
+		label.rotation.y = Math.PI;
+		group.add(label);
+	}
+	return group;
+}
+
+function createRoomStoryTexture(room) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 1024;
+	canvas.height = 320;
+	const ctx = canvas.getContext('2d');
+	const copy = getEraMuralCopy(room.era);
+	const items = getEraReleaseItems(room.era);
+	const first = items[0]?.release;
+	const last = items[items.length - 1]?.release;
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+	const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+	gradient.addColorStop(0, 'rgba(17, 24, 39, 0.08)');
+	gradient.addColorStop(0.18, 'rgba(17, 24, 39, 0.72)');
+	gradient.addColorStop(0.82, 'rgba(17, 24, 39, 0.72)');
+	gradient.addColorStop(1, 'rgba(17, 24, 39, 0.08)');
+	ctx.fillStyle = gradient;
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	ctx.strokeStyle = room.color;
+	ctx.lineWidth = 8;
+	ctx.globalAlpha = 0.78;
+	ctx.strokeRect(84, 34, canvas.width - 168, canvas.height - 68);
+	ctx.globalAlpha = 1;
+
+	ctx.fillStyle = 'rgba(255, 245, 223, 0.12)';
+	for (let index = 0; index < 18; index++) {
+		const x = 116 + index * 48;
+		ctx.fillRect(x, 66 + (index % 3) * 56, 24, 10);
+	}
+
+	ctx.fillStyle = '#fff5df';
+	ctx.textAlign = 'left';
+	ctx.font = '900 28px Arial Black, Impact, sans-serif';
+	ctx.fillText(`${room.yearRange} RELEASE LINE`, 118, 88);
+	ctx.font = '900 42px Arial Black, Impact, sans-serif';
+	fillFittedCanvasText(ctx, copy.title.toUpperCase(), 118, 144, 640, 42, '900', 'Arial Black, Impact, sans-serif');
+	ctx.fillStyle = room.color;
+	ctx.font = '900 22px system-ui, sans-serif';
+	fillFittedCanvasText(ctx, `${items.length} versions under glass`, 118, 184, 440, 22, '900', 'system-ui, sans-serif');
+	ctx.fillStyle = 'rgba(255, 245, 223, 0.78)';
+	ctx.font = '700 18px system-ui, sans-serif';
+	wrapText(ctx, copy.note, 118, 222, 580, 25, 2);
+
+	ctx.textAlign = 'right';
+	ctx.fillStyle = '#fff5df';
+	ctx.font = '900 28px Arial Black, Impact, sans-serif';
+	if (last && first) {
+		ctx.fillText(`WP ${first.version}`, 896, 116);
+		ctx.fillText(`WP ${last.version}`, 896, 172);
+	}
+	ctx.fillStyle = room.color;
+	ctx.globalAlpha = 0.32;
+	ctx.fillRect(726, 198, 170, 12);
+	ctx.fillRect(726, 222, 116, 12);
+	ctx.fillRect(726, 246, 148, 12);
+	ctx.globalAlpha = 1;
+
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
 }
 
 function createRoomCeiling() {
@@ -1668,6 +1800,57 @@ function createRoomLight(color) {
 	return group;
 }
 
+function createRoomFloorWayfinding(color) {
+	const group = new THREE.Group();
+	const stripeMaterial = new THREE.MeshBasicMaterial({
+		color,
+		transparent: true,
+		opacity: 0.34,
+		depthWrite: false,
+	});
+	const softMaterial = new THREE.MeshBasicMaterial({
+		color: 0xfff5df,
+		transparent: true,
+		opacity: 0.2,
+		depthWrite: false,
+	});
+	group.add(createFloorStripe(0, -1.1, 0.075, 8.8, 0, stripeMaterial));
+	group.add(createFloorStripe(-2.25, -1.95, 0.055, 4.1, Math.PI / 4, stripeMaterial));
+	group.add(createFloorStripe(2.25, -1.95, 0.055, 4.1, -Math.PI / 4, stripeMaterial));
+	group.add(createFloorStripe(0, 3.65, 4.8, 0.055, 0, softMaterial));
+
+	for (const station of getEraVignetteStations()) {
+		const ring = new THREE.Mesh(
+			new THREE.RingGeometry(0.38, 0.48, 40),
+			new THREE.MeshBasicMaterial({
+				color,
+				transparent: true,
+				opacity: 0.42,
+				depthWrite: false,
+				side: THREE.DoubleSide,
+			})
+		);
+		ring.rotation.x = -Math.PI / 2;
+		ring.position.set(station.x, 0.088, station.z);
+		registerAnimation(ring, (object, elapsed) => {
+			const pulse = 1 + Math.sin(elapsed * 1.8 + station.x) * 0.035;
+			object.scale.set(pulse, pulse, pulse);
+		});
+		group.add(ring);
+	}
+	return group;
+}
+
+function createFloorStripe(x, z, width, length, rotation, material) {
+	const stripe = new THREE.Mesh(
+		new THREE.BoxGeometry(width, 0.012, length),
+		material
+	);
+	stripe.position.set(x, 0.082, z);
+	stripe.rotation.y = rotation;
+	return stripe;
+}
+
 function createLightCone(color, radius, height, opacity, x, z) {
 	const cone = new THREE.Mesh(
 		new THREE.ConeGeometry(radius, height, 32, 1, true),
@@ -1704,6 +1887,7 @@ function createRoomMuseumArchitecture(room) {
 		group.add(createWallRail(side, 3.04, brass, 0.045));
 		group.add(createWallRail(side, wallHeight - 0.58, brass, 0.12));
 	});
+	group.add(createRoomTrackLighting(room.color));
 	for (const side of ['left', 'right']) {
 		for (const z of [-2.8, 2.35]) {
 			const sconce = createWallSconce(room.color);
@@ -1714,6 +1898,56 @@ function createRoomMuseumArchitecture(room) {
 			group.add(sconce);
 		}
 	}
+	return group;
+}
+
+function createRoomTrackLighting(color) {
+	const group = new THREE.Group();
+	const trackMaterial = new THREE.MeshStandardMaterial({
+		color: 0x1f2937,
+		roughness: 0.38,
+		metalness: 0.38,
+	});
+	const fixtureMaterial = new THREE.MeshStandardMaterial({
+		color: 0xf8efd9,
+		emissive: new THREE.Color(color),
+		emissiveIntensity: 0.18,
+		roughness: 0.34,
+		metalness: 0.28,
+	});
+	[-2.25, 1.85].forEach((z, trackIndex) => {
+		const track = new THREE.Mesh(
+			new THREE.BoxGeometry(roomWidth * 0.66, 0.055, 0.08),
+			trackMaterial
+		);
+		track.position.set(0, wallHeight - 0.72, z);
+		group.add(track);
+		[-3.6, 0, 3.6].forEach((x, fixtureIndex) => {
+			const fixture = new THREE.Mesh(
+				new THREE.CylinderGeometry(0.105, 0.14, 0.2, 16),
+				fixtureMaterial
+			);
+			fixture.position.set(x, wallHeight - 0.88, z);
+			group.add(fixture);
+
+			const beam = new THREE.Mesh(
+				new THREE.ConeGeometry(0.72, 2.75, 28, 1, true),
+				new THREE.MeshBasicMaterial({
+					color,
+					transparent: true,
+					opacity: 0.035,
+					side: THREE.DoubleSide,
+					depthWrite: false,
+				})
+			);
+			beam.position.set(x, wallHeight - 2.18, z + (trackIndex ? 0.45 : -0.25));
+			beam.rotation.x = trackIndex ? -0.08 : 0.08;
+			registerAnimation(beam, (object, elapsed) => {
+				object.material.opacity = 0.028 + Math.sin(elapsed * 1.4 + fixtureIndex) * 0.01;
+			});
+			group.add(beam);
+		});
+	});
 	return group;
 }
 
@@ -1773,6 +2007,9 @@ function createAtriumDecor() {
 		group.add(createAtriumLightRig(color, secondary));
 	}
 	group.add(createAtriumFloorMedallion(color, secondary));
+	if (isCurrentVariant) {
+		group.add(createAtriumVersionOrbit());
+	}
 	addAtriumFeature(group, activeVariant.atriumFeature, color, secondary);
 	addAtriumBenches(group);
 	return group;
@@ -1804,6 +2041,45 @@ function createAtriumFloorMedallion(color, secondary) {
 		spoke.position.y = 0.065;
 		group.add(spoke);
 	}
+	return group;
+}
+
+function createAtriumVersionOrbit() {
+	const group = new THREE.Group();
+	const orbitMaterial = new THREE.MeshBasicMaterial({
+		color: 0xfff5df,
+		transparent: true,
+		opacity: 0.16,
+		side: THREE.DoubleSide,
+		depthWrite: false,
+	});
+	const orbit = new THREE.Mesh(new THREE.RingGeometry(6.8, 6.92, 96), orbitMaterial);
+	orbit.rotation.x = -Math.PI / 2;
+	orbit.position.y = 0.07;
+	group.add(orbit);
+
+	const items = releases.filter((release) => release.version.endsWith('.0') || release.version.endsWith('.5'));
+	const radius = 6.86;
+	items.forEach((release, index) => {
+		const angle = Math.PI / 2 - (Math.PI * 2 * index) / items.length;
+		const color = eraColors.get(release.era);
+		const marker = new THREE.Mesh(
+			new THREE.BoxGeometry(0.34, 0.065, 0.16),
+			new THREE.MeshStandardMaterial({
+				color,
+				emissive: new THREE.Color(color),
+				emissiveIntensity: 0.12,
+				roughness: 0.46,
+				metalness: 0.12,
+			})
+		);
+		marker.position.set(Math.cos(angle) * radius, 0.12, Math.sin(angle) * radius);
+		marker.rotation.y = -angle;
+		registerAnimation(marker, (object, elapsed) => {
+			object.position.y = 0.12 + Math.sin(elapsed * 1.25 + index) * 0.018;
+		});
+		group.add(marker);
+	});
 	return group;
 }
 
@@ -1842,6 +2118,9 @@ function createAtriumMuseumArchitecture(color, secondary) {
 		lintel.position.y = isMural ? wallHeight - 0.54 : 4.55;
 		lintel.rotation.y = getRotationForNormal(side.normal);
 		group.add(lintel);
+		if (!isMural && side.era) {
+			group.add(createAtriumDoorBanner(side, eraColors.get(side.era)));
+		}
 	}
 
 	for (let index = 0; index < 8; index++) {
@@ -1865,6 +2144,67 @@ function createAtriumMuseumArchitecture(color, secondary) {
 		}
 	}
 	return group;
+}
+
+function createAtriumDoorBanner(side, color) {
+	const group = new THREE.Group();
+	const banner = new THREE.Mesh(
+		new THREE.PlaneGeometry(4.35, 0.58),
+		new THREE.MeshBasicMaterial({
+			map: createAtriumBannerTexture(side.era, color),
+			transparent: true,
+			side: THREE.DoubleSide,
+		})
+	);
+	banner.position
+		.copy(side.midpoint)
+		.add(side.normal.clone().multiplyScalar(-0.42));
+	banner.position.y = 5.26;
+	banner.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
+	group.add(banner);
+
+	for (const offset of [-1.85, 1.85]) {
+		const hanger = new THREE.Mesh(
+			new THREE.BoxGeometry(0.035, 0.72, 0.035),
+			new THREE.MeshBasicMaterial({ color: 0xfff5df, transparent: true, opacity: 0.5 })
+		);
+		hanger.position
+			.copy(side.midpoint)
+			.add(side.tangent.clone().multiplyScalar(offset))
+			.add(side.normal.clone().multiplyScalar(-0.43));
+		hanger.position.y = 5.68;
+		hanger.rotation.y = getRotationForNormal(side.normal);
+		group.add(hanger);
+	}
+	return group;
+}
+
+function createAtriumBannerTexture(era, color) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 768;
+	canvas.height = 140;
+	const ctx = canvas.getContext('2d');
+	const items = getEraReleaseItems(era);
+	ctx.fillStyle = 'rgba(17, 24, 39, 0.9)';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = color;
+	ctx.fillRect(0, 0, canvas.width, 12);
+	ctx.fillRect(0, canvas.height - 12, canvas.width, 12);
+	ctx.fillStyle = 'rgba(255, 245, 223, 0.18)';
+	for (let index = 0; index < 10; index++) {
+		ctx.fillRect(70 + index * 60, 35 + (index % 2) * 44, 28, 8);
+	}
+	ctx.fillStyle = '#fff5df';
+	ctx.textAlign = 'center';
+	ctx.font = '900 32px Arial Black, Impact, sans-serif';
+	fillFittedCanvasText(ctx, era.toUpperCase(), canvas.width / 2, 58, 610, 32, '900', 'Arial Black, Impact, sans-serif');
+	ctx.fillStyle = color;
+	ctx.font = '900 18px system-ui, sans-serif';
+	ctx.fillText(`${getReleaseYearRange(items)} / ${items.length} releases`, canvas.width / 2, 96);
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
 }
 
 function createAtriumLightRig(color, secondary) {
