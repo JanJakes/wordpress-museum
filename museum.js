@@ -146,7 +146,7 @@ const innerHalfWidth = sideHalfWidthAtZ(-roomDepth / 2); // == roomWidth / 2
 // The two outer corners are beveled so the wedge reads as a hexagon: each side
 // wall stops short of the full corner, and a 45deg chamfer angles in to a
 // narrower flat back wall.
-const cornerBevel = 2.5;
+const cornerBevel = 4.5;
 const spokeEndZ = roomDepth / 2 - cornerBevel;
 const sideEndHalfWidth = sideHalfWidthAtZ(spokeEndZ);
 const backFlatHalf = sideEndHalfWidth - cornerBevel;
@@ -208,11 +208,11 @@ const hubSides = createHubSides();
 const muralSide = hubSides.find((side) => side.kind === 'mural');
 const roomSides = hubSides.filter((side) => side.era);
 const roomLayout = new Map(roomSides.map((side) => [side.era, side]));
-// Adjacent galleries share a radial wall; a doorway through it, set at the
-// room's mid-depth (well clear of the hub corner), links them chronologically.
+// Adjacent galleries share a radial wall; a doorway through it, set back toward
+// the hub on the straight part of the wall, links them chronologically.
 const connectorDoorHalfWidth = 1.0;
 const connectorDoorHeight = 3.0;
-const connectorDoorZ = 0;
+const connectorDoorZ = -2.5;
 // Side-wall exhibits sit between the mid doorway and the beveled corner.
 const sideExhibitMinZ = connectorDoorZ + connectorDoorHalfWidth + exhibitOuterWidth / 2 + 0.3;
 const sideExhibitMaxZ = spokeEndZ - exhibitOuterWidth / 2 - 0.3;
@@ -8583,7 +8583,9 @@ function createExhibitSlots(room, releaseCount) {
 	// Room-local x points toward the visitor's left when entering from the hub.
 	const walls = [
 		{ side: 'right', reverse: false },
+		{ side: 'rightChamfer', reverse: false },
 		{ side: 'back', reverse: true },
+		{ side: 'leftChamfer', reverse: true },
 		{ side: 'left', reverse: true },
 	];
 	const wallCounts = distributeWallCounts(releaseCount);
@@ -8618,6 +8620,14 @@ function getLocalSlotPosition(side, slotIndex, slotCount) {
 			backFlatHalf - exhibitOuterWidth / 2 - exhibitWallMargin
 		);
 		return new THREE.Vector3(value, 0, roomDepth / 2);
+	}
+	if (side === 'rightChamfer' || side === 'leftChamfer') {
+		// Distribute along the chamfer line from the side-wall end to the back.
+		const s = side === 'leftChamfer' ? -1 : 1;
+		const u = getSlotAxisValue(slotIndex, slotCount, 0.32, 0.68);
+		const ax = s * sideEndHalfWidth;
+		const bx = s * backFlatHalf;
+		return new THREE.Vector3(ax + (bx - ax) * u, 0, spokeEndZ + (roomDepth / 2 - spokeEndZ) * u);
 	}
 	// Side walls are angled radial spokes: x follows the wall at this z.
 	const value = getSlotAxisValue(
@@ -8655,6 +8665,16 @@ function getSlotNormal(room, side) {
 	if (side === 'back') {
 		return room.normal.clone().multiplyScalar(-1);
 	}
+	if (side === 'rightChamfer' || side === 'leftChamfer') {
+		// 45deg chamfer inward normal: toward -normal and toward room centre.
+		const c = Math.SQRT1_2;
+		const s = side === 'leftChamfer' ? -1 : 1;
+		return room.tangent
+			.clone()
+			.multiplyScalar(-s * c)
+			.add(room.normal.clone().multiplyScalar(-c))
+			.normalize();
+	}
 	// Inward normal of the 22.5deg-tilted side wall: -+cos*tangent + sin*normal.
 	const cos = Math.cos(wedgeHalfAngle);
 	const sin = Math.sin(wedgeHalfAngle);
@@ -8670,6 +8690,15 @@ function getSlotTangent(room, side) {
 	if (side === 'back') {
 		return room.tangent.clone();
 	}
+	if (side === 'rightChamfer' || side === 'leftChamfer') {
+		const c = Math.SQRT1_2;
+		const s = side === 'leftChamfer' ? -1 : 1;
+		return room.tangent
+			.clone()
+			.multiplyScalar(-s * c)
+			.add(room.normal.clone().multiplyScalar(c))
+			.normalize();
+	}
 	// Along-wall direction (inner -> back) of the tilted side wall.
 	const cos = Math.cos(wedgeHalfAngle);
 	const sin = Math.sin(wedgeHalfAngle);
@@ -8682,17 +8711,15 @@ function getSlotTangent(room, side) {
 }
 
 function distributeWallCounts(count) {
-	// [right, back, left]. The wide outer wall carries the bulk; each side wall
-	// holds at most two, in the clear segment behind its doorway.
-	// The beveled side walls hold at most one exhibit each (between the doorway
-	// and the chamfer); the wide back wall carries the rest.
+	// [right, rightChamfer, back, leftChamfer, left]. The flat back carries the
+	// bulk; each beveled corner and each side wall holds at most one.
 	const table = {
-		1: [0, 1, 0],
-		2: [1, 0, 1],
-		3: [1, 1, 1],
-		4: [1, 2, 1],
+		1: [0, 0, 1, 0, 0],
+		2: [0, 0, 2, 0, 0],
+		3: [0, 1, 1, 1, 0],
+		4: [0, 1, 2, 1, 0],
 	};
-	return table[count] || [1, count - 2, 1];
+	return table[count] || [1, 1, count - 4, 1, 1];
 }
 
 function getEraReleaseGroups() {
