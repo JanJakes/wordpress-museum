@@ -102,7 +102,7 @@ const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const pickables = [];
 const exhibitPositions = [];
-const connectorRegions = [];
+const galleryDoorways = [];
 let railButtons = [];
 let railItems = [];
 let railMode = '';
@@ -132,8 +132,19 @@ const hubApothem = 16.5;
 const hubCircumradius = hubApothem / Math.cos(Math.PI / 8);
 const hubSideLength = 2 * hubApothem * Math.tan(Math.PI / 8);
 const roomWidth = hubSideLength;
-const roomDepth = 15.5;
+const roomDepth = 16;
 const wallHeight = 7.35;
+// Rooms are flush radial wedges: the 45deg sector between the two radials
+// through their octagon vertices. Side walls are shared with neighbours and
+// tilt 22.5deg from the room's outward normal, so the room widens from the
+// hub-facing inner edge to a wider flat outer (back) wall.
+const wedgeHalfAngle = Math.PI / 8;
+const wedgeTan = Math.tan(wedgeHalfAngle);
+const roomCenterDistance = hubApothem + roomDepth / 2;
+const sideHalfWidthAtZ = (z) => (roomCenterDistance + z) * wedgeTan;
+const innerHalfWidth = sideHalfWidthAtZ(-roomDepth / 2); // == roomWidth / 2
+const backHalfWidth = sideHalfWidthAtZ(roomDepth / 2);
+const backWallWidth = backHalfWidth * 2;
 const wallThickness = 0.26;
 const roomDoorHalfWidth = 2.9;
 const exhibitMountOffset = wallThickness / 2 + 0.035;
@@ -145,10 +156,6 @@ const exhibitPlaqueWidth = 2.42;
 const exhibitPlaqueHeight = 1.9;
 const exhibitWallMargin = 0.7;
 const exhibitPreferredSpacing = exhibitOuterWidth + 0.62;
-// Side-wall art uses most of the wall length but leaves the entrance bay
-// clear; three frames now fit with even gaps.
-const sideExhibitMinZ = -roomDepth / 2 + 2.9;
-const sideExhibitMaxZ = roomDepth / 2 - exhibitOuterWidth / 2 - exhibitWallMargin;
 const entryDistanceFromCenter = 5.2;
 const shellPadding = 1.4;
 const shellHeight = 12.4;
@@ -195,11 +202,14 @@ const hubSides = createHubSides();
 const muralSide = hubSides.find((side) => side.kind === 'mural');
 const roomSides = hubSides.filter((side) => side.era);
 const roomLayout = new Map(roomSides.map((side) => [side.era, side]));
-// Short corridors connect adjacent galleries through the wedge gaps, turning
-// the dead space into a chronological room-to-room walk.
-const connectorDoorHalfWidth = 0.82;
+// Adjacent galleries share a radial wall; a doorway through it, set at the
+// room's mid-depth (well clear of the hub corner), links them chronologically.
+const connectorDoorHalfWidth = 1.0;
 const connectorDoorHeight = 3.0;
-const connectorDoorZ = -roomDepth / 2 + 1.85;
+const connectorDoorZ = 0;
+// Side-wall exhibits sit on the wide outer segment, clear of the mid doorway.
+const sideExhibitMinZ = connectorDoorZ + connectorDoorHalfWidth + exhibitOuterWidth / 2 + 0.3;
+const sideExhibitMaxZ = roomDepth / 2 - exhibitOuterWidth / 2 - exhibitWallMargin;
 const galleryConnections = computeGalleryConnections();
 const atriumCenterPosition = new THREE.Vector3(0, 1.65, 0);
 const atriumStartPosition = atriumCenterPosition
@@ -373,9 +383,9 @@ function buildScene() {
 			root.add(createExhibit(release, index, slot, color));
 		});
 	});
-	if (isCurrentVariant) {
-		root.add(createGalleryConnectors());
-	}
+	// Shared radial spokes (the room side walls) are structural — always built,
+	// so rooms stay enclosed in every variant.
+	root.add(createRadialSpokes());
 }
 
 function getReleaseYearRange(items) {
@@ -3182,10 +3192,11 @@ function createRoom(room) {
 	group.rotation.y = getRotationForNormal(room.normal);
 
 	const floor = new THREE.Mesh(
-		new THREE.PlaneGeometry(roomWidth, roomDepth),
+		createRoomTrapezoidGeometry(),
 		createMuseumMaterial('roomFloor', {
-			repeatX: roomWidth / floorTileSpan,
-			repeatY: roomDepth / floorTileSpan,
+			// ShapeGeometry UVs are in metres, so repeat = 1/span tiles every span.
+			repeatX: 1 / floorTileSpan,
+			repeatY: 1 / floorTileSpan,
 			roughness: 0.24,
 			metalness: 0.32,
 		})
@@ -3195,9 +3206,10 @@ function createRoom(room) {
 	group.add(floor);
 	group.add(createRoomCeiling(room.color));
 
+	// The inner (hub-facing) edge is the octagon hub wall; the two side walls are
+	// shared radial spokes built once by createRadialSpokes. Rooms build only the
+	// wide flat back/outer wall here.
 	group.add(createRoomWall('back'));
-	group.add(createRoomWall('left', room.connectLeft, getDoorwaySignInfo(room, 'left')));
-	group.add(createRoomWall('right', room.connectRight, getDoorwaySignInfo(room, 'right')));
 	if (isCurrentVariant) {
 		group.add(createRoomMuseumArchitecture(room));
 		group.add(createRoomStoryWall(room));
@@ -3209,17 +3221,29 @@ function createRoom(room) {
 	}
 	group.add(createFloorTrim('front', room.color));
 	group.add(createFloorTrim('back', room.color));
-	group.add(createFloorTrim('left', room.color));
-	group.add(createFloorTrim('right', room.color));
 	group.add(createDoorFrame(room));
 	group.add(createRoomLight(room.color));
 	group.add(createRoomDecor(room));
 	return group;
 }
 
+// Isosceles-trapezoid floor/ceiling matching the wedge: narrow inner (hub) edge
+// at local z=-roomDepth/2, wide outer (back) edge at +roomDepth/2. Built CCW so
+// ShapeGeometry's front face is +z (becomes +y after the floor's -90deg tilt).
+function createRoomTrapezoidGeometry() {
+	const d = roomDepth / 2;
+	const shape = new THREE.Shape();
+	shape.moveTo(-backHalfWidth, -d);
+	shape.lineTo(backHalfWidth, -d);
+	shape.lineTo(innerHalfWidth, d);
+	shape.lineTo(-innerHalfWidth, d);
+	shape.closePath();
+	return new THREE.ShapeGeometry(shape);
+}
+
 function createRoomMural(room) {
 	const mural = new THREE.Mesh(
-		new THREE.PlaneGeometry(roomWidth - 1.65, 0.68),
+		new THREE.PlaneGeometry(backWallWidth - 2.4, 0.68),
 		new THREE.MeshBasicMaterial({
 			map: createRoomMuralTexture(room),
 			transparent: true,
@@ -3302,7 +3326,7 @@ function getEraMuralCopy(era) {
 function createRoomStoryWall(room) {
 	const group = new THREE.Group();
 	const panel = new THREE.Mesh(
-		new THREE.PlaneGeometry(roomWidth - 2.1, 1.32),
+		new THREE.PlaneGeometry(backWallWidth - 2.1, 1.32),
 		new THREE.MeshBasicMaterial({
 			map: createRoomStoryTexture(room),
 			transparent: true,
@@ -3317,7 +3341,7 @@ function createRoomStoryWall(room) {
 	const items = getEraReleaseItems(room.era);
 	const tickMaterial = new THREE.MeshBasicMaterial({ color: room.color });
 	const dotMaterial = new THREE.MeshBasicMaterial({ color: 0xfff5df });
-	const width = roomWidth - 3.4;
+	const width = backWallWidth - 3.4;
 	const sweep = new THREE.Mesh(
 		new THREE.BoxGeometry(0.055, 1.04, 0.035),
 		new THREE.MeshBasicMaterial({
@@ -3358,7 +3382,7 @@ function createRoomStoryWall(room) {
 			1.42,
 			0.28
 		);
-		label.position.set(-(roomWidth / 2) + 1.52, 3.52, roomDepth / 2 - wallThickness / 2 - 0.18);
+		label.position.set(-(backWallWidth / 2) + 1.52, 3.52, roomDepth / 2 - wallThickness / 2 - 0.18);
 		label.rotation.y = Math.PI;
 		group.add(label);
 	}
@@ -3432,13 +3456,13 @@ function createRoomStoryTexture(room) {
 function createRoomCeiling(color) {
 	const group = new THREE.Group();
 	const ceiling = new THREE.Mesh(
-		new THREE.PlaneGeometry(roomWidth, roomDepth),
+		createRoomTrapezoidGeometry(),
 		new THREE.MeshBasicMaterial({
-			map: createMuseumTexture('ceiling', roomWidth / 7, roomDepth / 7),
+			map: createMuseumTexture('ceiling', 1 / 7, 1 / 7),
 			side: THREE.DoubleSide,
 		})
 	);
-	ceiling.rotation.x = Math.PI / 2;
+	ceiling.rotation.x = -Math.PI / 2;
 	ceiling.position.y = wallHeight - 0.04;
 	group.add(ceiling);
 
@@ -3522,17 +3546,10 @@ function createRoomCeiling(color) {
 	return group;
 }
 
-function createRoomWall(side, hasDoorway = false, doorwayInfo = null) {
-	if (hasDoorway && (side === 'left' || side === 'right')) {
-		return createSideWallWithDoorway(side, doorwayInfo);
-	}
-	return createRoomWallSegment(
-		side,
-		side === 'front' || side === 'back'
-			? roomWidth
-			: roomDepth,
-		0
-	);
+function createRoomWall(side) {
+	// Rooms now build only their wide flat back/outer wall; the inner edge is the
+	// hub wall and the side walls are shared radial spokes (createRadialSpokes).
+	return createRoomWallSegment(side, side === 'back' ? backWallWidth : roomWidth, 0);
 }
 
 // Identifies the gallery reached through a room's left/right doorway and
@@ -3557,36 +3574,80 @@ function getDoorwaySignInfo(room, side) {
 	};
 }
 
-function createSideWallWithDoorway(side, doorwayInfo = null) {
+// Shared radial spokes between the wedges. Each octagon vertex carries one
+// spoke, built once: it is the LEFT side wall of the hub side at that vertex
+// (== the right wall of its counter-clockwise neighbour). Six spokes sit
+// between two galleries and get a connecting doorway; the two flanking the
+// mural wedge stay solid.
+function createRadialSpokes() {
 	const group = new THREE.Group();
-	const x = side === 'left' ? -roomWidth / 2 : roomWidth / 2;
-	const mat = createRoomWallMaterial(roomDepth);
-	const frontEnd = -roomDepth / 2;
-	const backEnd = roomDepth / 2;
-	const doorFront = connectorDoorZ - connectorDoorHalfWidth;
-	const doorBack = connectorDoorZ + connectorDoorHalfWidth;
+	galleryDoorways.length = 0;
+	for (const side of hubSides) {
+		const neighbor = findHubSideAtAngle(side.angle + Math.PI / 4);
+		if (!neighbor) {
+			continue;
+		}
+		const doored = Boolean(side.era && neighbor.era);
+		const nearInfo = side.era ? getDoorwaySignInfo(side, 'left') : null;
+		const farInfo = neighbor.era ? getDoorwaySignInfo(neighbor, 'right') : null;
+		group.add(createSpokeWall(side, doored, nearInfo, farInfo));
+	}
+	return group;
+}
 
-	const frontLen = doorFront - frontEnd;
-	if (frontLen > 0.02) {
-		const seg = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, wallHeight, frontLen), mat);
-		seg.position.set(x, wallHeight / 2, frontEnd + frontLen / 2);
-		group.add(seg);
+function findHubSideAtAngle(angle) {
+	return hubSides.find((side) => {
+		const delta = Math.atan2(
+			Math.sin(side.angle - angle),
+			Math.cos(side.angle - angle)
+		);
+		return Math.abs(delta) < 0.02;
+	});
+}
+
+// Builds one spoke as the LEFT wall of `side`, following the radial line
+// x = -sideHalfWidthAtZ(z) from the inner (hub) edge to the wide outer corner,
+// tilted 22.5deg. With a doorway it is split into front/back/header segments at
+// connectorDoorZ, framed in brass, with a directional sign on each face.
+function createSpokeWall(side, doored, nearInfo, farInfo) {
+	const group = new THREE.Group();
+	group.position.copy(side.center);
+	group.rotation.y = getRotationForNormal(side.normal);
+
+	const innerZ = -roomDepth / 2 - 0.15;
+	const outerZ = roomDepth / 2 + 0.02;
+	const xAt = (z) => -sideHalfWidthAtZ(z);
+	const spokeLength = Math.hypot(xAt(outerZ) - xAt(innerZ), outerZ - innerZ);
+	const mat = createRoomWallMaterial(spokeLength);
+
+	// A wall segment spanning z0..z1 along the tilted line, of the given height.
+	const segment = (z0, z1, height, yCenter, material, thick = wallThickness) => {
+		const ax = xAt(z0);
+		const bx = xAt(z1);
+		const dx = bx - ax;
+		const dz = z1 - z0;
+		const len = Math.hypot(dx, dz);
+		if (len < 0.01) {
+			return;
+		}
+		const box = new THREE.Mesh(new THREE.BoxGeometry(thick, height, len), material);
+		box.position.set((ax + bx) / 2, yCenter, (z0 + z1) / 2);
+		box.rotation.y = Math.atan2(dx, dz);
+		group.add(box);
+	};
+
+	if (!doored) {
+		segment(innerZ, outerZ, wallHeight, wallHeight / 2, mat);
+		return group;
 	}
-	const backLen = backEnd - doorBack;
-	if (backLen > 0.02) {
-		const seg = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, wallHeight, backLen), mat);
-		seg.position.set(x, wallHeight / 2, doorBack + backLen / 2);
-		group.add(seg);
-	}
+
+	const doorStart = connectorDoorZ - connectorDoorHalfWidth;
+	const doorEnd = connectorDoorZ + connectorDoorHalfWidth;
+	segment(innerZ, doorStart, wallHeight, wallHeight / 2, mat);
+	segment(doorEnd, outerZ, wallHeight, wallHeight / 2, mat);
 	const headerH = wallHeight - connectorDoorHeight;
-	const header = new THREE.Mesh(
-		new THREE.BoxGeometry(wallThickness, headerH, connectorDoorHalfWidth * 2),
-		mat
-	);
-	header.position.set(x, connectorDoorHeight + headerH / 2, connectorDoorZ);
-	group.add(header);
+	segment(doorStart, doorEnd, headerH, connectorDoorHeight + headerH / 2, mat);
 
-	// Brass jambs + lintel framing the opening.
 	const brass = new THREE.MeshStandardMaterial({
 		color: 0xc79b43,
 		emissive: 0x2a1c06,
@@ -3594,51 +3655,56 @@ function createSideWallWithDoorway(side, doorwayInfo = null) {
 		roughness: 0.32,
 		metalness: 0.5,
 	});
-	const inset = side === 'left' ? 0.16 : -0.16;
-	for (const dzSign of [-1, 1]) {
-		const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.12, connectorDoorHeight, 0.14), brass);
-		jamb.position.set(x + inset, connectorDoorHeight / 2, connectorDoorZ + dzSign * connectorDoorHalfWidth);
+	segment(doorStart, doorEnd, 0.14, connectorDoorHeight, brass, 0.16); // lintel
+	segment(doorStart, doorEnd, 0.05, 0.025, brass, wallThickness + 0.12); // threshold
+	for (const z of [doorStart, doorEnd]) {
+		const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.16, connectorDoorHeight, 0.14), brass);
+		jamb.position.set(xAt(z), connectorDoorHeight / 2, z);
+		jamb.rotation.y = Math.atan2(xAt(doorEnd) - xAt(doorStart), doorEnd - doorStart);
 		group.add(jamb);
 	}
-	const lintel = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, connectorDoorHalfWidth * 2 + 0.2), brass);
-	lintel.position.set(x + inset, connectorDoorHeight, connectorDoorZ);
-	group.add(lintel);
 
-	// Brass threshold saddle inlaid in the floor across the opening.
-	const threshold = new THREE.Mesh(
-		new THREE.BoxGeometry(wallThickness + 0.12, 0.05, connectorDoorHalfWidth * 2),
-		brass
+	// Inward normal of this (left) wall points toward the room interior (+x),
+	// tilted 22.5deg; the far face points the opposite way into the neighbour.
+	const inwardRot = getRotationForNormal(
+		new THREE.Vector3(roomDepth, 0, backHalfWidth - innerHalfWidth).normalize()
 	);
-	threshold.position.set(x, 0.025, connectorDoorZ);
-	group.add(threshold);
-
-	if (doorwayInfo) {
-		group.add(createDoorwayDirectionSign(side, doorwayInfo));
+	const signY = connectorDoorHeight + 0.62;
+	const cx = xAt(connectorDoorZ);
+	if (nearInfo) {
+		group.add(createSpokeDoorSign(nearInfo, cx, connectorDoorZ, signY, inwardRot));
 	}
+	if (farInfo) {
+		group.add(createSpokeDoorSign(farInfo, cx, connectorDoorZ, signY, inwardRot + Math.PI));
+	}
+
+	// Record the doorway's world midpoint for collision/verification.
+	const world = new THREE.Vector3(cx, 0, connectorDoorZ)
+		.applyEuler(new THREE.Euler(0, getRotationForNormal(side.normal), 0))
+		.add(side.center);
+	galleryDoorways.push({ x: world.x, z: world.z });
 	return group;
 }
 
-// Wayfinding plaque above a side doorway, facing into the room, naming the
-// gallery beyond and whether it lies earlier or later in time.
-function createDoorwayDirectionSign(side, info) {
+// Directional plaque on a doorway face, naming the gallery beyond and whether
+// it lies earlier/later in time. Mounted flush on the tilted spoke.
+function createSpokeDoorSign(info, x, z, y, facingRotation) {
 	const group = new THREE.Group();
-	const inward = side === 'left' ? 1 : -1;
-	const wallInner = (side === 'left' ? -roomWidth / 2 : roomWidth / 2) + inward * (wallThickness / 2);
-	const y = connectorDoorHeight + 0.62;
-
+	const n = new THREE.Vector3(Math.sin(facingRotation), 0, Math.cos(facingRotation));
 	const frame = new THREE.Mesh(
-		new THREE.BoxGeometry(0.05, 0.74, 1.58),
+		new THREE.BoxGeometry(1.58, 0.74, 0.05),
 		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
 	);
-	frame.position.set(wallInner + inward * 0.025, y, connectorDoorZ);
+	frame.position.set(x + n.x * 0.03, y, z + n.z * 0.03);
+	frame.rotation.y = facingRotation;
 	group.add(frame);
 
 	const board = new THREE.Mesh(
 		new THREE.PlaneGeometry(1.46, 0.62),
 		new THREE.MeshBasicMaterial({ map: createDoorwaySignTexture(info), transparent: true })
 	);
-	board.position.set(wallInner + inward * 0.075, y, connectorDoorZ);
-	board.rotation.y = inward * (Math.PI / 2);
+	board.position.set(x + n.x * 0.07, y, z + n.z * 0.07);
+	board.rotation.y = facingRotation;
 	group.add(board);
 	return group;
 }
@@ -3675,112 +3741,6 @@ function createDoorwaySignTexture(info) {
 	return texture;
 }
 
-function createGalleryConnectors() {
-	const group = new THREE.Group();
-	for (const { a, b } of galleryConnections) {
-		group.add(createGalleryConnector(a, b));
-	}
-	return group;
-}
-
-function sideDoorwayWorld(room, neighbor) {
-	const onRight =
-		(neighbor.center.x - room.center.x) * room.tangent.x +
-			(neighbor.center.z - room.center.z) * room.tangent.z >
-		0;
-	const lx = onRight ? roomWidth / 2 : -roomWidth / 2;
-	return new THREE.Vector3(
-		room.center.x + room.tangent.x * lx + room.normal.x * connectorDoorZ,
-		0,
-		room.center.z + room.tangent.z * lx + room.normal.z * connectorDoorZ
-	);
-}
-
-function createGalleryConnector(a, b) {
-	const group = new THREE.Group();
-	const doorA = sideDoorwayWorld(a, b);
-	const doorB = sideDoorwayWorld(b, a);
-	const mx = (doorA.x + doorB.x) / 2;
-	const mz = (doorA.z + doorB.z) / 2;
-	const dx = doorB.x - doorA.x;
-	const dz = doorB.z - doorA.z;
-	const gap = Math.hypot(dx, dz);
-	const dir = Math.atan2(dx, dz);
-	const halfW = connectorDoorHalfWidth + 0.04;
-	const height = connectorDoorHeight + 0.18;
-	const length = gap + 1.0; // embed the open ends into both room walls
-
-	const inner = new THREE.Group();
-	inner.position.set(mx, 0, mz);
-	inner.rotation.y = dir;
-	group.add(inner);
-
-	const floor = new THREE.Mesh(
-		new THREE.PlaneGeometry(halfW * 2, length),
-		createMuseumMaterial('roomFloor', {
-			repeatX: (halfW * 2) / floorTileSpan,
-			repeatY: length / floorTileSpan,
-			roughness: 0.26,
-			metalness: 0.3,
-		})
-	);
-	floor.rotation.x = -Math.PI / 2;
-	floor.position.y = 0.02;
-	inner.add(floor);
-
-	const runner = new THREE.Mesh(
-		new THREE.PlaneGeometry(halfW * 1.3, length - 0.3),
-		new THREE.MeshBasicMaterial({ color: a.color || 0xffd166, transparent: true, opacity: 0.5, depthWrite: false })
-	);
-	runner.rotation.x = -Math.PI / 2;
-	runner.position.y = 0.05;
-	inner.add(runner);
-
-	const ceiling = new THREE.Mesh(
-		new THREE.PlaneGeometry(halfW * 2 + wallThickness * 2, length),
-		new THREE.MeshStandardMaterial({ color: 0x18223a, roughness: 0.6, metalness: 0.16, side: THREE.DoubleSide })
-	);
-	ceiling.rotation.x = Math.PI / 2;
-	ceiling.position.y = height;
-	inner.add(ceiling);
-
-	const wallMat = createRoomWallMaterial(length);
-	for (const sx of [-1, 1]) {
-		const wall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, height, length), wallMat);
-		wall.position.set(sx * (halfW + wallThickness / 2), height / 2, 0);
-		inner.add(wall);
-	}
-
-	const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.1, 14, 10), new THREE.MeshBasicMaterial({ color: 0xffefb4 }));
-	bulb.position.set(0, height - 0.22, 0);
-	inner.add(bulb);
-	const lamp = new THREE.PointLight(0xffe6b0, 0.85, 7);
-	lamp.position.set(0, height - 0.35, 0);
-	registerAnimation(lamp, (object, elapsed) => {
-		object.intensity = 0.72 + Math.sin(elapsed * 1.5) * 0.08;
-	});
-	inner.add(lamp);
-
-	// "Web of the time" poster on a corridor side wall, for the later era.
-	const laterEra = eras.indexOf(a.era) >= eras.indexOf(b.era) ? a.era : b.era;
-	const poster = new THREE.Mesh(
-		new THREE.PlaneGeometry(1.04, 1.36),
-		new THREE.MeshBasicMaterial({ map: createWebEraPosterTexture(laterEra), side: THREE.DoubleSide })
-	);
-	poster.position.set(-(halfW - 0.02), 2.0, 0);
-	poster.rotation.y = Math.PI / 2;
-	inner.add(poster);
-	const posterFrame = new THREE.Mesh(
-		new THREE.BoxGeometry(0.06, 1.5, 1.18),
-		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.46 })
-	);
-	posterFrame.position.set(-(halfW + 0.01), 2.0, 0);
-	inner.add(posterFrame);
-
-	connectorRegions.push({ mx, mz, dir, halfW, length });
-	return group;
-}
-
 function createRoomWallSegment(side, length, tangentOffset) {
 	const isWidthWall = side === 'front' || side === 'back';
 	const wall = new THREE.Mesh(
@@ -3810,7 +3770,7 @@ function createFloorTrim(side, color) {
 	const isWidthTrim = side === 'front' || side === 'back';
 	const trim = new THREE.Mesh(
 		new THREE.BoxGeometry(
-			isWidthTrim ? roomWidth : 0.08,
+			isWidthTrim ? (side === 'back' ? backWallWidth : roomWidth) : 0.08,
 			0.04,
 			isWidthTrim ? 0.08 : roomDepth
 		),
@@ -3997,51 +3957,46 @@ function createRoomMuseumArchitecture(room) {
 		roughness: 0.68,
 		metalness: 0.03,
 	});
-	['back', 'left', 'right'].forEach((side) => {
-		group.add(createWallRail(side, 0.72, marble, 0.12));
-		group.add(createWallRail(side, 3.04, brass, 0.045));
-		group.add(createWallRail(side, wallHeight - 0.58, brass, 0.12));
-	});
-	group.add(createRoomPilasterGrid(room.color, marble, brass));
+	// Rails run along the wide back wall; the side walls are broken by the
+	// shared doorway, so they stay clean apart from sconces.
+	group.add(createWallRail('back', 0.72, marble, 0.12));
+	group.add(createWallRail('back', 3.04, brass, 0.045));
+	group.add(createWallRail('back', wallHeight - 0.58, brass, 0.12));
+	group.add(createRoomPilasterGrid(marble, brass));
 	group.add(createRoomAccentWashes(room));
 	group.add(createRoomRopeBarriers(room.color));
 	group.add(createRoomTrackLighting(room.color));
 	for (const side of ['left', 'right']) {
 		for (const z of [-2.8, 2.35]) {
 			const sconce = createWallSconce(room.color);
-			sconce.position.copy(getLocalWallPosition(side, z));
-			sconce.position.y = 3.85;
-			sconce.position.x += side === 'left' ? 0.09 : -0.09;
-			sconce.rotation.y = side === 'left' ? Math.PI / 2 : -Math.PI / 2;
+			placeOnSideWall(sconce, side, z, 3.85, 0.06);
 			group.add(sconce);
 		}
 	}
 	return group;
 }
 
+// Positions an object flush on a room's angled (22.5deg) side wall in room-local
+// coords: x follows the wall at z, rotated to face the room interior.
+function placeOnSideWall(object, side, z, y, inset = 0) {
+	const halfW = sideHalfWidthAtZ(z);
+	const cos = Math.cos(wedgeHalfAngle);
+	const sin = Math.sin(wedgeHalfAngle);
+	const nx = side === 'left' ? cos : -cos; // inward normal (toward interior)
+	object.position.set((side === 'left' ? -halfW : halfW) + nx * inset, y, z + sin * inset);
+	object.rotation.y = Math.atan2(nx, sin);
+	return object;
+}
+
 function createRoomAccentWashes(room) {
 	const group = new THREE.Group();
 	const washSpecs = [
 		{
-			width: roomWidth - 2.4,
+			width: backWallWidth - 2.4,
 			height: 2.65,
 			position: [0, 2.48, roomDepth / 2 - wallThickness / 2 - 0.035],
 			rotationY: Math.PI,
 			opacity: 0.1,
-		},
-		{
-			width: roomDepth - 3.2,
-			height: 1.9,
-			position: [-roomWidth / 2 + wallThickness / 2 + 0.035, 2.2, 0.28],
-			rotationY: Math.PI / 2,
-			opacity: 0.075,
-		},
-		{
-			width: roomDepth - 3.2,
-			height: 1.9,
-			position: [roomWidth / 2 - wallThickness / 2 - 0.035, 2.2, 0.28],
-			rotationY: -Math.PI / 2,
-			opacity: 0.075,
 		},
 	];
 
@@ -4067,24 +4022,15 @@ function createRoomAccentWashes(room) {
 
 function createRoomRopeBarriers(color) {
 	const group = new THREE.Group();
+	// A single rope line guarding the wide back wall; side walls are left open
+	// (they carry the shared doorways).
+	const ropeZ = roomDepth / 2 - 2.35;
 	group.add(createMuseumRopeLine([
-		{ x: -roomWidth / 2 + 1.65, z: roomDepth / 2 - 2.35 },
-		{ x: -2.1, z: roomDepth / 2 - 2.35 },
-		{ x: 0, z: roomDepth / 2 - 2.35 },
-		{ x: 2.1, z: roomDepth / 2 - 2.35 },
-		{ x: roomWidth / 2 - 1.65, z: roomDepth / 2 - 2.35 },
-	], color));
-	group.add(createMuseumRopeLine([
-		{ x: -roomWidth / 2 + 1.05, z: -2.62 },
-		{ x: -roomWidth / 2 + 1.05, z: -0.5 },
-		{ x: -roomWidth / 2 + 1.05, z: 1.62 },
-		{ x: -roomWidth / 2 + 1.05, z: 3.72 },
-	], color));
-	group.add(createMuseumRopeLine([
-		{ x: roomWidth / 2 - 1.05, z: -2.62 },
-		{ x: roomWidth / 2 - 1.05, z: -0.5 },
-		{ x: roomWidth / 2 - 1.05, z: 1.62 },
-		{ x: roomWidth / 2 - 1.05, z: 3.72 },
+		{ x: -backHalfWidth + 1.9, z: ropeZ },
+		{ x: -backHalfWidth / 2, z: ropeZ },
+		{ x: 0, z: ropeZ },
+		{ x: backHalfWidth / 2, z: ropeZ },
+		{ x: backHalfWidth - 1.9, z: ropeZ },
 	], color));
 	return group;
 }
@@ -4293,42 +4239,11 @@ function createRoomTrackLighting(color) {
 	return group;
 }
 
-function createRoomPilasterGrid(color, marbleMaterial, brassMaterial) {
+function createRoomPilasterGrid(marbleMaterial, brassMaterial) {
 	const group = new THREE.Group();
-	const shadowMaterial = new THREE.MeshStandardMaterial({
-		color: 0xcfc1a6,
-		roughness: 0.76,
-		metalness: 0.02,
-	});
-	const glowMaterial = new THREE.MeshBasicMaterial({
-		color,
-		transparent: true,
-		opacity: 0.2,
-		depthWrite: false,
-	});
-	// Side-wall pilasters sit only in the front and back corners; the
-	// middle of each side wall is reserved for the framed exhibits, so no
-	// pilaster ever crosses a picture.
-	for (const side of ['left', 'right']) {
-		const x = side === 'left'
-			? -roomWidth / 2 + wallThickness / 2 + 0.035
-			: roomWidth / 2 - wallThickness / 2 - 0.035;
-		for (const z of [-roomDepth / 2 + 0.62, roomDepth / 2 - 0.62]) {
-			const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.16, wallHeight - 0.78, 0.2), marbleMaterial);
-			shaft.position.set(x, wallHeight / 2 + 0.08, z);
-			group.add(shaft);
-			const innerLine = new THREE.Mesh(new THREE.BoxGeometry(0.034, wallHeight - 1.4, 0.22), shadowMaterial);
-			innerLine.position.set(x + (side === 'left' ? 0.07 : -0.07), wallHeight / 2 + 0.16, z);
-			group.add(innerLine);
-			const cap = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.12, 0.28), brassMaterial);
-			cap.position.set(x + (side === 'left' ? 0.04 : -0.04), wallHeight - 0.44, z);
-			group.add(cap);
-			const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.5, 0.24), glowMaterial.clone());
-			lamp.position.set(x + (side === 'left' ? 0.09 : -0.09), 4.9, z);
-			group.add(lamp);
-		}
-	}
-	for (const x of [-roomWidth / 2 + 0.78, roomWidth / 2 - 0.78]) {
+	// Pilasters flank the wide back wall; the angled side walls (broken by the
+	// shared doorway) are left clean for exhibits.
+	for (const x of [-backHalfWidth + 0.78, backHalfWidth - 0.78]) {
 		const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.22, wallHeight - 1.12, 0.12), marbleMaterial);
 		shaft.position.set(x, wallHeight / 2 + 0.02, roomDepth / 2 - wallThickness / 2 - 0.035);
 		group.add(shaft);
@@ -4337,7 +4252,7 @@ function createRoomPilasterGrid(color, marbleMaterial, brassMaterial) {
 		group.add(cap);
 	}
 	const upperLedger = new THREE.Mesh(
-		new THREE.BoxGeometry(roomWidth - 2.1, 0.07, 0.12),
+		new THREE.BoxGeometry(backWallWidth - 2.1, 0.07, 0.12),
 		brassMaterial
 	);
 	upperLedger.position.set(0, wallHeight - 0.94, roomDepth / 2 - wallThickness / 2 - 0.05);
@@ -4349,7 +4264,7 @@ function createWallRail(side, y, material, thickness) {
 	const isWidthWall = side === 'front' || side === 'back';
 	const rail = new THREE.Mesh(
 		new THREE.BoxGeometry(
-			isWidthWall ? roomWidth : thickness,
+			isWidthWall ? (side === 'back' ? backWallWidth : roomWidth) : thickness,
 			thickness,
 			isWidthWall ? thickness : roomDepth
 		),
@@ -5861,25 +5776,22 @@ function addEraVignette(group, room, roomIndex) {
 	addRoomVignetteLights(group, color);
 }
 
-// A framed "what the web looked like then" poster — a period-styled
-// browser mock-up — on a free front side-wall bay near the entrance. Skipped
-// when both side walls have connecting doorways (the corridors carry posters).
+// A framed "what the web looked like then" poster — a period-styled browser
+// mock-up — on the solid side wall of a mural-adjacent gallery (the only rooms
+// with a side wall free of a shared doorway), in the front segment clear of the
+// back-segment exhibits.
 function createWebEraPoster(room) {
 	const group = new THREE.Group();
-	// Prefer a side wall without a connecting doorway.
-	let sideSign;
+	let side;
 	if (!room.connectLeft) {
-		sideSign = -1;
+		side = 'left';
 	} else if (!room.connectRight) {
-		sideSign = 1;
+		side = 'right';
 	} else {
 		return group;
 	}
 	const posterW = 1.24;
 	const posterH = 1.62;
-	const x = sideSign * (roomWidth / 2 - wallThickness / 2 - 0.06);
-	const z = -roomDepth / 2 + 1.6;
-	const facing = sideSign === -1 ? Math.PI / 2 : -Math.PI / 2;
 	const frameMat = new THREE.MeshStandardMaterial({
 		color: 0xc79b43,
 		emissive: 0x2a1c06,
@@ -5887,17 +5799,18 @@ function createWebEraPoster(room) {
 		roughness: 0.34,
 		metalness: 0.46,
 	});
+	const inner = new THREE.Group();
 	const frame = new THREE.Mesh(new THREE.BoxGeometry(posterW + 0.16, posterH + 0.16, 0.08), frameMat);
-	frame.position.set(x, 2.35, z);
-	frame.rotation.y = facing;
-	group.add(frame);
+	frame.position.z = -0.02;
+	inner.add(frame);
 	const art = new THREE.Mesh(
 		new THREE.PlaneGeometry(posterW, posterH),
 		new THREE.MeshBasicMaterial({ map: createWebEraPosterTexture(room.era), side: THREE.DoubleSide })
 	);
-	art.position.set(x - sideSign * 0.05, 2.35, z);
-	art.rotation.y = facing;
-	group.add(art);
+	art.position.z = 0.05;
+	inner.add(art);
+	placeOnSideWall(inner, side, -2.5, 2.35, 0.06);
+	group.add(inner);
 	return group;
 }
 
@@ -8672,22 +8585,20 @@ function getLocalSlotPosition(side, slotIndex, slotCount) {
 		const value = getSlotAxisValue(
 			slotIndex,
 			slotCount,
-			-roomWidth / 2 + exhibitOuterWidth / 2 + exhibitWallMargin,
-			roomWidth / 2 - exhibitOuterWidth / 2 - exhibitWallMargin
+			-backHalfWidth + exhibitOuterWidth / 2 + exhibitWallMargin,
+			backHalfWidth - exhibitOuterWidth / 2 - exhibitWallMargin
 		);
 		return new THREE.Vector3(value, 0, roomDepth / 2);
 	}
+	// Side walls are angled radial spokes: x follows the wall at this z.
 	const value = getSlotAxisValue(
 		slotIndex,
 		slotCount,
 		sideExhibitMinZ,
 		sideExhibitMaxZ
 	);
-	return new THREE.Vector3(
-		side === 'left' ? -roomWidth / 2 : roomWidth / 2,
-		0,
-		value
-	);
+	const halfW = sideHalfWidthAtZ(value);
+	return new THREE.Vector3(side === 'left' ? -halfW : halfW, 0, value);
 }
 
 function getSlotAxisValue(slotIndex, slotCount, min, max) {
@@ -8715,38 +8626,45 @@ function getSlotNormal(room, side) {
 	if (side === 'back') {
 		return room.normal.clone().multiplyScalar(-1);
 	}
-	return side === 'left'
-		? room.tangent.clone()
-		: room.tangent.clone().multiplyScalar(-1);
+	// Inward normal of the 22.5deg-tilted side wall: -+cos*tangent + sin*normal.
+	const cos = Math.cos(wedgeHalfAngle);
+	const sin = Math.sin(wedgeHalfAngle);
+	const tx = side === 'left' ? cos : -cos;
+	return room.tangent
+		.clone()
+		.multiplyScalar(tx)
+		.add(room.normal.clone().multiplyScalar(sin))
+		.normalize();
 }
 
 function getSlotTangent(room, side) {
-	return side === 'back' ? room.tangent.clone() : room.normal.clone();
+	if (side === 'back') {
+		return room.tangent.clone();
+	}
+	// Along-wall direction (inner -> back) of the tilted side wall.
+	const cos = Math.cos(wedgeHalfAngle);
+	const sin = Math.sin(wedgeHalfAngle);
+	const tx = side === 'left' ? -sin : sin;
+	return room.tangent
+		.clone()
+		.multiplyScalar(tx)
+		.add(room.normal.clone().multiplyScalar(cos))
+		.normalize();
 }
 
 function distributeWallCounts(count) {
-	if (count === 1) {
-		return [0, 1, 0];
-	}
-	if (count === 2) {
-		return [1, 0, 1];
-	}
-	if (count === 3) {
-		return [1, 1, 1];
-	}
-	if (count === 4) {
-		return [1, 2, 1];
-	}
-	if (count === 5) {
-		return [2, 1, 2];
-	}
-	if (count === 6) {
-		return [2, 2, 2];
-	}
-	if (count === 7) {
-		return [2, 3, 2];
-	}
-	return [3, count - 6, 3];
+	// [right, back, left]. The wide outer wall carries the bulk; each side wall
+	// holds at most two, in the clear segment behind its doorway.
+	const table = {
+		1: [0, 1, 0],
+		2: [0, 2, 0],
+		3: [1, 1, 1],
+		4: [1, 2, 1],
+		5: [1, 3, 1],
+		6: [2, 2, 2],
+		7: [2, 3, 2],
+	};
+	return table[count] || [2, count - 4, 2];
 }
 
 function getEraReleaseGroups() {
@@ -8818,13 +8736,17 @@ function getMuseumFootprintPoints() {
 	const points = hubSides.map((side) =>
 		side.normal.clone().multiplyScalar(hubCircumradius)
 	);
+	const halfDepth = roomDepth / 2;
 	for (const room of roomSides) {
-		const halfWidth = roomWidth / 2;
-		const halfDepth = roomDepth / 2;
-		for (const x of [-halfWidth, halfWidth]) {
-			for (const z of [-halfDepth, halfDepth]) {
-				points.push(roomLocalToWorld(room, new THREE.Vector3(x, 0, z)));
-			}
+		// Four trapezoid corners: narrow inner edge, wide outer (back) edge.
+		const corners = [
+			[-innerHalfWidth, -halfDepth],
+			[innerHalfWidth, -halfDepth],
+			[backHalfWidth, halfDepth],
+			[-backHalfWidth, halfDepth],
+		];
+		for (const [x, z] of corners) {
+			points.push(roomLocalToWorld(room, new THREE.Vector3(x, 0, z)));
 		}
 	}
 	return points;
@@ -9306,7 +9228,10 @@ function initDebugApi() {
 			connectLeft: !!side.connectLeft,
 			connectRight: !!side.connectRight,
 		})),
-		connectorRegions,
+		roomDepth,
+		innerHalfWidth,
+		backHalfWidth,
+		doorways: galleryDoorways.map((d) => ({ x: d.x, z: d.z })),
 		connections: galleryConnections.map((p) => [p.a.era, p.b.era]),
 		isInside: (x, z) => isPointInsideClosedMuseum(new THREE.Vector3(x, 1.6, z)),
 		setCameraView(position, target) {
@@ -9901,29 +9826,30 @@ function isPointInsideClosedMuseum(position) {
 	return (
 		isPointInsideHub(position) ||
 		isPointInsideMuralPortals(position) ||
-		isPointInsideConnector(position) ||
 		movementZones.some(
 			(room) =>
 				isPointInsideRoom(position, room) ||
-				isPointInsideDoorway(position, room)
+				isPointInsideDoorway(position, room) ||
+				isPointInsideSideDoorway(position, room)
 		)
 	);
 }
 
-function isPointInsideConnector(position) {
-	for (const region of connectorRegions) {
-		const dx = position.x - region.mx;
-		const dz = position.z - region.mz;
-		const cos = Math.cos(region.dir);
-		const sin = Math.sin(region.dir);
-		const localX = dx * cos - dz * sin;
-		const localZ = dx * sin + dz * cos;
-		if (
-			Math.abs(localX) <= region.halfW + 0.1 &&
-			Math.abs(localZ) <= region.length / 2 + 0.6
-		) {
-			return true;
-		}
+// A point passing through a shared-wall doorway into the neighbour. The shared
+// wall sits at local x = +-sideHalfWidthAtZ(z); the opening is the z-band at
+// connectorDoorZ on whichever side connects.
+function isPointInsideSideDoorway(position, room) {
+	const local = getRoomLocalPoint(position, room);
+	if (Math.abs(local.z - connectorDoorZ) > connectorDoorHalfWidth) {
+		return false;
+	}
+	const halfW = sideHalfWidthAtZ(local.z);
+	const slack = 0.8; // straddle the shared wall into the neighbour
+	if (room.connectRight && Math.abs(local.x - halfW) <= slack) {
+		return true;
+	}
+	if (room.connectLeft && Math.abs(local.x + halfW) <= slack) {
+		return true;
 	}
 	return false;
 }
@@ -9952,8 +9878,9 @@ function isPointInsideRoom(position, room) {
 	const local = getRoomLocalPoint(position, room);
 	const wallPadding = 0.62;
 	return (
-		Math.abs(local.x) <= roomWidth / 2 - wallPadding &&
-		Math.abs(local.z) <= roomDepth / 2 - wallPadding
+		local.z >= -roomDepth / 2 + wallPadding &&
+		local.z <= roomDepth / 2 - wallPadding &&
+		Math.abs(local.x) <= sideHalfWidthAtZ(local.z) - wallPadding
 	);
 }
 
