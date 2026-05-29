@@ -127,11 +127,11 @@ const openSourceProjectItems = [
 	{ title: 'PLAYGROUND', note: 'wp in browser', color: '#50d890' },
 ];
 
-const hubApothem = 15.5;
+const hubApothem = 16.5;
 const hubCircumradius = hubApothem / Math.cos(Math.PI / 8);
 const hubSideLength = 2 * hubApothem * Math.tan(Math.PI / 8);
 const roomWidth = hubSideLength;
-const roomDepth = 13;
+const roomDepth = 15.5;
 const wallHeight = 7.35;
 const wallThickness = 0.26;
 const roomDoorHalfWidth = 2.9;
