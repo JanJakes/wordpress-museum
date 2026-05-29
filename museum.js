@@ -4706,33 +4706,39 @@ function addUltimateAtriumFeature(group, color, secondary) {
 	engineRoom.scale.setScalar(0.68);
 	addPlaced(group, engineRoom, 11.35, 5.52, -1.1);
 
-	// Large potted trees soften the periphery, placed symmetrically.
-	addPlaced(group, createLoadedModel('treeParkLarge', {
-		targetHeight: 1.9,
-		fallback: 'plant',
-	}), -9.8, 9.3, 0.3);
-	addPlaced(group, createLoadedModel('treeParkLarge', {
-		targetHeight: 1.7,
-		fallback: 'plant',
-	}), -10.25, -1.35, 0.3);
-	addPlaced(group, createLoadedModel('treeParkLarge', {
-		targetHeight: 1.8,
-		fallback: 'plant',
-	}), 10.25, -1.35, -0.3);
+	// Tall potted trees stand symmetrically at the left/right of the rotunda.
+	for (const treeX of [-10.6, 10.6]) {
+		addPlaced(group, createPlantedTree(2.7), treeX, 1.6, 0);
+	}
 
-	// A small retro lounge near the entrance/Playground desk.
-	addPlaced(group, createLoadedModel('televisionVintage', {
-		targetHeight: 0.82,
-		fallback: 'screen',
-	}), -7.35, -3.35, 0.48);
-	addPlaced(group, createLoadedModel('loungeDesignChair', {
-		targetHeight: 0.68,
-		fallback: 'bench',
-	}), 5.85, -4.05, -0.34);
-	addPlaced(group, createLoadedModel('tableCoffee', {
-		targetHeight: 0.34,
-		fallback: 'block',
-	}), 4.7, -3.25, -0.12);
+	// A tidy visitor lounge nook on the right-front: two chairs angled
+	// around a coffee table with a small plant.
+	const loungeX = 8.2;
+	const loungeZ = -3.4;
+	addPlaced(group, createLoadedModel('tableCoffee', { targetHeight: 0.4, fallback: 'block' }), loungeX, loungeZ, 0);
+	addPlaced(group, createLoadedModel('loungeDesignChair', { targetHeight: 0.82, fallback: 'bench' }), loungeX - 1.05, loungeZ + 0.2, Math.PI / 2 + 0.3);
+	addPlaced(group, createLoadedModel('loungeDesignChair', { targetHeight: 0.82, fallback: 'bench' }), loungeX + 1.05, loungeZ + 0.2, -Math.PI / 2 - 0.3);
+	addPlaced(group, createPlant(secondary, 0.9), loungeX, loungeZ - 1.5, 0);
+}
+
+function createPlantedTree(targetHeight) {
+	const group = new THREE.Group();
+	const planter = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.46, 0.54, 0.46, 20),
+		new THREE.MeshStandardMaterial({ color: 0xe9e0cb, roughness: 0.72 })
+	);
+	planter.position.y = 0.23;
+	group.add(planter);
+	const rim = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.5, 0.5, 0.08, 20),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	rim.position.y = 0.45;
+	group.add(rim);
+	const tree = createLoadedModel('treeParkLarge', { targetHeight, fallback: 'plant' });
+	tree.position.y = 0.42;
+	group.add(tree);
+	return group;
 }
 
 function createOpenSourceEngineRoom(color, secondary) {
@@ -5144,15 +5150,14 @@ function createVisitorCounterTexture() {
 }
 
 function addAtriumBenches(group) {
-	const color = activeVariant.eraColors[2];
-	addPlaced(group, createLoadedModel('detailBench', {
-		targetHeight: 0.58,
-		fallback: 'bench',
-	}), -5.05, 13.95, 0);
-	addPlaced(group, createLoadedModel('detailBench', {
-		targetHeight: 0.58,
-		fallback: 'bench',
-	}), 5.05, 13.95, 0);
+	// Proper-scale benches flanking the entrance/Playground desk, facing the
+	// mural so visitors can sit and take in the rotunda.
+	for (const benchX of [-3.6, 3.6]) {
+		addPlaced(group, createLoadedModel('detailBench', {
+			targetHeight: 0.86,
+			fallback: 'bench',
+		}), benchX, -4.7, 0);
+	}
 }
 
 function createRoomDecor(room) {
