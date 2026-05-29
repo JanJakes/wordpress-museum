@@ -4853,29 +4853,27 @@ function createWapuuDocent(color, secondary) {
 }
 
 function createWapuu3D(options = {}) {
-	// Canonical Wapuu: a round yellow body with the WordPress logo on its
-	// belly, two orange fox ears, an orange tail, black eyes and a small
-	// accent bow-tie that picks up the room/era colour.
+	// Canonical Wapuu: a round, squat yellow body (wider at the bottom) with
+	// the WordPress logo on its belly, two broad orange ears, big black
+	// eyes, an orange tail and little yellow paws.
 	const height = options.height ?? 2;
 	const unit = height / 2.4;
-	const accent = options.accent ?? 0x2bb7ff;
 	const group = new THREE.Group();
 
-	const yellow = new THREE.MeshStandardMaterial({ color: 0xffce3b, roughness: 0.52, metalness: 0.03 });
-	const yellowShade = new THREE.MeshStandardMaterial({ color: 0xf2b417, roughness: 0.56 });
-	const orange = new THREE.MeshStandardMaterial({ color: 0xff8a2b, roughness: 0.48 });
-	const orangeShade = new THREE.MeshStandardMaterial({ color: 0xe9721a, roughness: 0.5 });
-	const black = new THREE.MeshStandardMaterial({ color: 0x191320, roughness: 0.34, metalness: 0.04 });
-	const white = new THREE.MeshStandardMaterial({ color: 0xfdfdf4, roughness: 0.3 });
-	const cheekMat = new THREE.MeshBasicMaterial({ color: 0xff9bb0, transparent: true, opacity: 0.6, depthWrite: false });
-	const accentMat = new THREE.MeshStandardMaterial({ color: accent, roughness: 0.4, metalness: 0.05 });
+	const yellow = new THREE.MeshStandardMaterial({ color: 0xffcf3d, roughness: 0.5, metalness: 0.03 });
+	const yellowShade = new THREE.MeshStandardMaterial({ color: 0xf0b518, roughness: 0.54 });
+	const orange = new THREE.MeshStandardMaterial({ color: 0xff8a2b, roughness: 0.47 });
+	const orangeShade = new THREE.MeshStandardMaterial({ color: 0xe8701a, roughness: 0.5 });
+	const black = new THREE.MeshStandardMaterial({ color: 0x14101a, roughness: 0.3, metalness: 0.05 });
+	const white = new THREE.MeshStandardMaterial({ color: 0xfdfdf4, roughness: 0.28 });
+	const cheekMat = new THREE.MeshBasicMaterial({ color: 0xff9bb0, transparent: true, opacity: 0.5, depthWrite: false });
 
 	// Feet sit on the ground and do not bob with the body.
 	const footGeom = new THREE.SphereGeometry(0.16, 22, 16);
 	for (const sx of [-1, 1]) {
 		const foot = new THREE.Mesh(footGeom, yellowShade);
-		foot.scale.set(0.74 * unit, 0.5 * unit, 1.15 * unit);
-		foot.position.set(sx * 0.2 * unit, 0.085 * unit, 0.16 * unit);
+		foot.scale.set(0.8 * unit, 0.5 * unit, 1.15 * unit);
+		foot.position.set(sx * 0.22 * unit, 0.085 * unit, 0.16 * unit);
 		group.add(foot);
 	}
 
@@ -4883,92 +4881,80 @@ function createWapuu3D(options = {}) {
 	const bob = new THREE.Group();
 	group.add(bob);
 
+	// Egg-shaped body: round head-blob over a wider belly.
 	const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 40, 30), yellow);
-	body.scale.set(1.0 * unit, 1.16 * unit, 0.95 * unit);
-	body.position.y = 0.64 * unit;
+	body.scale.set(1.06 * unit, 1.04 * unit, 1.0 * unit);
+	body.position.y = 0.66 * unit;
 	bob.add(body);
-	const belly = new THREE.Mesh(new THREE.SphereGeometry(0.46, 32, 24), yellow);
-	belly.scale.set(1.02 * unit, 0.82 * unit, 1.0 * unit);
-	belly.position.set(0, 0.42 * unit, 0.02 * unit);
+	const belly = new THREE.Mesh(new THREE.SphereGeometry(0.5, 36, 26), yellow);
+	belly.scale.set(1.16 * unit, 0.82 * unit, 1.08 * unit);
+	belly.position.set(0, 0.4 * unit, 0.0 * unit);
 	bob.add(belly);
 
-	// WordPress logo emblem on the belly.
+	// WordPress logo emblem, prominent on the lower belly.
 	const emblem = new THREE.Mesh(
-		new THREE.CircleGeometry(0.21 * unit, 48),
+		new THREE.CircleGeometry(0.25 * unit, 48),
 		new THREE.MeshBasicMaterial({ map: createWapuuWordmarkTexture(), transparent: true })
 	);
-	emblem.position.set(0, 0.5 * unit, 0.475 * unit);
+	emblem.position.set(0, 0.46 * unit, 0.52 * unit);
 	bob.add(emblem);
 
-	// Fox ears: flattened orange cones tilted outward, with a lighter inner.
-	const earGeom = new THREE.ConeGeometry(0.2, 0.56, 20);
-	const earInnerGeom = new THREE.ConeGeometry(0.11, 0.34, 16);
+	// Two broad orange ears at the top corners, pointing up and out.
+	const earGeom = new THREE.ConeGeometry(0.26, 0.5, 22);
+	const earInnerGeom = new THREE.ConeGeometry(0.14, 0.3, 18);
 	const ears = [];
 	for (const sx of [-1, 1]) {
 		const ear = new THREE.Mesh(earGeom, orange);
-		ear.scale.set(unit, unit, 0.42 * unit);
-		ear.position.set(sx * 0.28 * unit, 1.18 * unit, -0.04 * unit);
-		ear.rotation.z = sx * -0.42;
-		ear.rotation.x = -0.16;
+		ear.scale.set(unit, unit, 0.38 * unit);
+		ear.position.set(sx * 0.34 * unit, 1.08 * unit, -0.02 * unit);
+		ear.rotation.z = sx * -0.5;
+		ear.rotation.x = -0.12;
 		bob.add(ear);
 		ears.push(ear);
 		const inner = new THREE.Mesh(earInnerGeom, orangeShade);
-		inner.scale.set(unit, unit, 0.42 * unit);
-		inner.position.set(sx * 0.28 * unit, 1.14 * unit, 0.03 * unit);
-		inner.rotation.z = sx * -0.42;
-		inner.rotation.x = -0.16;
+		inner.scale.set(unit, unit, 0.38 * unit);
+		inner.position.set(sx * 0.34 * unit, 1.04 * unit, 0.05 * unit);
+		inner.rotation.z = sx * -0.5;
+		inner.rotation.x = -0.12;
 		bob.add(inner);
 	}
 
-	// Eyes (tall black ovals) with highlights and a small nose.
-	const eyeGeom = new THREE.SphereGeometry(0.082, 20, 16);
+	// Big round black eyes with highlights, subtle cheeks, tiny nose.
+	const eyeGeom = new THREE.SphereGeometry(0.1, 22, 18);
 	for (const sx of [-1, 1]) {
 		const eye = new THREE.Mesh(eyeGeom, black);
-		eye.scale.set(0.8 * unit, 1.12 * unit, 0.62 * unit);
-		eye.position.set(sx * 0.165 * unit, 0.86 * unit, 0.44 * unit);
+		eye.scale.set(0.92 * unit, 1.12 * unit, 0.66 * unit);
+		eye.position.set(sx * 0.19 * unit, 0.82 * unit, 0.44 * unit);
 		bob.add(eye);
-		const hl = new THREE.Mesh(new THREE.SphereGeometry(0.028, 12, 10), white);
-		hl.position.set(sx * 0.165 * unit + 0.035 * unit, 0.91 * unit, 0.5 * unit);
+		const hl = new THREE.Mesh(new THREE.SphereGeometry(0.034, 12, 10), white);
+		hl.position.set(sx * 0.19 * unit + 0.04 * unit, 0.88 * unit, 0.5 * unit);
 		hl.scale.setScalar(unit);
 		bob.add(hl);
-		const cheek = new THREE.Mesh(new THREE.CircleGeometry(0.07 * unit, 20), cheekMat);
-		cheek.position.set(sx * 0.31 * unit, 0.74 * unit, 0.42 * unit);
-		cheek.rotation.y = sx * -0.5;
+		const cheek = new THREE.Mesh(new THREE.CircleGeometry(0.075 * unit, 20), cheekMat);
+		cheek.position.set(sx * 0.36 * unit, 0.68 * unit, 0.4 * unit);
+		cheek.rotation.y = sx * -0.55;
 		bob.add(cheek);
 	}
-	const nose = new THREE.Mesh(new THREE.SphereGeometry(0.04, 14, 12), black);
-	nose.scale.set(1.2 * unit, 0.85 * unit, unit);
-	nose.position.set(0, 0.75 * unit, 0.49 * unit);
+	const nose = new THREE.Mesh(new THREE.SphereGeometry(0.038, 14, 12), black);
+	nose.scale.set(1.3 * unit, 0.9 * unit, unit);
+	nose.position.set(0, 0.69 * unit, 0.52 * unit);
 	bob.add(nose);
 
-	// Accent bow-tie just under the chin.
-	const knot = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.09, 0.07), accentMat);
-	knot.scale.setScalar(unit);
-	knot.position.set(0, 0.66 * unit, 0.46 * unit);
-	bob.add(knot);
-	for (const sx of [-1, 1]) {
-		const wing = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.14, 16), accentMat);
-		wing.scale.set(unit, unit, 0.55 * unit);
-		wing.position.set(sx * 0.1 * unit, 0.66 * unit, 0.45 * unit);
-		wing.rotation.z = sx * Math.PI / 2;
-		bob.add(wing);
-	}
-
-	// Orange tail behind, with a curled tip.
-	const tail = new THREE.Mesh(new THREE.SphereGeometry(0.17, 18, 14), orange);
-	tail.scale.set(0.7 * unit, 0.95 * unit, 0.7 * unit);
-	tail.position.set(0.04 * unit, 0.4 * unit, -0.5 * unit);
+	// Orange tail with a curled tip.
+	const tail = new THREE.Mesh(new THREE.SphereGeometry(0.18, 18, 14), orange);
+	tail.scale.set(0.72 * unit, 0.95 * unit, 0.72 * unit);
+	tail.position.set(0.04 * unit, 0.36 * unit, -0.54 * unit);
 	bob.add(tail);
 	const tailTip = new THREE.Mesh(new THREE.SphereGeometry(0.1, 14, 12), orangeShade);
 	tailTip.scale.setScalar(unit);
-	tailTip.position.set(0.16 * unit, 0.56 * unit, -0.56 * unit);
+	tailTip.position.set(0.17 * unit, 0.54 * unit, -0.6 * unit);
 	bob.add(tailTip);
 
-	// Little yellow hands.
+	// Little yellow paws.
 	for (const sx of [-1, 1]) {
-		const hand = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 12), yellowShade);
-		hand.scale.set(unit, 1.1 * unit, unit);
-		hand.position.set(sx * 0.47 * unit, 0.44 * unit, 0.14 * unit);
+		const hand = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 12), yellowShade);
+		hand.scale.set(unit, 1.05 * unit, unit);
+		hand.position.set(sx * 0.5 * unit, 0.4 * unit, 0.12 * unit);
 		bob.add(hand);
 	}
 
@@ -4976,8 +4962,8 @@ function createWapuu3D(options = {}) {
 		registerAnimation(bob, (object, elapsed) => {
 			object.position.y = Math.sin(elapsed * 1.5) * 0.02 * unit;
 			object.rotation.z = Math.sin(elapsed * 0.8) * 0.02;
-			ears[0].rotation.z = -0.42 + Math.sin(elapsed * 1.9) * 0.08;
-			ears[1].rotation.z = 0.42 - Math.sin(elapsed * 1.9) * 0.08;
+			ears[0].rotation.z = -0.5 + Math.sin(elapsed * 1.9) * 0.08;
+			ears[1].rotation.z = 0.5 - Math.sin(elapsed * 1.9) * 0.08;
 		});
 	}
 	return group;
