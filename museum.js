@@ -5255,8 +5255,198 @@ function addEraVignette(group, room, roomIndex) {
 			const flyer = createFloorFlyer(fact, color);
 			addLocal(group, flyer, -1.7, -roomDepth / 2 + 2.1, 0.5 + roomIndex * 0.3);
 		}
+		group.add(createWebEraPoster(room));
 	}
 	addRoomVignetteLights(group, color);
+}
+
+// A framed "what the web looked like then" poster — a period-styled
+// browser mock-up — on each room's front side-wall bay near the entrance.
+function createWebEraPoster(room) {
+	const group = new THREE.Group();
+	const posterW = 1.24;
+	const posterH = 1.62;
+	const x = -roomWidth / 2 + wallThickness / 2 + 0.06;
+	const z = -roomDepth / 2 + 1.6;
+	const frameMat = new THREE.MeshStandardMaterial({
+		color: 0xc79b43,
+		emissive: 0x2a1c06,
+		emissiveIntensity: 0.08,
+		roughness: 0.34,
+		metalness: 0.46,
+	});
+	const frame = new THREE.Mesh(new THREE.BoxGeometry(posterW + 0.16, posterH + 0.16, 0.08), frameMat);
+	frame.position.set(x, 2.35, z);
+	frame.rotation.y = Math.PI / 2;
+	group.add(frame);
+	const art = new THREE.Mesh(
+		new THREE.PlaneGeometry(posterW, posterH),
+		new THREE.MeshBasicMaterial({ map: createWebEraPosterTexture(room.era), side: THREE.DoubleSide })
+	);
+	art.position.set(x + 0.05, 2.35, z);
+	art.rotation.y = Math.PI / 2;
+	group.add(art);
+	return group;
+}
+
+function createWebEraPosterTexture(era) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 540;
+	canvas.height = 680;
+	const ctx = canvas.getContext('2d');
+	const spec = {
+		'Blogging Roots': { year: '2004', heading: 'THE WEB IN 2004', chrome: 'ie', bg: '#5b7fb4', note: 'tables, visitor counters & “Web 1.5”' },
+		'Dashboard Foundations': { year: '2007', heading: 'THE WEB IN 2007', chrome: 'firefox', bg: 'web2', note: 'Web 2.0 — gloss, reflections & beta badges' },
+		'CMS Toolkit': { year: '2011', heading: 'THE WEB IN 2011', chrome: 'safari', bg: 'skeuo', note: 'skeuomorphism & the responsive turn' },
+		'Modern Admin': { year: '2014', heading: 'THE WEB IN 2014', chrome: 'chrome', bg: 'flat', note: 'flat design & bold colour' },
+		'API and Customizer': { year: '2016', heading: 'THE WEB IN 2016', chrome: 'chrome', bg: 'material', note: 'cards, Material & the mobile-first web' },
+		'Block Editor': { year: '2018', heading: 'THE WEB IN 2018', chrome: 'chrome', bg: 'minimal', note: 'big type, whitespace & block layouts' },
+		'Blocks Everywhere': { year: '2022', heading: 'THE WEB IN 2022', chrome: 'modern', bg: 'darkmode', note: 'system fonts, dark mode & full-site editing' },
+	}[era] || { year: '20XX', heading: 'THE WEB', chrome: 'chrome', bg: '#444', note: '' };
+
+	// Paper backing.
+	ctx.fillStyle = '#10131c';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#f4ead0';
+	ctx.fillRect(24, 24, canvas.width - 48, canvas.height - 48);
+
+	ctx.fillStyle = '#241a0c';
+	ctx.font = '900 38px Georgia, serif';
+	ctx.textAlign = 'center';
+	ctx.fillText(spec.heading, canvas.width / 2, 76);
+
+	// Browser window.
+	const bx = 48;
+	const by = 110;
+	const bw = canvas.width - 96;
+	const bh = 420;
+	drawBrowserChrome(ctx, bx, by, bw, bh, spec.chrome);
+	const cy = by + 46;
+	const ch = bh - 46;
+	drawEraPage(ctx, bx, cy, bw, ch, spec.bg);
+
+	ctx.fillStyle = '#3a2c14';
+	ctx.font = 'italic 24px Georgia, serif';
+	ctx.fillText(spec.note, canvas.width / 2, by + bh + 56);
+	ctx.fillStyle = '#9a7a3a';
+	ctx.font = '700 20px ui-monospace, Menlo, monospace';
+	ctx.fillText('webdesignmuseum.org', canvas.width / 2, canvas.height - 48);
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+function drawBrowserChrome(ctx, x, y, w, h, kind) {
+	const barH = 46;
+	// Window body.
+	ctx.fillStyle = '#dfe3ea';
+	ctx.fillRect(x, y, w, h);
+	// Title/tool bar.
+	ctx.fillStyle = kind === 'modern' || kind === 'chrome' ? '#2b2f36' : '#c7d0dc';
+	ctx.fillRect(x, y, w, barH);
+	if (kind === 'ie') {
+		ctx.fillStyle = '#1f50a8';
+		ctx.fillRect(x, y, w, barH);
+		ctx.fillStyle = '#fff';
+		ctx.font = '700 18px Tahoma, sans-serif';
+		ctx.textAlign = 'left';
+		ctx.fillText('Internet Explorer', x + 12, y + 28);
+	} else {
+		// Traffic dots / nav.
+		const dot = (cx, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(cx, y + barH / 2, 7, 0, Math.PI * 2); ctx.fill(); };
+		if (kind === 'safari' || kind === 'firefox') { dot(x + 18, '#ff5f57'); dot(x + 40, '#febc2e'); dot(x + 62, '#28c840'); }
+		// URL pill.
+		ctx.fillStyle = kind === 'modern' || kind === 'chrome' ? '#3c4250' : '#eef2f7';
+		const ux = x + 92;
+		ctx.fillRect(ux, y + 11, w - 110, 24);
+		ctx.fillStyle = kind === 'modern' || kind === 'chrome' ? '#aab3c2' : '#5a6472';
+		ctx.font = '15px ui-monospace, Menlo, monospace';
+		ctx.textAlign = 'left';
+		ctx.fillText('https://example.com', ux + 12, y + 28);
+	}
+	ctx.textAlign = 'center';
+}
+
+function drawEraPage(ctx, x, y, w, h, bg) {
+	ctx.save();
+	ctx.beginPath();
+	ctx.rect(x, y, w, h);
+	ctx.clip();
+	if (bg === 'web2') {
+		const g = ctx.createLinearGradient(x, y, x, y + h);
+		g.addColorStop(0, '#eaf4ff'); g.addColorStop(1, '#bcdcff');
+		ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+		// glossy header
+		ctx.fillStyle = '#2a8fd8'; roundRectPath(ctx, x + 20, y + 20, w - 40, 70, 12); ctx.fill();
+		ctx.fillStyle = 'rgba(255,255,255,0.35)'; roundRectPath(ctx, x + 24, y + 24, w - 48, 28, 10); ctx.fill();
+		// beta starburst
+		drawStarburst(ctx, x + w - 60, y + 60, 38, '#ff5b4a', 'BETA');
+		ctx.fillStyle = '#3a6ea5'; ctx.font = '900 30px Helvetica, Arial, sans-serif'; ctx.textAlign = 'left';
+		ctx.fillText('Web 2.0', x + 40, y + 66);
+		for (let i = 0; i < 3; i++) { ctx.fillStyle = '#ffffff'; roundRectPath(ctx, x + 24 + i * (w / 3 - 8), y + 110, w / 3 - 24, h - 150, 12); ctx.fill(); ctx.strokeStyle = '#9cc4ec'; ctx.stroke(); }
+	} else if (bg === 'flat') {
+		const cols = ['#1abc9c', '#3498db', '#e74c3c', '#f1c40f'];
+		ctx.fillStyle = '#ecf0f1'; ctx.fillRect(x, y, w, h);
+		ctx.fillStyle = '#2c3e50'; ctx.fillRect(x, y, w, 64);
+		for (let i = 0; i < 4; i++) { ctx.fillStyle = cols[i]; ctx.fillRect(x + 20 + i * (w / 4), y + 88, w / 4 - 26, h - 120); }
+	} else if (bg === 'skeuo') {
+		const g = ctx.createLinearGradient(x, y, x, y + h); g.addColorStop(0, '#cfd6dd'); g.addColorStop(1, '#9aa6b2');
+		ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+		for (let i = 0; i < 6; i++) { const gx = x + 30 + (i % 3) * (w / 3); const gy = y + 30 + Math.floor(i / 3) * (h / 2 - 10); const gg = ctx.createLinearGradient(gx, gy, gx, gy + 90); gg.addColorStop(0, '#fefefe'); gg.addColorStop(1, '#c4ccd4'); ctx.fillStyle = gg; roundRectPath(ctx, gx, gy, w / 3 - 50, 90, 16); ctx.fill(); ctx.strokeStyle = '#7d8893'; ctx.stroke(); }
+	} else if (bg === 'material') {
+		ctx.fillStyle = '#fafafa'; ctx.fillRect(x, y, w, h);
+		ctx.fillStyle = '#6200ee'; ctx.fillRect(x, y, w, 70);
+		for (let i = 0; i < 4; i++) { ctx.fillStyle = '#fff'; const cyy = y + 90 + i * 78; roundRectPath(ctx, x + 24, cyy, w - 48, 64, 8); ctx.fill(); ctx.fillStyle = '#03dac6'; ctx.beginPath(); ctx.arc(x + 56, cyy + 32, 18, 0, Math.PI * 2); ctx.fill(); }
+		ctx.fillStyle = '#ff4081'; ctx.beginPath(); ctx.arc(x + w - 50, y + h - 50, 28, 0, Math.PI * 2); ctx.fill();
+	} else if (bg === 'minimal') {
+		ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y, w, h);
+		ctx.fillStyle = '#111'; ctx.font = '900 46px Helvetica, Arial, sans-serif'; ctx.textAlign = 'left';
+		ctx.fillText('Big type.', x + 30, y + 90); ctx.fillText('More space.', x + 30, y + 140);
+		ctx.fillStyle = '#eee'; ctx.fillRect(x + 30, y + 180, w - 60, 2);
+		for (let i = 0; i < 2; i++) { ctx.fillStyle = '#f3f3f3'; roundRectPath(ctx, x + 30 + i * (w / 2 - 10), y + 210, w / 2 - 50, h - 250, 10); ctx.fill(); }
+	} else if (bg === 'darkmode') {
+		ctx.fillStyle = '#0f1420'; ctx.fillRect(x, y, w, h);
+		ctx.fillStyle = '#1b2333'; roundRectPath(ctx, x + 24, y + 24, w - 48, 60, 10); ctx.fill();
+		ctx.fillStyle = '#2bb7ff'; ctx.font = '900 28px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.fillText('● dark mode', x + 40, y + 62);
+		for (let i = 0; i < 3; i++) { ctx.fillStyle = '#1b2333'; roundRectPath(ctx, x + 24, y + 104 + i * ((h - 130) / 3), w - 48, (h - 130) / 3 - 14, 10); ctx.fill(); }
+	} else {
+		// IE-era 2004 page: gray bg, blue header, table layout, hit counter.
+		ctx.fillStyle = '#dfe6ef'; ctx.fillRect(x, y, w, h);
+		ctx.fillStyle = bg.startsWith('#') ? bg : '#5b7fb4'; ctx.fillRect(x + 16, y + 16, w - 32, 56);
+		ctx.fillStyle = '#fff'; ctx.font = '900 26px "Times New Roman", serif'; ctx.textAlign = 'left'; ctx.fillText('My Home Page', x + 30, y + 52);
+		ctx.fillStyle = '#cdd7e2'; ctx.fillRect(x + 16, y + 84, 120, h - 110);
+		ctx.fillStyle = '#fff'; ctx.fillRect(x + 148, y + 84, w - 168, h - 110);
+		ctx.fillStyle = '#000'; ctx.font = '14px "Times New Roman", serif';
+		ctx.fillText('Welcome to my website!', x + 160, y + 112);
+		ctx.fillStyle = '#111'; ctx.fillRect(x + 160, y + h - 80, 130, 28);
+		ctx.fillStyle = '#39ff6a'; ctx.font = '700 18px ui-monospace, monospace'; ctx.fillText('00042', x + 172, y + h - 60);
+		ctx.fillStyle = '#000'; ctx.font = '11px Arial'; ctx.fillText('visitors', x + 300, y + h - 60);
+	}
+	ctx.restore();
+}
+
+function drawStarburst(ctx, cx, cy, r, color, text) {
+	ctx.save();
+	ctx.translate(cx, cy);
+	ctx.fillStyle = color;
+	ctx.beginPath();
+	const points = 12;
+	for (let i = 0; i < points * 2; i++) {
+		const rad = i % 2 === 0 ? r : r * 0.72;
+		const a = (Math.PI * i) / points;
+		ctx.lineTo(Math.cos(a) * rad, Math.sin(a) * rad);
+	}
+	ctx.closePath();
+	ctx.fill();
+	ctx.fillStyle = '#fff';
+	ctx.font = '900 16px Arial, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText(text, 0, 0);
+	ctx.restore();
+	ctx.textBaseline = 'alphabetic';
 }
 
 function getEraHistoryFact(era) {
