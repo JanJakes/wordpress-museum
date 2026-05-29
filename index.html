@@ -23,6 +23,13 @@
 				aria-label="Interactive 3D WordPress Museum"
 			></canvas>
 			<div class="reticle" aria-hidden="true"></div>
+			<div class="walk-prompt" aria-hidden="true">
+				<span class="walk-prompt-key">▶</span> Click to walk
+			</div>
+			<div class="walk-hint" aria-hidden="true">
+				<strong>ESC</strong> to exit · <strong>WASD / arrows</strong> move ·
+				<strong>mouse</strong> look · click a plaque to inspect
+			</div>
 		</div>
 
 		<header class="hud top-hud">
@@ -42,6 +49,15 @@
 		</header>
 
 		<aside class="release-panel" aria-live="polite">
+			<button
+				type="button"
+				id="panel-toggle"
+				class="panel-toggle"
+				aria-label="Collapse ticket"
+			>
+				<span class="panel-toggle-open">›</span>
+				<span class="panel-toggle-tab">🎟 TICKET</span>
+			</button>
 			<div class="ticket-stub" aria-hidden="true">
 				<span class="ticket-stub-line">ADMIT</span>
 				<span class="ticket-stub-line">ONE</span>
@@ -92,9 +108,9 @@
 			<span class="help-stamp" aria-hidden="true">Visitors' Guide</span>
 			<strong>Walk this way</strong>
 			<span
-				>Arrow keys to move and turn · Mouse to look · Click any plaque
-				or use the rail to inspect a release · ➜ Try the Mercantile
-				exit beyond the mural.</span
+				>Click the scene to walk · WASD / arrows to move · mouse to
+				look · ESC to stop · click a plaque or use the rail to inspect a
+				release · ➜ the Mercantile exit is beyond the mural.</span
 			>
 		</div>
 

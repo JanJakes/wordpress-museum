@@ -7709,6 +7709,13 @@ function bindControls() {
 		.querySelector('#next-release')
 		.addEventListener('click', () => focusRelease(activeIndex + 1));
 
+	const panelToggle = document.querySelector('#panel-toggle');
+	if (panelToggle) {
+		panelToggle.addEventListener('click', () => {
+			document.querySelector('.release-panel').classList.toggle('is-collapsed');
+		});
+	}
+
 	document.addEventListener('pointerlockchange', () => {
 		document.body.classList.toggle(
 			'is-walking',
@@ -7739,15 +7746,14 @@ function bindControls() {
 		keys.delete(event.code);
 	});
 
-	canvas.addEventListener('click', (event) => {
+	canvas.addEventListener('click', () => {
+		// Clicking the scene enters walk mode; once walking, a click inspects
+		// whatever the centre reticle is pointed at.
 		if (document.pointerLockElement === canvas) {
 			pickFromScreen(0, 0);
-			return;
+		} else {
+			canvas.requestPointerLock();
 		}
-		const rect = canvas.getBoundingClientRect();
-		const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-		const y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
-		pickFromScreen(x, y);
 	});
 
 	canvas.addEventListener('pointerdown', (event) => {

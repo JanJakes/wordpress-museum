@@ -554,13 +554,7 @@ body[data-variant='current'] .kicker {
 }
 
 body[data-variant='current'] .kicker::before {
-	flex: 0 0 36px;
-	width: 36px;
-	height: 12px;
-	background:
-		radial-gradient(circle at 6px 50%, var(--danger) 0 4px, transparent 5px),
-		radial-gradient(circle at 18px 50%, var(--accent) 0 4px, transparent 5px),
-		radial-gradient(circle at 30px 50%, #50d890 0 4px, transparent 5px);
+	display: none;
 }
 
 body[data-variant='current'] h1 {
@@ -941,6 +935,127 @@ body[data-variant='current'] .help-stamp {
 	border: 2px solid #1c1306;
 	border-radius: 2px;
 	transform: rotate(-3deg);
+}
+
+/* Click-to-walk prompt (shown when not walking) + ESC hint (while walking) */
+.walk-prompt,
+.walk-hint {
+	position: fixed;
+	left: 50%;
+	z-index: 9;
+	pointer-events: none;
+	transform: translateX(-50%);
+	font-family: var(--pixel-font, ui-monospace, monospace);
+	white-space: nowrap;
+}
+
+.walk-prompt {
+	top: 50%;
+	margin-top: 40px;
+	padding: 12px 20px;
+	font-size: 0.74rem;
+	color: #1c1306;
+	background: var(--accent, #ffd166);
+	border: 2px solid #1c1306;
+	border-radius: 4px;
+	box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.45);
+	animation: walkPulse 1.6s ease-in-out infinite;
+}
+
+.walk-prompt-key {
+	color: #ff4f64;
+}
+
+@keyframes walkPulse {
+	0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.95; }
+	50% { transform: translateX(-50%) translateY(-4px); opacity: 1; }
+}
+
+.walk-hint {
+	top: 16px;
+	display: none;
+	gap: 8px;
+	padding: 9px 16px;
+	font-size: 0.56rem;
+	letter-spacing: 0.03em;
+	color: #fff5df;
+	background: rgba(20, 13, 6, 0.86);
+	border: 2px solid var(--accent, #ffd166);
+	border-radius: 4px;
+}
+
+.walk-hint strong {
+	color: var(--accent, #ffd166);
+}
+
+body.is-walking .walk-prompt {
+	display: none;
+}
+
+body.is-walking .walk-hint {
+	display: block;
+}
+
+/* Collapsible ADMIT ONE ticket */
+body[data-variant='current'] .release-panel {
+	transition: transform 320ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body[data-variant='current'] .release-panel.is-collapsed {
+	transform: translateX(calc(100% - 30px));
+}
+
+body[data-variant='current'] .panel-toggle {
+	position: absolute;
+	top: 14px;
+	left: -16px;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-family: var(--pixel-font);
+	font-size: 0.9rem;
+	color: #ffd166;
+	background: #1c1306;
+	border: 2px solid #ffd166;
+	border-radius: 50%;
+	box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+	cursor: pointer;
+	z-index: 2;
+}
+
+body[data-variant='current'] .panel-toggle:hover {
+	background: #2a1c08;
+}
+
+body[data-variant='current'] .panel-toggle-open {
+	display: inline-block;
+	transition: transform 200ms ease;
+}
+
+body[data-variant='current'] .release-panel.is-collapsed .panel-toggle {
+	left: -42px;
+	width: auto;
+	height: auto;
+	padding: 10px 6px;
+	border-radius: 6px 0 0 6px;
+	writing-mode: vertical-rl;
+}
+
+body[data-variant='current'] .release-panel.is-collapsed .panel-toggle-open {
+	display: none;
+}
+
+body[data-variant='current'] .panel-toggle-tab {
+	display: none;
+	font-size: 0.55rem;
+	letter-spacing: 0.12em;
+}
+
+body[data-variant='current'] .release-panel.is-collapsed .panel-toggle-tab {
+	display: inline-block;
 }
 
 @media (max-width: 760px) {
