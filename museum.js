@@ -5712,14 +5712,14 @@ function addEraModelProps(group, room, roomIndex, color, secondary) {
 		],
 		'Dashboard Foundations': [
 			{ obj: createIPhoneExhibit(color), x: -4.55, z: -4.3, rot: 0.62 },
-			{ obj: model('loungeDesignChair', 0.62, 'bench'), x: 4.65, z: -4.2, rot: -0.5 },
+			{ obj: createCdSpindleExhibit(secondary), x: 4.55, z: -4.3, rot: -0.62 },
 		],
 		'CMS Toolkit': [
 			{ obj: createIPadEaselExhibit(color), x: -4.55, z: -4.3, rot: 0.62 },
 			{ obj: model('bookcaseOpenLow', 0.86, 'bookcase'), x: 4.65, z: -4.2, rot: -0.5 },
 		],
 		'Modern Admin': [
-			{ obj: model('laptop', 0.46, 'screen'), x: -4.6, z: -3.66, rot: 0.5 },
+			{ obj: createFlatPhoneExhibit(color), x: -4.55, z: -4.3, rot: 0.62 },
 			{ obj: model('televisionVintage', 0.72, 'screen'), x: 4.7, z: -3.78, rot: -0.5 },
 		],
 		'API and Customizer': [
@@ -5731,7 +5731,7 @@ function addEraModelProps(group, room, roomIndex, color, secondary) {
 			{ obj: model('loungeDesignSofa', 0.58, 'bench'), x: 4.68, z: -3.82, rot: -0.5 },
 		],
 		'Blocks Everywhere': [
-			{ obj: model('tableCoffee', 0.34, 'block'), x: -4.62, z: -3.74, rot: 0.42 },
+			{ obj: createFlatPhoneExhibit(secondary), x: -4.55, z: -4.3, rot: 0.62 },
 			{ obj: model('pottedPlant', 0.88, 'plant'), x: 4.62, z: -3.78, rot: -0.42 },
 		],
 	};
@@ -6569,6 +6569,64 @@ function createIPadEaselExhibit(color) {
 	return group;
 }
 
+function createFlatPhoneExhibit(color) {
+	// A bezel-less, flat-design smartphone (mid-2010s) tilted on a stand.
+	const group = new THREE.Group();
+	const standH = 0.66;
+	group.add(createArtifactStand(color, 'SMARTPHONE 2014', standH));
+
+	const phone = new THREE.Group();
+	phone.position.set(0, standH + 0.24, 0.04);
+	phone.rotation.x = -0.3;
+	group.add(phone);
+	const black = new THREE.MeshStandardMaterial({ color: 0x14151a, roughness: 0.26, metalness: 0.3 });
+	const body = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.4, 0.024), black);
+	phone.add(body);
+	const face = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.18, 0.37),
+		new THREE.MeshBasicMaterial({ map: createDeviceScreenTexture('flat'), side: THREE.DoubleSide })
+	);
+	face.position.set(0, 0, 0.014);
+	phone.add(face);
+	return group;
+}
+
+function createCdSpindleExhibit(color) {
+	// A spindle of shiny CD-ROMs — how software arrived circa 2004.
+	const group = new THREE.Group();
+	const standH = 0.5;
+	group.add(createArtifactStand(color, 'CD-ROM', standH));
+
+	const base = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.2, 0.22, 0.04, 24),
+		new THREE.MeshStandardMaterial({ color: 0x2a2c33, roughness: 0.4, metalness: 0.3 })
+	);
+	base.position.y = standH + 0.02;
+	group.add(base);
+	const spindle = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.028, 0.028, 0.42, 12),
+		new THREE.MeshStandardMaterial({ color: 0x3a3d46, roughness: 0.4, metalness: 0.4 })
+	);
+	spindle.position.y = standH + 0.23;
+	group.add(spindle);
+	for (let i = 0; i < 9; i++) {
+		const disc = new THREE.Mesh(
+			new THREE.CylinderGeometry(0.18, 0.18, 0.006, 36),
+			new THREE.MeshStandardMaterial({
+				color: i % 2 ? 0xcfd6e6 : 0xe6dff0,
+				roughness: 0.12,
+				metalness: 0.85,
+				emissive: i % 3 === 0 ? new THREE.Color(color) : 0x101018,
+				emissiveIntensity: i % 3 === 0 ? 0.12 : 0.04,
+			})
+		);
+		disc.position.y = standH + 0.05 + i * 0.04;
+		disc.rotation.y = i * 0.4;
+		group.add(disc);
+	}
+	return group;
+}
+
 function createDeviceScreenTexture(kind) {
 	if (deviceScreenTextures.has(kind)) {
 		return deviceScreenTextures.get(kind);
@@ -6598,6 +6656,24 @@ function createDeviceScreenTexture(kind) {
 			roundRectPath(ctx, 44 + i * 30, 214, 24, 24, 6);
 			ctx.fill();
 		});
+	} else if (kind === 'flat') {
+		// Flat-design (mid-2010s) home screen: bold flat tiles, no gloss.
+		ctx.fillStyle = '#11151c';
+		ctx.fillRect(0, 0, 256, 256);
+		ctx.fillStyle = '#ffffff';
+		ctx.font = '700 12px system-ui, sans-serif';
+		ctx.textAlign = 'center';
+		ctx.fillText('9:41', 128, 18);
+		const flatColors = ['#1abc9c', '#3498db', '#e74c3c', '#f1c40f', '#9b59b6', '#2ecc71', '#e67e22', '#1abc9c', '#34495e'];
+		let n = 0;
+		for (let row = 0; row < 3; row++) {
+			for (let col = 0; col < 3; col++) {
+				ctx.fillStyle = flatColors[n % flatColors.length];
+				roundRectPath(ctx, 30 + col * 68, 40 + row * 64, 52, 52, 12);
+				ctx.fill();
+				n++;
+			}
+		}
 	} else {
 		// iOS-style home grid.
 		const grad = ctx.createLinearGradient(0, 0, 0, 256);
