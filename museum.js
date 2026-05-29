@@ -225,6 +225,7 @@ let programmaticRailScroll = false;
 let programmaticRailScrollTimer = 0;
 let railScrollFrame = 0;
 let renderedFrameCount = 0;
+let eraYearRangeMap = null;
 
 camera.rotation.order = 'YXZ';
 camera.position.copy(atriumStartPosition);
@@ -382,6 +383,15 @@ function getReleaseYearRange(items) {
 	const minYear = Math.min(...years);
 	const maxYear = Math.max(...years);
 	return minYear === maxYear ? `${minYear}` : `${minYear}-${maxYear}`;
+}
+
+function getEraYearRange(era) {
+	if (!eraYearRangeMap) {
+		eraYearRangeMap = new Map(
+			getEraReleaseGroups().map(({ era: name, items }) => [name, getReleaseYearRange(items)])
+		);
+	}
+	return eraYearRangeMap.get(era) || '';
 }
 
 function createBuildingShell() {
@@ -3186,8 +3196,8 @@ function createRoom(room) {
 	group.add(createRoomCeiling(room.color));
 
 	group.add(createRoomWall('back'));
-	group.add(createRoomWall('left', room.connectLeft));
-	group.add(createRoomWall('right', room.connectRight));
+	group.add(createRoomWall('left', room.connectLeft, getDoorwaySignInfo(room, 'left')));
+	group.add(createRoomWall('right', room.connectRight, getDoorwaySignInfo(room, 'right')));
 	if (isCurrentVariant) {
 		group.add(createRoomMuseumArchitecture(room));
 		group.add(createRoomStoryWall(room));
@@ -3512,9 +3522,9 @@ function createRoomCeiling(color) {
 	return group;
 }
 
-function createRoomWall(side, hasDoorway = false) {
+function createRoomWall(side, hasDoorway = false, doorwayInfo = null) {
 	if (hasDoorway && (side === 'left' || side === 'right')) {
-		return createSideWallWithDoorway(side);
+		return createSideWallWithDoorway(side, doorwayInfo);
 	}
 	return createRoomWallSegment(
 		side,
@@ -3525,7 +3535,29 @@ function createRoomWall(side, hasDoorway = false) {
 	);
 }
 
-function createSideWallWithDoorway(side) {
+// Identifies the gallery reached through a room's left/right doorway and
+// whether it sits earlier or later in the timeline.
+function getDoorwaySignInfo(room, side) {
+	const targetAngle = room.angle + (side === 'left' ? Math.PI / 4 : -Math.PI / 4);
+	const neighbor = roomSides.find((candidate) => {
+		const delta = Math.atan2(
+			Math.sin(candidate.angle - targetAngle),
+			Math.cos(candidate.angle - targetAngle)
+		);
+		return Math.abs(delta) < 0.02;
+	});
+	if (!neighbor) {
+		return null;
+	}
+	return {
+		era: neighbor.era,
+		yearRange: getEraYearRange(neighbor.era),
+		color: eraColors.get(neighbor.era),
+		later: eras.indexOf(neighbor.era) > eras.indexOf(room.era),
+	};
+}
+
+function createSideWallWithDoorway(side, doorwayInfo = null) {
 	const group = new THREE.Group();
 	const x = side === 'left' ? -roomWidth / 2 : roomWidth / 2;
 	const mat = createRoomWallMaterial(roomDepth);
@@ -3571,7 +3603,76 @@ function createSideWallWithDoorway(side) {
 	const lintel = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, connectorDoorHalfWidth * 2 + 0.2), brass);
 	lintel.position.set(x + inset, connectorDoorHeight, connectorDoorZ);
 	group.add(lintel);
+
+	// Brass threshold saddle inlaid in the floor across the opening.
+	const threshold = new THREE.Mesh(
+		new THREE.BoxGeometry(wallThickness + 0.12, 0.05, connectorDoorHalfWidth * 2),
+		brass
+	);
+	threshold.position.set(x, 0.025, connectorDoorZ);
+	group.add(threshold);
+
+	if (doorwayInfo) {
+		group.add(createDoorwayDirectionSign(side, doorwayInfo));
+	}
 	return group;
+}
+
+// Wayfinding plaque above a side doorway, facing into the room, naming the
+// gallery beyond and whether it lies earlier or later in time.
+function createDoorwayDirectionSign(side, info) {
+	const group = new THREE.Group();
+	const inward = side === 'left' ? 1 : -1;
+	const wallInner = (side === 'left' ? -roomWidth / 2 : roomWidth / 2) + inward * (wallThickness / 2);
+	const y = connectorDoorHeight + 0.62;
+
+	const frame = new THREE.Mesh(
+		new THREE.BoxGeometry(0.05, 0.74, 1.58),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	frame.position.set(wallInner + inward * 0.025, y, connectorDoorZ);
+	group.add(frame);
+
+	const board = new THREE.Mesh(
+		new THREE.PlaneGeometry(1.46, 0.62),
+		new THREE.MeshBasicMaterial({ map: createDoorwaySignTexture(info), transparent: true })
+	);
+	board.position.set(wallInner + inward * 0.075, y, connectorDoorZ);
+	board.rotation.y = inward * (Math.PI / 2);
+	group.add(board);
+	return group;
+}
+
+function createDoorwaySignTexture(info) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 218;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#141b27';
+	roundRectPath(ctx, 0, 0, canvas.width, canvas.height, 22);
+	ctx.fill();
+	ctx.fillStyle = info.color;
+	ctx.fillRect(0, 0, canvas.width, 12);
+	ctx.fillRect(0, canvas.height - 12, canvas.width, 12);
+
+	const arrow = info.later ? 'LATER ▶' : '◀ EARLIER';
+	ctx.fillStyle = info.color;
+	ctx.font = '900 38px system-ui, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText(arrow, 256, 56);
+
+	ctx.fillStyle = '#f5e8c7';
+	fillFittedCanvasText(ctx, info.era.toUpperCase(), 256, 116, 452, 46, '900', 'Arial Black, Impact, sans-serif');
+
+	ctx.fillStyle = '#aeb8c6';
+	ctx.font = '800 34px system-ui, sans-serif';
+	ctx.fillText(info.yearRange, 256, 170);
+
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
 }
 
 function createGalleryConnectors() {
