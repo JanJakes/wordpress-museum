@@ -143,8 +143,14 @@ const wedgeTan = Math.tan(wedgeHalfAngle);
 const roomCenterDistance = hubApothem + roomDepth / 2;
 const sideHalfWidthAtZ = (z) => (roomCenterDistance + z) * wedgeTan;
 const innerHalfWidth = sideHalfWidthAtZ(-roomDepth / 2); // == roomWidth / 2
-const backHalfWidth = sideHalfWidthAtZ(roomDepth / 2);
-const backWallWidth = backHalfWidth * 2;
+// The two outer corners are beveled so the wedge reads as a hexagon: each side
+// wall stops short of the full corner, and a 45deg chamfer angles in to a
+// narrower flat back wall.
+const cornerBevel = 2.5;
+const spokeEndZ = roomDepth / 2 - cornerBevel;
+const sideEndHalfWidth = sideHalfWidthAtZ(spokeEndZ);
+const backFlatHalf = sideEndHalfWidth - cornerBevel;
+const backWallWidth = backFlatHalf * 2;
 const wallThickness = 0.26;
 const roomDoorHalfWidth = 2.9;
 const exhibitMountOffset = wallThickness / 2 + 0.035;
@@ -207,9 +213,9 @@ const roomLayout = new Map(roomSides.map((side) => [side.era, side]));
 const connectorDoorHalfWidth = 1.0;
 const connectorDoorHeight = 3.0;
 const connectorDoorZ = 0;
-// Side-wall exhibits sit on the wide outer segment, clear of the mid doorway.
+// Side-wall exhibits sit between the mid doorway and the beveled corner.
 const sideExhibitMinZ = connectorDoorZ + connectorDoorHalfWidth + exhibitOuterWidth / 2 + 0.3;
-const sideExhibitMaxZ = roomDepth / 2 - exhibitOuterWidth / 2 - exhibitWallMargin;
+const sideExhibitMaxZ = spokeEndZ - exhibitOuterWidth / 2 - 0.3;
 const galleryConnections = computeGalleryConnections();
 const atriumCenterPosition = new THREE.Vector3(0, 1.65, 0);
 const atriumStartPosition = atriumCenterPosition
@@ -3192,7 +3198,7 @@ function createRoom(room) {
 	group.rotation.y = getRotationForNormal(room.normal);
 
 	const floor = new THREE.Mesh(
-		createRoomTrapezoidGeometry(),
+		createRoomFloorGeometry(),
 		createMuseumMaterial('roomFloor', {
 			// ShapeGeometry UVs are in metres, so repeat = 1/span tiles every span.
 			repeatX: 1 / floorTileSpan,
@@ -3208,8 +3214,9 @@ function createRoom(room) {
 
 	// The inner (hub-facing) edge is the octagon hub wall; the two side walls are
 	// shared radial spokes built once by createRadialSpokes. Rooms build only the
-	// wide flat back/outer wall here.
+	// wide flat back/outer wall and the two beveled back-corner chamfers here.
 	group.add(createRoomWall('back'));
+	group.add(createRoomBackChamfers());
 	if (isCurrentVariant) {
 		group.add(createRoomMuseumArchitecture(room));
 		group.add(createRoomStoryWall(room));
@@ -3227,16 +3234,19 @@ function createRoom(room) {
 	return group;
 }
 
-// Isosceles-trapezoid floor/ceiling matching the wedge: narrow inner (hub) edge
-// at local z=-roomDepth/2, wide outer (back) edge at +roomDepth/2. Built CCW so
-// ShapeGeometry's front face is +z (becomes +y after the floor's -90deg tilt).
-function createRoomTrapezoidGeometry() {
+// Hexagon floor/ceiling: narrow inner (hub) edge at local z=-roomDepth/2, side
+// walls out to the beveled corners at z=spokeEndZ, then a 45deg chamfer to the
+// narrower flat back at +roomDepth/2. Shape coords map (sx,sy)->local(sx,-sy),
+// wound CCW so the front face is +z (becomes +y after the floor's -90deg tilt).
+function createRoomFloorGeometry() {
 	const d = roomDepth / 2;
 	const shape = new THREE.Shape();
-	shape.moveTo(-backHalfWidth, -d);
-	shape.lineTo(backHalfWidth, -d);
+	shape.moveTo(-backFlatHalf, -d);
+	shape.lineTo(backFlatHalf, -d);
+	shape.lineTo(sideEndHalfWidth, -spokeEndZ);
 	shape.lineTo(innerHalfWidth, d);
 	shape.lineTo(-innerHalfWidth, d);
+	shape.lineTo(-sideEndHalfWidth, -spokeEndZ);
 	shape.closePath();
 	return new THREE.ShapeGeometry(shape);
 }
@@ -3456,7 +3466,7 @@ function createRoomStoryTexture(room) {
 function createRoomCeiling(color) {
 	const group = new THREE.Group();
 	const ceiling = new THREE.Mesh(
-		createRoomTrapezoidGeometry(),
+		createRoomFloorGeometry(),
 		new THREE.MeshBasicMaterial({
 			map: createMuseumTexture('ceiling', 1 / 7, 1 / 7),
 			side: THREE.DoubleSide,
@@ -3552,6 +3562,25 @@ function createRoomWall(side) {
 	return createRoomWallSegment(side, side === 'back' ? backWallWidth : roomWidth, 0);
 }
 
+// The two 45deg chamfer walls that bevel the outer corners into a hexagon,
+// joining each side wall's end to the narrower flat back wall.
+function createRoomBackChamfers() {
+	const group = new THREE.Group();
+	const mat = createRoomWallMaterial(cornerBevel * 1.6);
+	for (const s of [-1, 1]) {
+		const ax = s * sideEndHalfWidth;
+		const bx = s * backFlatHalf;
+		const az = spokeEndZ;
+		const bz = roomDepth / 2;
+		const len = Math.hypot(bx - ax, bz - az);
+		const wall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, wallHeight, len + 0.1), mat);
+		wall.position.set((ax + bx) / 2, wallHeight / 2, (az + bz) / 2);
+		wall.rotation.y = Math.atan2(bx - ax, bz - az);
+		group.add(wall);
+	}
+	return group;
+}
+
 // Identifies the gallery reached through a room's left/right doorway and
 // whether it sits earlier or later in the timeline.
 function getDoorwaySignInfo(room, side) {
@@ -3615,7 +3644,7 @@ function createSpokeWall(side, doored, nearInfo, farInfo) {
 	group.rotation.y = getRotationForNormal(side.normal);
 
 	const innerZ = -roomDepth / 2 - 0.15;
-	const outerZ = roomDepth / 2 + 0.02;
+	const outerZ = spokeEndZ + 0.05; // stop at the beveled corner; chamfer takes over
 	const xAt = (z) => -sideHalfWidthAtZ(z);
 	const spokeLength = Math.hypot(xAt(outerZ) - xAt(innerZ), outerZ - innerZ);
 	const mat = createRoomWallMaterial(spokeLength);
@@ -3667,7 +3696,7 @@ function createSpokeWall(side, doored, nearInfo, farInfo) {
 	// Inward normal of this (left) wall points toward the room interior (+x),
 	// tilted 22.5deg; the far face points the opposite way into the neighbour.
 	const inwardRot = getRotationForNormal(
-		new THREE.Vector3(roomDepth, 0, backHalfWidth - innerHalfWidth).normalize()
+		new THREE.Vector3(1, 0, wedgeTan).normalize()
 	);
 	const signY = connectorDoorHeight + 0.62;
 	const cx = xAt(connectorDoorZ);
@@ -4026,11 +4055,11 @@ function createRoomRopeBarriers(color) {
 	// (they carry the shared doorways).
 	const ropeZ = roomDepth / 2 - 2.35;
 	group.add(createMuseumRopeLine([
-		{ x: -backHalfWidth + 1.9, z: ropeZ },
-		{ x: -backHalfWidth / 2, z: ropeZ },
+		{ x: -backFlatHalf + 1.6, z: ropeZ },
+		{ x: -backFlatHalf / 2, z: ropeZ },
 		{ x: 0, z: ropeZ },
-		{ x: backHalfWidth / 2, z: ropeZ },
-		{ x: backHalfWidth - 1.9, z: ropeZ },
+		{ x: backFlatHalf / 2, z: ropeZ },
+		{ x: backFlatHalf - 1.6, z: ropeZ },
 	], color));
 	return group;
 }
@@ -4243,7 +4272,7 @@ function createRoomPilasterGrid(marbleMaterial, brassMaterial) {
 	const group = new THREE.Group();
 	// Pilasters flank the wide back wall; the angled side walls (broken by the
 	// shared doorway) are left clean for exhibits.
-	for (const x of [-backHalfWidth + 0.78, backHalfWidth - 0.78]) {
+	for (const x of [-backFlatHalf + 0.78, backFlatHalf - 0.78]) {
 		const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.22, wallHeight - 1.12, 0.12), marbleMaterial);
 		shaft.position.set(x, wallHeight / 2 + 0.02, roomDepth / 2 - wallThickness / 2 - 0.035);
 		group.add(shaft);
@@ -8585,8 +8614,8 @@ function getLocalSlotPosition(side, slotIndex, slotCount) {
 		const value = getSlotAxisValue(
 			slotIndex,
 			slotCount,
-			-backHalfWidth + exhibitOuterWidth / 2 + exhibitWallMargin,
-			backHalfWidth - exhibitOuterWidth / 2 - exhibitWallMargin
+			-backFlatHalf + exhibitOuterWidth / 2 + exhibitWallMargin,
+			backFlatHalf - exhibitOuterWidth / 2 - exhibitWallMargin
 		);
 		return new THREE.Vector3(value, 0, roomDepth / 2);
 	}
@@ -8655,16 +8684,15 @@ function getSlotTangent(room, side) {
 function distributeWallCounts(count) {
 	// [right, back, left]. The wide outer wall carries the bulk; each side wall
 	// holds at most two, in the clear segment behind its doorway.
+	// The beveled side walls hold at most one exhibit each (between the doorway
+	// and the chamfer); the wide back wall carries the rest.
 	const table = {
 		1: [0, 1, 0],
-		2: [0, 2, 0],
+		2: [1, 0, 1],
 		3: [1, 1, 1],
 		4: [1, 2, 1],
-		5: [1, 3, 1],
-		6: [2, 2, 2],
-		7: [2, 3, 2],
 	};
-	return table[count] || [2, count - 4, 2];
+	return table[count] || [1, count - 2, 1];
 }
 
 function getEraReleaseGroups() {
@@ -8738,12 +8766,14 @@ function getMuseumFootprintPoints() {
 	);
 	const halfDepth = roomDepth / 2;
 	for (const room of roomSides) {
-		// Four trapezoid corners: narrow inner edge, wide outer (back) edge.
+		// Six hexagon corners: narrow inner edge, beveled outer corners, flat back.
 		const corners = [
 			[-innerHalfWidth, -halfDepth],
 			[innerHalfWidth, -halfDepth],
-			[backHalfWidth, halfDepth],
-			[-backHalfWidth, halfDepth],
+			[sideEndHalfWidth, spokeEndZ],
+			[backFlatHalf, halfDepth],
+			[-backFlatHalf, halfDepth],
+			[-sideEndHalfWidth, spokeEndZ],
 		];
 		for (const [x, z] of corners) {
 			points.push(roomLocalToWorld(room, new THREE.Vector3(x, 0, z)));
@@ -9230,7 +9260,9 @@ function initDebugApi() {
 		})),
 		roomDepth,
 		innerHalfWidth,
-		backHalfWidth,
+		sideEndHalfWidth,
+		backFlatHalf,
+		spokeEndZ,
 		doorways: galleryDoorways.map((d) => ({ x: d.x, z: d.z })),
 		connections: galleryConnections.map((p) => [p.a.era, p.b.era]),
 		isInside: (x, z) => isPointInsideClosedMuseum(new THREE.Vector3(x, 1.6, z)),
@@ -9877,11 +9909,14 @@ function isPointInsideHub(position) {
 function isPointInsideRoom(position, room) {
 	const local = getRoomLocalPoint(position, room);
 	const wallPadding = 0.62;
-	return (
-		local.z >= -roomDepth / 2 + wallPadding &&
-		local.z <= roomDepth / 2 - wallPadding &&
-		Math.abs(local.x) <= sideHalfWidthAtZ(local.z) - wallPadding
-	);
+	if (local.z < -roomDepth / 2 + wallPadding || local.z > roomDepth / 2 - wallPadding) {
+		return false;
+	}
+	// Past the beveled corner the chamfer narrows the room toward the flat back.
+	const maxX = local.z <= spokeEndZ
+		? sideHalfWidthAtZ(local.z)
+		: sideEndHalfWidth - (local.z - spokeEndZ);
+	return Math.abs(local.x) <= maxX - wallPadding;
 }
 
 function isPointInsideDoorway(position, room) {
