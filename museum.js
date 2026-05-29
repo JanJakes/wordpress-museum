@@ -5849,6 +5849,9 @@ function addEraVignette(group, room, roomIndex) {
 			addLocal(group, flyer, -1.7, -roomDepth / 2 + 2.1, 0.5 + roomIndex * 0.3);
 		}
 		group.add(createWebEraPoster(room));
+		if (room.era === eras[0]) {
+			addLocal(group, createUnderConstructionPlaque(), 3.95, -roomDepth / 2 + wallThickness / 2 + 0.05);
+		}
 	}
 	addRoomVignetteLights(group, color);
 }
@@ -5938,6 +5941,176 @@ function createWebEraPosterTexture(era) {
 
 	const tex = new THREE.CanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+// A wink to the GeoCities era: a framed "Under Construction" plaque with a
+// hazard-striped border, a blinking amber beacon, and a scrolling marquee.
+// Mounted on a free front-wall bay of the earliest gallery.
+function createUnderConstructionPlaque() {
+	const group = new THREE.Group();
+
+	const frame = new THREE.Mesh(
+		new THREE.BoxGeometry(1.62, 1.22, 0.08),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	frame.position.set(0, 2.35, 0);
+	group.add(frame);
+
+	const plaque = new THREE.Mesh(
+		new THREE.PlaneGeometry(1.46, 1.06),
+		new THREE.MeshBasicMaterial({ map: createUnderConstructionTexture() })
+	);
+	plaque.position.set(0, 2.35, 0.05);
+	group.add(plaque);
+
+	// Scrolling marquee strip beneath the plaque.
+	const marqueeTexture = createMarqueeTexture();
+	const marquee = new THREE.Mesh(
+		new THREE.PlaneGeometry(1.46, 0.18),
+		new THREE.MeshBasicMaterial({ map: marqueeTexture })
+	);
+	marquee.position.set(0, 1.56, 0.05);
+	group.add(marquee);
+	registerAnimation(marquee, (object, elapsed) => {
+		marqueeTexture.offset.x = (elapsed * 0.16) % 1;
+	});
+
+	// Amber warning beacon perched on top, blinking.
+	const beacon = new THREE.Mesh(
+		new THREE.SphereGeometry(0.07, 14, 10),
+		new THREE.MeshBasicMaterial({ color: 0xffb020 })
+	);
+	beacon.position.set(0, 3.04, 0.05);
+	group.add(beacon);
+	const beaconGlow = new THREE.PointLight(0xffb020, 0.0, 2.4);
+	beaconGlow.position.set(0, 3.04, 0.2);
+	group.add(beaconGlow);
+	registerAnimation(beacon, (object, elapsed) => {
+		const blink = (Math.sin(elapsed * 3.4) + 1) / 2;
+		object.material.color.setRGB(1, 0.5 + blink * 0.35, 0.06 + blink * 0.1);
+		object.scale.setScalar(0.85 + blink * 0.4);
+		beaconGlow.intensity = blink * 0.5;
+	});
+
+	return group;
+}
+
+function createUnderConstructionTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 372;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#c0c0c0';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	drawHazardBand(ctx, 0, 0, canvas.width, 40);
+	drawHazardBand(ctx, 0, canvas.height - 40, canvas.width, 40);
+
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillStyle = '#101010';
+	ctx.font = '900 56px Impact, Arial Black, sans-serif';
+	ctx.fillText('UNDER', 256, 96);
+	ctx.fillText('CONSTRUCTION', 256, 152);
+
+	// A little roadwork barricade with a hard hat.
+	drawBarricade(ctx, 176, 196, 160, 44);
+
+	ctx.fillStyle = '#1a1a6e';
+	ctx.font = 'italic 700 22px Georgia, serif';
+	ctx.fillText('this corner of the web is being built', 256, 270);
+
+	// Faux hit counter — black box with LCD-green digits.
+	ctx.fillStyle = '#9a7a3a';
+	ctx.font = '700 17px ui-monospace, Menlo, monospace';
+	ctx.fillText('visitors', 198, 312);
+	ctx.fillStyle = '#0a0a0a';
+	roundRectPath(ctx, 244, 296, 120, 34, 5);
+	ctx.fill();
+	ctx.fillStyle = '#39ff5a';
+	ctx.font = '900 26px ui-monospace, Menlo, monospace';
+	ctx.fillText('000042', 304, 314);
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+function drawHazardBand(ctx, x, y, w, h) {
+	ctx.save();
+	ctx.beginPath();
+	ctx.rect(x, y, w, h);
+	ctx.clip();
+	ctx.fillStyle = '#161616';
+	ctx.fillRect(x, y, w, h);
+	ctx.fillStyle = '#f5c518';
+	const step = 30;
+	for (let i = -h; i < w + h; i += step) {
+		ctx.beginPath();
+		ctx.moveTo(x + i, y);
+		ctx.lineTo(x + i + h, y + h);
+		ctx.lineTo(x + i + h + step / 2, y + h);
+		ctx.lineTo(x + i + step / 2, y);
+		ctx.closePath();
+		ctx.fill();
+	}
+	ctx.restore();
+}
+
+function drawBarricade(ctx, x, y, w, h) {
+	// Striped board.
+	ctx.save();
+	ctx.beginPath();
+	ctx.rect(x, y, w, h);
+	ctx.clip();
+	ctx.fillStyle = '#f5f5f5';
+	ctx.fillRect(x, y, w, h);
+	ctx.fillStyle = '#e8531f';
+	const step = 26;
+	for (let i = -h; i < w + h; i += step) {
+		ctx.beginPath();
+		ctx.moveTo(x + i, y);
+		ctx.lineTo(x + i + h, y + h);
+		ctx.lineTo(x + i + h + step / 2, y + h);
+		ctx.lineTo(x + i + step / 2, y);
+		ctx.closePath();
+		ctx.fill();
+	}
+	ctx.restore();
+	ctx.strokeStyle = '#101010';
+	ctx.lineWidth = 3;
+	ctx.strokeRect(x, y, w, h);
+	// Legs.
+	ctx.fillStyle = '#101010';
+	ctx.fillRect(x + 14, y + h, 6, 22);
+	ctx.fillRect(x + w - 20, y + h, 6, 22);
+}
+
+function createMarqueeTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.height = 72;
+	const font = '900 34px ui-monospace, Menlo, monospace';
+	const phrase = '★ CHECK BACK SOON ★ BEST VIEWED IN 800×600 ';
+	// Size the tile to exactly one phrase so RepeatWrapping scrolls seamlessly.
+	const measure = canvas.getContext('2d');
+	measure.font = font;
+	canvas.width = Math.ceil(measure.measureText(phrase).width);
+
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#101633';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#ffd23f';
+	ctx.font = font;
+	ctx.textAlign = 'left';
+	ctx.textBaseline = 'middle';
+	ctx.fillText(phrase, 0, canvas.height / 2 + 2);
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.wrapS = THREE.RepeatWrapping;
 	tex.anisotropy = 4;
 	return tex;
 }
