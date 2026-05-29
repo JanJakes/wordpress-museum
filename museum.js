@@ -26,7 +26,7 @@ const plaqueImageCache = new Map();
 const textureLoader = new THREE.TextureLoader();
 const gltfLoader = new GLTFLoader();
 const modelCache = new Map();
-let wapuuTexture = null;
+let wapuuTextures = null;
 let wapuuWordmarkTexture = null;
 const deviceScreenTextures = new Map();
 let deferredAssetTaskIndex = 0;
@@ -63,13 +63,31 @@ const modelDefinitions = {
 const museumTextureSources = {
 	...(isCurrentVariant
 		? {
-				// Floors are drawn procedurally as large warm marble slabs.
-				ceiling: './assets/textures/ceiling-tiles.jpg',
-				roomWall: './assets/textures/wall-marble.jpg',
-				shellWall: './assets/textures/wall-marble.jpg',
-			}
+			// Floors are drawn procedurally as large warm marble slabs.
+			ceiling: './assets/textures/ceiling-tiles.jpg',
+			roomWall: './assets/textures/wall-marble.jpg',
+			shellWall: './assets/textures/wall-marble.jpg',
+		}
 		: {}),
 };
+const wapuuTextureSources = [
+	{
+		name: 'Original Wapuu',
+		src: './assets/wapuu/wapuu-original.svg',
+	},
+	{
+		name: 'Superman Wapuu',
+		src: './assets/wapuu/variations/wapuu-superman.png',
+	},
+	{
+		name: 'Orbit Wapuu',
+		src: './assets/wapuu/variations/wapuu-orbit.png',
+	},
+	{
+		name: 'Orbit 23',
+		src: './assets/wapuu/variations/wapuu-23.png',
+	},
+];
 // Each procedural floor canvas holds a 2x2 block of slabs; this span sets
 // the real-world size of that block so individual slabs read ~2.6m.
 const floorTileSpan = 5.2;
@@ -773,30 +791,44 @@ function configureMuseumTexture(texture, repeatX, repeatY) {
 	texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
 }
 
-function getWapuuTexture() {
-	if (!wapuuTexture) {
-		const canvas = document.createElement('canvas');
-		canvas.width = 1024;
-		canvas.height = Math.round(canvas.width * (66 / 60));
-		const texture = new THREE.CanvasTexture(canvas);
-		const image = new Image();
-		image.decoding = 'async';
-		image.addEventListener(
-			'load',
-			() => {
-				const ctx = canvas.getContext('2d');
-				ctx.clearRect(0, 0, canvas.width, canvas.height);
-				ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-				texture.needsUpdate = true;
-			},
-			{ once: true }
-		);
-		image.src = './assets/wapuu/wapuu-original.svg';
-		wapuuTexture = texture;
-		wapuuTexture.colorSpace = THREE.SRGBColorSpace;
-		wapuuTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+function getWapuuTextures() {
+	if (!wapuuTextures) {
+		wapuuTextures = wapuuTextureSources.map(createWapuuTexture);
 	}
-	return wapuuTexture;
+	return wapuuTextures;
+}
+
+function createWapuuTexture(source) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 1024;
+	canvas.height = canvas.width;
+	const texture = new THREE.CanvasTexture(canvas);
+	const image = new Image();
+	image.decoding = 'async';
+	image.addEventListener(
+		'load',
+		() => {
+			const ctx = canvas.getContext('2d');
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			const scale = Math.min(canvas.width / image.naturalWidth, canvas.height / image.naturalHeight);
+			const width = image.naturalWidth * scale;
+			const height = image.naturalHeight * scale;
+			ctx.drawImage(
+				image,
+				(canvas.width - width) / 2,
+				(canvas.height - height) / 2,
+				width,
+				height
+			);
+			texture.needsUpdate = true;
+		},
+		{ once: true }
+	);
+	image.src = source.src;
+	texture.name = source.name;
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+	return texture;
 }
 
 function getTextureCanvas(name) {
@@ -2642,7 +2674,7 @@ function createPortalSignTexture(portal) {
 
 function createWapuuCutout(height, options = {}) {
 	const group = new THREE.Group();
-	const width = height * (60 / 66);
+	const width = height;
 	if (options.shadow) {
 		const shadow = new THREE.Mesh(
 			new THREE.PlaneGeometry(width * 1.08, height * 1.08),
@@ -2658,10 +2690,11 @@ function createWapuuCutout(height, options = {}) {
 		group.add(shadow);
 	}
 
+	const textures = getWapuuTextures();
 	const wapuu = new THREE.Mesh(
 		new THREE.PlaneGeometry(width, height),
 		new THREE.MeshBasicMaterial({
-			map: getWapuuTexture(),
+			map: textures[0],
 			transparent: true,
 			alphaTest: 0.04,
 			side: THREE.DoubleSide,
@@ -2670,6 +2703,7 @@ function createWapuuCutout(height, options = {}) {
 	);
 	wapuu.position.y = height / 2;
 	wapuu.position.z = 0.012;
+	registerWapuuVariationClick(wapuu, textures);
 	group.add(wapuu);
 
 	if (options.crossBillboard) {
@@ -2712,6 +2746,53 @@ function createWapuuCutout(height, options = {}) {
 		group.add(halo);
 	}
 	return group;
+}
+
+function registerWapuuVariationClick(wapuu, textures) {
+	if (textures.length < 2) {
+		return;
+	}
+
+	wapuu.userData.wapuuVariationIndex = 0;
+	wapuu.userData.onPick = () => {
+		if (wapuu.userData.wapuuFlipStart) {
+			return;
+		}
+		wapuu.userData.wapuuFlipStart = clock.elapsedTime;
+		wapuu.userData.wapuuFlipFromIndex = wapuu.userData.wapuuVariationIndex;
+		wapuu.userData.wapuuFlipToIndex = (wapuu.userData.wapuuVariationIndex + 1) % textures.length;
+	};
+	pickables.push(wapuu);
+
+	registerAnimation(wapuu, (object, elapsed) => {
+		if (!object.userData.wapuuFlipStart) {
+			return;
+		}
+
+		const flipDuration = 0.58;
+		const progress = THREE.MathUtils.clamp(
+			(elapsed - object.userData.wapuuFlipStart) / flipDuration,
+			0,
+			1
+		);
+		const scaleX = Math.max(0.045, Math.abs(Math.cos(progress * Math.PI)));
+		const textureIndex = progress >= 0.5
+			? object.userData.wapuuFlipToIndex
+			: object.userData.wapuuFlipFromIndex;
+
+		if (object.userData.wapuuVariationIndex !== textureIndex) {
+			object.material.map = textures[textureIndex];
+			object.material.needsUpdate = true;
+			object.userData.wapuuVariationIndex = textureIndex;
+		}
+		object.scale.x = scaleX;
+
+		if (progress >= 1) {
+			object.scale.x = 1;
+			object.userData.wapuuVariationIndex = object.userData.wapuuFlipToIndex;
+			object.userData.wapuuFlipStart = 0;
+		}
+	});
 }
 
 function createWordPressMuralTexture() {
@@ -3857,10 +3938,10 @@ function getSuspendedReleaseItems(room) {
 	const candidates = important.length >= 3
 		? important
 		: [
-				items[0],
-				items[Math.floor(items.length / 2)],
-				items[items.length - 1],
-			].filter(Boolean);
+			items[0],
+			items[Math.floor(items.length / 2)],
+			items[items.length - 1],
+		].filter(Boolean);
 	return candidates.slice(0, 5);
 }
 
@@ -8003,13 +8084,15 @@ function bindControls() {
 		keys.delete(event.code);
 	});
 
-	canvas.addEventListener('click', () => {
+	canvas.addEventListener('click', (event) => {
 		// Clicking the scene enters walk mode; once walking, a click inspects
 		// whatever the centre reticle is pointed at.
 		if (document.pointerLockElement === canvas) {
 			pickFromScreen(0, 0);
-		} else {
+		} else if (!pickFromPointerEvent(event)) {
 			canvas.requestPointerLock();
+		} else {
+			event.preventDefault();
 		}
 	});
 
@@ -8220,7 +8303,7 @@ function getNearestRailItemIndex() {
 	}
 	return Math.round(
 		THREE.MathUtils.clamp(rail.scrollLeft / maxScrollLeft, 0, 1) *
-			(railItems.length - 1)
+		(railItems.length - 1)
 	);
 }
 
@@ -8497,13 +8580,13 @@ function getRailContext() {
 	const roomEra = getCameraNavigationEra();
 	return roomEra
 		? {
-				mode: 'releases',
-				era: roomEra,
-			}
+			mode: 'releases',
+			era: roomEra,
+		}
 		: {
-				mode: 'rooms',
-				era: '',
-			};
+			mode: 'rooms',
+			era: '',
+		};
 }
 
 function getCameraNavigationEra() {
@@ -8639,16 +8722,29 @@ function pickFromScreen(x, y) {
 	raycaster.setFromCamera(pointer, camera);
 	const hit = raycaster.intersectObjects(pickables, false)[0];
 	if (!hit) {
-		return;
+		return false;
 	}
 	const obj = hit.object;
+	if (typeof obj.userData.onPick === 'function') {
+		obj.userData.onPick(obj);
+		return true;
+	}
 	if (obj.userData.portalUrl) {
 		window.open(obj.userData.portalUrl, '_blank', 'noopener,noreferrer');
-		return;
+		return true;
 	}
 	if (Number.isFinite(obj.userData.releaseIndex)) {
 		focusRelease(obj.userData.releaseIndex);
+		return true;
 	}
+	return false;
+}
+
+function pickFromPointerEvent(event) {
+	const rect = canvas.getBoundingClientRect();
+	const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+	const y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+	return pickFromScreen(x, y);
 }
 
 function turnCamera(deltaX, deltaY) {

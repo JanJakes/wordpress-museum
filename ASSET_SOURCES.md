@@ -9,7 +9,8 @@
 - WordPress admin screenshots: captured from WordPress Playground. See
   `assets/wp-screenshots/manifest.json`.
 - Wapuu original SVG and PNG: official Wapuu artwork, GPLv2 or later. See
-  `assets/wapuu/manifest.json`.
+  `assets/wapuu/manifest.json`. Wall Wapuu variations live in
+  `assets/wapuu/variations/` and come from Wapuu Studio.
 
 ## Design Exploration Assets
 
@@ -29,6 +30,7 @@ Urban Kit, and Building Kit. Each original pack declares Creative Commons Zero
   WordPress text and procedural museum marks rather than downloaded or modified
   official logo files. The default museum now uses the original Wapuu SVG as
   mascot artwork with source and license metadata.
+- Wall Wapuu variations are from Wapuu Studio: https://wapuu.studio/.
 - Kenney publishes the selected 3D packs under Creative Commons Zero (CC0):
   Furniture Kit, Retro Urban Kit, and Building Kit.
 - The cathedral ceiling, full-height columns, vault ribs, chandelier, room
