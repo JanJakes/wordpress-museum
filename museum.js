@@ -4302,6 +4302,7 @@ function createAtriumDecor() {
 	}
 	group.add(createAtriumFloorMedallion(color, secondary));
 	if (isCurrentVariant) {
+		group.add(createAtriumTimelineRing());
 		group.add(createAtriumVersionOrbit());
 		group.add(createAtriumRopeArcs(color, secondary));
 	}
@@ -4337,6 +4338,248 @@ function createAtriumFloorMedallion(color, secondary) {
 		group.add(spoke);
 	}
 	return group;
+}
+
+// Floor wayfinding: a chronological "era timeline" laid out on the rotunda
+// floor. Each of the seven galleries gets a year node in its own direction,
+// linked by chevrons that flow forward through time, with a welcome banner by
+// the mural. Makes the chronological direction obvious from the hub.
+function createAtriumTimelineRing() {
+	const group = new THREE.Group();
+	const radius = 9.4;
+	const yearByEra = new Map(
+		getEraReleaseGroups().map(({ era, items }) => [era, getReleaseYearRange(items)])
+	);
+	// eras is already chronological, so iterating it orders the galleries in time.
+	const orderedSides = eras.map((era) => roomLayout.get(era)).filter(Boolean);
+	const total = orderedSides.length;
+
+	orderedSides.forEach((side, index) => {
+		const node = createTimelineYearNode(
+			yearByEra.get(side.era) || '',
+			side.era,
+			index + 1,
+			total,
+			eraColors.get(side.era)
+		);
+		node.position.copy(side.normal).multiplyScalar(radius);
+		node.rotation.y = -side.angle;
+		group.add(node);
+	});
+
+	// Chevrons flowing from each era toward the next, tinted with the colour of
+	// the era they point to. The mural gap is intentionally left unbridged.
+	for (let index = 0; index < total - 1; index++) {
+		const startAngle = orderedSides[index].angle;
+		const endAngle = orderedSides[index + 1].angle;
+		const nextColor = eraColors.get(orderedSides[index + 1].era);
+		const chevronCount = 2;
+		for (let step = 1; step <= chevronCount; step++) {
+			const t = step / (chevronCount + 1);
+			const angle = startAngle + (endAngle - startAngle) * t;
+			const direction = getDirectionFromAngle(angle);
+			// Phase grows monotonically along the timeline so the pulse travels
+			// forward in time.
+			const flowPhase = index + t;
+			const chevron = createTimelineChevron(nextColor, flowPhase);
+			chevron.position.set(direction.x * radius, 0.07, direction.z * radius);
+			chevron.rotation.y = getRotationForNormal(
+				new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle))
+			);
+			group.add(chevron);
+		}
+	}
+
+	group.add(createTimelineEntranceCue(radius));
+	return group;
+}
+
+function createTimelineYearNode(year, eraName, ordinal, total, color) {
+	const group = new THREE.Group();
+
+	const disc = new THREE.Mesh(
+		new THREE.CircleGeometry(0.74, 44),
+		new THREE.MeshStandardMaterial({
+			color: 0xf3ead0,
+			roughness: 0.5,
+			metalness: 0.08,
+		})
+	);
+	disc.rotation.x = -Math.PI / 2;
+	disc.position.y = 0.045;
+	group.add(disc);
+
+	const brassMaterial = new THREE.MeshStandardMaterial({
+		color: 0xc79b43,
+		emissive: new THREE.Color(color),
+		emissiveIntensity: 0.08,
+		roughness: 0.32,
+		metalness: 0.5,
+	});
+	const rim = new THREE.Mesh(new THREE.TorusGeometry(0.74, 0.04, 10, 52), brassMaterial);
+	rim.rotation.x = Math.PI / 2;
+	rim.position.y = 0.05;
+	group.add(rim);
+
+	// Era-coloured collar so each node reads as its gallery from across the hub.
+	const collar = new THREE.Mesh(
+		new THREE.RingGeometry(0.56, 0.66, 44),
+		new THREE.MeshBasicMaterial({
+			color,
+			transparent: true,
+			opacity: 0.62,
+			side: THREE.DoubleSide,
+		})
+	);
+	collar.rotation.x = -Math.PI / 2;
+	collar.position.y = 0.052;
+	group.add(collar);
+	registerAnimation(collar, (object, elapsed) => {
+		object.material.opacity = 0.5 + Math.sin(elapsed * 1.2 - ordinal * 0.7) * 0.16;
+	});
+
+	const label = createReadableLabel(
+		createTimelineYearTexture(year, eraName, ordinal, total, color),
+		1.28,
+		1.28
+	);
+	label.rotation.x = -Math.PI / 2;
+	label.position.y = 0.09;
+	group.add(label);
+
+	return group;
+}
+
+function createTimelineYearTexture(year, eraName, ordinal, total, color) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 512;
+	const ctx = canvas.getContext('2d');
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+
+	ctx.fillStyle = '#5b6472';
+	ctx.font = '900 40px system-ui, sans-serif';
+	ctx.fillText(`${ordinal} / ${total}`, 256, 110);
+
+	ctx.fillStyle = '#1b2330';
+	fillFittedCanvasText(ctx, year, 256, 244, 400, 150, '900', 'Arial Black, Impact, sans-serif');
+
+	ctx.fillStyle = color;
+	roundRectPath(ctx, 176, 332, 160, 12, 6);
+	ctx.fill();
+
+	ctx.fillStyle = '#2c333f';
+	fillFittedCanvasText(ctx, eraName.toUpperCase(), 256, 392, 440, 44, '900', 'system-ui, sans-serif');
+
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
+}
+
+function createTimelineChevron(color, flowPhase) {
+	const group = new THREE.Group();
+	const material = new THREE.MeshBasicMaterial({
+		color,
+		transparent: true,
+		opacity: 0.6,
+		side: THREE.DoubleSide,
+		depthWrite: false,
+	});
+	const tip = new THREE.Vector2(0, 0.3);
+	for (const tailX of [-0.22, 0.22]) {
+		const tail = new THREE.Vector2(tailX, -0.1);
+		const span = tip.clone().sub(tail);
+		const bar = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.02, span.length()), material);
+		bar.position.set((tip.x + tail.x) / 2, 0, (tip.y + tail.y) / 2);
+		bar.rotation.y = getRotationForNormal(new THREE.Vector3(span.x, 0, span.y));
+		group.add(bar);
+	}
+	// A bright crest sweeps from the earliest era toward the latest, reinforcing
+	// the direction of time.
+	registerAnimation(group, (object, elapsed) => {
+		material.opacity = 0.34 + Math.max(0, Math.sin(elapsed * 1.8 - flowPhase * 1.5)) * 0.5;
+	});
+	return group;
+}
+
+function createTimelineEntranceCue(radius) {
+	// Parked just inside the mural at the gap in the timeline, oriented to read
+	// from the rotunda centre (where visitors spawn looking toward the mural).
+	const group = new THREE.Group();
+	group.position.set(0, 0, radius);
+	group.rotation.y = Math.PI;
+
+	const plate = new THREE.Mesh(
+		new THREE.PlaneGeometry(3.7, 1.18),
+		new THREE.MeshStandardMaterial({
+			color: 0xf3ead0,
+			roughness: 0.52,
+			metalness: 0.06,
+		})
+	);
+	plate.rotation.x = -Math.PI / 2;
+	plate.position.y = 0.045;
+	group.add(plate);
+
+	const label = createReadableLabel(
+		createTimelineEntranceTexture(),
+		3.62,
+		1.1
+	);
+	label.rotation.x = -Math.PI / 2;
+	label.position.y = 0.09;
+	group.add(label);
+
+	return group;
+}
+
+function createTimelineEntranceTexture() {
+	const startColor = eraColors.get(eras[0]);
+	const endColor = eraColors.get(eras[eras.length - 1]);
+	const startYear = String(Math.min(...releases.map((release) => release.year)));
+	const endYear = String(Math.max(...releases.map((release) => release.year)));
+	const canvas = document.createElement('canvas');
+	canvas.width = 1024;
+	canvas.height = 320;
+	const ctx = canvas.getContext('2d');
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+
+	ctx.fillStyle = '#1b2330';
+	ctx.font = '900 78px Arial Black, Impact, sans-serif';
+	fillFittedCanvasText(ctx, 'WORDPRESS THROUGH THE YEARS', 512, 96, 940, 78, '900', 'Arial Black, Impact, sans-serif');
+
+	// Mini timeline: earliest ───▸ latest year, the chevron echoing the floor flow.
+	ctx.fillStyle = startColor;
+	ctx.font = '900 56px Arial Black, Impact, sans-serif';
+	ctx.fillText(startYear, 250, 214);
+	ctx.fillStyle = endColor;
+	ctx.fillText(endYear, 774, 214);
+
+	ctx.strokeStyle = '#5b6472';
+	ctx.lineWidth = 8;
+	ctx.beginPath();
+	ctx.moveTo(346, 214);
+	ctx.lineTo(660, 214);
+	ctx.stroke();
+	ctx.fillStyle = '#5b6472';
+	ctx.beginPath();
+	ctx.moveTo(700, 214);
+	ctx.lineTo(656, 190);
+	ctx.lineTo(656, 238);
+	ctx.closePath();
+	ctx.fill();
+
+	ctx.fillStyle = '#5b6472';
+	ctx.font = '700 30px system-ui, sans-serif';
+	ctx.fillText('follow the timeline around the rotunda', 512, 272);
+
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
 }
 
 function createAtriumVersionOrbit() {
