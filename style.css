@@ -1059,11 +1059,24 @@ body[data-variant='current'] .release-panel.is-collapsed .panel-toggle-tab {
 }
 
 @media (max-width: 760px) {
+	/* The ticket becomes a narrow right-edge card (below the title HUD, clear of
+	   the top-left movement pad) that starts collapsed to a tappable tab. These
+	   need the data-variant prefix to beat the base panel rule's specificity. */
 	body[data-variant='current'] .release-panel {
-		padding: 16px 14px 14px 46px;
+		left: auto;
+		right: 0;
+		top: 190px;
+		bottom: auto;
+		width: min(248px, 66vw);
+		max-height: none;
+		overflow: visible;
+		padding: 14px 14px 16px;
 	}
 	body[data-variant='current'] .release-panel .ticket-stub {
-		width: 30px;
+		display: none;
+	}
+	body[data-variant='current'] .release-panel.is-collapsed {
+		transform: translateX(100%);
 	}
 	body[data-variant='current'] h1 .title-stamp {
 		display: none;
@@ -1130,8 +1143,8 @@ body[data-variant='current'] .release-panel.is-collapsed .panel-toggle-tab {
 
 	.mobile-pad {
 		display: flex;
-		top: 142px;
-		bottom: auto;
+		top: auto;
+		bottom: 168px;
 	}
 
 	.help-card {

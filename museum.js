@@ -8850,9 +8850,15 @@ function bindControls() {
 		.addEventListener('click', () => focusRelease(activeIndex + 1));
 
 	const panelToggle = document.querySelector('#panel-toggle');
-	if (panelToggle) {
+	const releasePanel = document.querySelector('.release-panel');
+	if (panelToggle && releasePanel) {
+		// On phones the expanded ticket would bury the scene and the movement
+		// pad, so it starts collapsed to a tab the visitor can tap open.
+		if (window.matchMedia('(max-width: 760px)').matches) {
+			releasePanel.classList.add('is-collapsed');
+		}
 		panelToggle.addEventListener('click', () => {
-			document.querySelector('.release-panel').classList.toggle('is-collapsed');
+			releasePanel.classList.toggle('is-collapsed');
 		});
 	}
 
