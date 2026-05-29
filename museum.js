@@ -5849,10 +5849,13 @@ function addEraVignette(group, room, roomIndex) {
 			addLocal(group, flyer, -1.7, -roomDepth / 2 + 2.1, 0.5 + roomIndex * 0.3);
 		}
 		group.add(createWebEraPoster(room));
+		const frontWallZ = -roomDepth / 2 + wallThickness / 2 + 0.05;
 		if (room.era === eras[0]) {
-			const frontWallZ = -roomDepth / 2 + wallThickness / 2 + 0.05;
 			addLocal(group, createUnderConstructionPlaque(), 3.95, frontWallZ);
 			addLocal(group, createWebSafePalettePanel(), -3.95, frontWallZ);
+		} else if (room.era === 'CMS Toolkit') {
+			addLocal(group, createSkeuomorphicPanel(), 3.95, frontWallZ);
+			addLocal(group, createFauxMaterialsPanel(), -3.95, frontWallZ);
 		}
 	}
 	addRoomVignetteLights(group, color);
@@ -6181,6 +6184,328 @@ function createWebSafePaletteTexture() {
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
+}
+
+// Standard brass-framed wall plaque (matches the museum's other framed art).
+function createFramedPlaque(texture) {
+	const group = new THREE.Group();
+	const frame = new THREE.Mesh(
+		new THREE.BoxGeometry(1.62, 1.22, 0.08),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	frame.position.set(0, 2.35, 0);
+	group.add(frame);
+	const panel = new THREE.Mesh(
+		new THREE.PlaneGeometry(1.46, 1.06),
+		new THREE.MeshBasicMaterial({ map: texture })
+	);
+	panel.position.set(0, 2.35, 0.05);
+	group.add(panel);
+	return group;
+}
+
+// Skeuomorphism (the CMS Toolkit era, ~2011): a glossy button, a slide-to-unlock
+// track and a toggle — pixels pretending to be physical things.
+function createSkeuomorphicPanel() {
+	return createFramedPlaque(createSkeuomorphicTexture());
+}
+
+function createSkeuomorphicTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 372;
+	const ctx = canvas.getContext('2d');
+
+	// Brushed-aluminium backing.
+	const bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
+	bg.addColorStop(0, '#d7dbe0');
+	bg.addColorStop(0.5, '#bcc2c9');
+	bg.addColorStop(1, '#d2d6dc');
+	ctx.fillStyle = bg;
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+	ctx.lineWidth = 1;
+	for (let y = 6; y < canvas.height; y += 3) {
+		ctx.beginPath();
+		ctx.moveTo(0, y);
+		ctx.lineTo(canvas.width, y);
+		ctx.stroke();
+	}
+
+	// Glossy dark title bar.
+	const tb = ctx.createLinearGradient(0, 0, 0, 64);
+	tb.addColorStop(0, '#3a4250');
+	tb.addColorStop(0.5, '#222934');
+	tb.addColorStop(0.5, '#1a212b');
+	tb.addColorStop(1, '#2a313d');
+	ctx.fillStyle = tb;
+	ctx.fillRect(0, 0, canvas.width, 64);
+	ctx.fillStyle = '#f3f0e6';
+	ctx.font = '900 30px Arial Black, Impact, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('SKEUOMORPHISM · 2011', 256, 33);
+
+	drawGlossyPill(ctx, 70, 96, 372, 58, 'Download', '#7cc1f6', '#1f6fe0');
+	drawSlideToUnlock(ctx, 70, 176, 372, 58);
+	ctx.fillStyle = '#3a4250';
+	ctx.font = '800 24px system-ui, sans-serif';
+	ctx.textAlign = 'left';
+	ctx.fillText('Push notifications', 70, 295);
+	drawToggle(ctx, 372, 277, true);
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+function drawGlossyPill(ctx, x, y, w, h, label, top, bottom) {
+	const r = h / 2;
+	ctx.save();
+	ctx.shadowColor = 'rgba(0,0,0,0.35)';
+	ctx.shadowBlur = 9;
+	ctx.shadowOffsetY = 4;
+	const g = ctx.createLinearGradient(0, y, 0, y + h);
+	g.addColorStop(0, top);
+	g.addColorStop(1, bottom);
+	ctx.fillStyle = g;
+	roundRectPath(ctx, x, y, w, h, r);
+	ctx.fill();
+	ctx.restore();
+	const gloss = ctx.createLinearGradient(0, y, 0, y + h * 0.52);
+	gloss.addColorStop(0, 'rgba(255,255,255,0.6)');
+	gloss.addColorStop(1, 'rgba(255,255,255,0.04)');
+	ctx.fillStyle = gloss;
+	roundRectPath(ctx, x + 3, y + 2, w - 6, h * 0.5, r * 0.8);
+	ctx.fill();
+	ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+	ctx.lineWidth = 1.5;
+	roundRectPath(ctx, x, y, w, h, r);
+	ctx.stroke();
+	ctx.fillStyle = '#ffffff';
+	ctx.font = '700 27px system-ui, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.save();
+	ctx.shadowColor = 'rgba(0,0,0,0.45)';
+	ctx.shadowOffsetY = 1;
+	ctx.fillText(label, x + w / 2, y + h / 2 + 1);
+	ctx.restore();
+}
+
+function drawSlideToUnlock(ctx, x, y, w, h) {
+	const r = h / 2;
+	// Recessed track.
+	const tg = ctx.createLinearGradient(0, y, 0, y + h);
+	tg.addColorStop(0, '#9aa0a8');
+	tg.addColorStop(0.5, '#cfd4da');
+	tg.addColorStop(1, '#eef1f4');
+	ctx.fillStyle = tg;
+	roundRectPath(ctx, x, y, w, h, r);
+	ctx.fill();
+	ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+	ctx.lineWidth = 1.5;
+	roundRectPath(ctx, x, y, w, h, r);
+	ctx.stroke();
+	// Shimmer label.
+	ctx.fillStyle = 'rgba(80,86,94,0.75)';
+	ctx.font = 'italic 600 24px system-ui, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('slide to unlock  ▸▸▸', x + w / 2 + 28, y + h / 2);
+	// Glossy knob on the left.
+	drawGlossyPill(ctx, x + 4, y + 4, 78, h - 8, '▸', '#fbfbfb', '#c7ccd2');
+}
+
+function drawToggle(ctx, x, y, on) {
+	const w = 72;
+	const h = 38;
+	const r = h / 2;
+	const g = ctx.createLinearGradient(0, y, 0, y + h);
+	if (on) {
+		g.addColorStop(0, '#7fd07f');
+		g.addColorStop(1, '#3a9a3a');
+	} else {
+		g.addColorStop(0, '#cfd4da');
+		g.addColorStop(1, '#aab0b8');
+	}
+	ctx.fillStyle = g;
+	roundRectPath(ctx, x, y, w, h, r);
+	ctx.fill();
+	ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+	ctx.lineWidth = 1.5;
+	roundRectPath(ctx, x, y, w, h, r);
+	ctx.stroke();
+	// Knob.
+	const kx = on ? x + w - h + 3 : x + 3;
+	ctx.save();
+	ctx.shadowColor = 'rgba(0,0,0,0.4)';
+	ctx.shadowBlur = 4;
+	ctx.shadowOffsetY = 2;
+	const kg = ctx.createRadialGradient(kx + (h - 6) / 2, y + h / 2 - 4, 2, kx + (h - 6) / 2, y + h / 2, (h - 6) / 2);
+	kg.addColorStop(0, '#ffffff');
+	kg.addColorStop(1, '#e2e6ea');
+	ctx.fillStyle = kg;
+	ctx.beginPath();
+	ctx.arc(kx + (h - 6) / 2, y + h / 2, (h - 6) / 2, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.restore();
+}
+
+// The materials skeuomorphic apps faked in 2011: a sampler swatch wall.
+function createFauxMaterialsPanel() {
+	return createFramedPlaque(createFauxMaterialsTexture());
+}
+
+function createFauxMaterialsTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 372;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#241a12';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	ctx.fillStyle = '#f3ead0';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.font = '900 34px Arial Black, Impact, sans-serif';
+	ctx.fillText('FAUX MATERIALS', 256, 34);
+	ctx.fillStyle = '#b79a5e';
+	ctx.font = '700 17px system-ui, sans-serif';
+	ctx.fillText('the year the screen pretended to be real', 256, 64);
+
+	const swatches = [
+		{ label: 'LINEN', draw: drawLinenSwatch },
+		{ label: 'BRUSHED METAL', draw: drawMetalSwatch },
+		{ label: 'LEATHER', draw: drawLeatherSwatch },
+		{ label: 'GREEN FELT', draw: drawFeltSwatch },
+		{ label: 'WOOD', draw: drawWoodSwatch },
+		{ label: 'GLASS', draw: drawGlassSwatch },
+	];
+	const cols = 3;
+	const cellW = 150;
+	const cellH = 118;
+	const startX = (canvas.width - cols * cellW) / 2 + 8;
+	const startY = 88;
+	swatches.forEach((s, i) => {
+		const cx = startX + (i % cols) * cellW;
+		const cy = startY + Math.floor(i / cols) * cellH;
+		const w = cellW - 16;
+		const h = cellH - 34;
+		ctx.save();
+		roundRectPath(ctx, cx, cy, w, h, 10);
+		ctx.clip();
+		s.draw(ctx, cx, cy, w, h);
+		ctx.restore();
+		ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+		ctx.lineWidth = 2;
+		roundRectPath(ctx, cx, cy, w, h, 10);
+		ctx.stroke();
+		ctx.fillStyle = '#e7dcc0';
+		ctx.font = '800 14px system-ui, sans-serif';
+		ctx.textAlign = 'center';
+		ctx.fillText(s.label, cx + w / 2, cy + h + 14);
+	});
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+function drawLinenSwatch(ctx, x, y, w, h) {
+	ctx.fillStyle = '#cfc9ba';
+	ctx.fillRect(x, y, w, h);
+	ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+	ctx.lineWidth = 1;
+	for (let i = 0; i < w + h; i += 4) {
+		ctx.beginPath();
+		ctx.moveTo(x + i, y);
+		ctx.lineTo(x, y + i);
+		ctx.stroke();
+	}
+	ctx.strokeStyle = 'rgba(120,112,96,0.3)';
+	for (let i = 0; i < w; i += 4) {
+		ctx.beginPath();
+		ctx.moveTo(x + i, y);
+		ctx.lineTo(x + i, y + h);
+		ctx.stroke();
+	}
+}
+
+function drawMetalSwatch(ctx, x, y, w, h) {
+	const g = ctx.createLinearGradient(x, y, x, y + h);
+	g.addColorStop(0, '#e8ebee');
+	g.addColorStop(0.5, '#a9b0b8');
+	g.addColorStop(1, '#d2d6db');
+	ctx.fillStyle = g;
+	ctx.fillRect(x, y, w, h);
+	ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+	ctx.lineWidth = 1;
+	for (let i = 1; i < h; i += 2) {
+		ctx.beginPath();
+		ctx.moveTo(x, y + i);
+		ctx.lineTo(x + w, y + i);
+		ctx.stroke();
+	}
+}
+
+function drawLeatherSwatch(ctx, x, y, w, h) {
+	const g = ctx.createRadialGradient(x + w / 2, y + h / 2, 4, x + w / 2, y + h / 2, w * 0.7);
+	g.addColorStop(0, '#7a4a2a');
+	g.addColorStop(1, '#5a3318');
+	ctx.fillStyle = g;
+	ctx.fillRect(x, y, w, h);
+	ctx.strokeStyle = 'rgba(245,225,180,0.85)';
+	ctx.lineWidth = 2;
+	ctx.setLineDash([7, 5]);
+	ctx.strokeRect(x + 8, y + 8, w - 16, h - 16);
+	ctx.setLineDash([]);
+}
+
+function drawFeltSwatch(ctx, x, y, w, h) {
+	ctx.fillStyle = '#1f7a3d';
+	ctx.fillRect(x, y, w, h);
+	ctx.fillStyle = 'rgba(0,0,0,0.12)';
+	for (let i = 0; i < 120; i++) {
+		const px = x + pseudoRandom(i * 1.7) * w;
+		const py = y + pseudoRandom(i * 2.3 + 1) * h;
+		ctx.fillRect(px, py, 1.5, 1.5);
+	}
+}
+
+function drawWoodSwatch(ctx, x, y, w, h) {
+	const g = ctx.createLinearGradient(x, y, x + w, y);
+	g.addColorStop(0, '#9a5e2c');
+	g.addColorStop(0.5, '#b9783c');
+	g.addColorStop(1, '#8a4f24');
+	ctx.fillStyle = g;
+	ctx.fillRect(x, y, w, h);
+	ctx.strokeStyle = 'rgba(80,45,20,0.5)';
+	ctx.lineWidth = 1.5;
+	for (let i = 0; i < h; i += 9) {
+		ctx.beginPath();
+		ctx.moveTo(x, y + i + Math.sin(i) * 2);
+		ctx.bezierCurveTo(x + w * 0.4, y + i - 3, x + w * 0.6, y + i + 3, x + w, y + i + Math.cos(i) * 2);
+		ctx.stroke();
+	}
+}
+
+function drawGlassSwatch(ctx, x, y, w, h) {
+	const g = ctx.createLinearGradient(x, y, x, y + h);
+	g.addColorStop(0, '#bfe3f5');
+	g.addColorStop(1, '#5aa0c8');
+	ctx.fillStyle = g;
+	ctx.fillRect(x, y, w, h);
+	ctx.fillStyle = 'rgba(255,255,255,0.45)';
+	ctx.beginPath();
+	ctx.moveTo(x, y);
+	ctx.lineTo(x + w * 0.6, y);
+	ctx.lineTo(x + w * 0.3, y + h);
+	ctx.lineTo(x, y + h);
+	ctx.closePath();
+	ctx.fill();
 }
 
 function drawBrowserChrome(ctx, x, y, w, h, kind) {
