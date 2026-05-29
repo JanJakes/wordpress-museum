@@ -102,6 +102,7 @@ const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const pickables = [];
 const exhibitPositions = [];
+const connectorRegions = [];
 let railButtons = [];
 let railItems = [];
 let railMode = '';
@@ -194,6 +195,12 @@ const hubSides = createHubSides();
 const muralSide = hubSides.find((side) => side.kind === 'mural');
 const roomSides = hubSides.filter((side) => side.era);
 const roomLayout = new Map(roomSides.map((side) => [side.era, side]));
+// Short corridors connect adjacent galleries through the wedge gaps, turning
+// the dead space into a chronological room-to-room walk.
+const connectorDoorHalfWidth = 0.82;
+const connectorDoorHeight = 3.0;
+const connectorDoorZ = -roomDepth / 2 + 1.85;
+const galleryConnections = computeGalleryConnections();
 const atriumCenterPosition = new THREE.Vector3(0, 1.65, 0);
 const atriumStartPosition = atriumCenterPosition
 	.clone()
@@ -365,6 +372,9 @@ function buildScene() {
 			root.add(createExhibit(release, index, slot, color));
 		});
 	});
+	if (isCurrentVariant) {
+		root.add(createGalleryConnectors());
+	}
 }
 
 function getReleaseYearRange(items) {
@@ -3176,8 +3186,8 @@ function createRoom(room) {
 	group.add(createRoomCeiling(room.color));
 
 	group.add(createRoomWall('back'));
-	group.add(createRoomWall('left'));
-	group.add(createRoomWall('right'));
+	group.add(createRoomWall('left', room.connectLeft));
+	group.add(createRoomWall('right', room.connectRight));
 	if (isCurrentVariant) {
 		group.add(createRoomMuseumArchitecture(room));
 		group.add(createRoomStoryWall(room));
@@ -3502,7 +3512,10 @@ function createRoomCeiling(color) {
 	return group;
 }
 
-function createRoomWall(side) {
+function createRoomWall(side, hasDoorway = false) {
+	if (hasDoorway && (side === 'left' || side === 'right')) {
+		return createSideWallWithDoorway(side);
+	}
 	return createRoomWallSegment(
 		side,
 		side === 'front' || side === 'back'
@@ -3510,6 +3523,161 @@ function createRoomWall(side) {
 			: roomDepth,
 		0
 	);
+}
+
+function createSideWallWithDoorway(side) {
+	const group = new THREE.Group();
+	const x = side === 'left' ? -roomWidth / 2 : roomWidth / 2;
+	const mat = createRoomWallMaterial(roomDepth);
+	const frontEnd = -roomDepth / 2;
+	const backEnd = roomDepth / 2;
+	const doorFront = connectorDoorZ - connectorDoorHalfWidth;
+	const doorBack = connectorDoorZ + connectorDoorHalfWidth;
+
+	const frontLen = doorFront - frontEnd;
+	if (frontLen > 0.02) {
+		const seg = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, wallHeight, frontLen), mat);
+		seg.position.set(x, wallHeight / 2, frontEnd + frontLen / 2);
+		group.add(seg);
+	}
+	const backLen = backEnd - doorBack;
+	if (backLen > 0.02) {
+		const seg = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, wallHeight, backLen), mat);
+		seg.position.set(x, wallHeight / 2, doorBack + backLen / 2);
+		group.add(seg);
+	}
+	const headerH = wallHeight - connectorDoorHeight;
+	const header = new THREE.Mesh(
+		new THREE.BoxGeometry(wallThickness, headerH, connectorDoorHalfWidth * 2),
+		mat
+	);
+	header.position.set(x, connectorDoorHeight + headerH / 2, connectorDoorZ);
+	group.add(header);
+
+	// Brass jambs + lintel framing the opening.
+	const brass = new THREE.MeshStandardMaterial({
+		color: 0xc79b43,
+		emissive: 0x2a1c06,
+		emissiveIntensity: 0.1,
+		roughness: 0.32,
+		metalness: 0.5,
+	});
+	const inset = side === 'left' ? 0.16 : -0.16;
+	for (const dzSign of [-1, 1]) {
+		const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.12, connectorDoorHeight, 0.14), brass);
+		jamb.position.set(x + inset, connectorDoorHeight / 2, connectorDoorZ + dzSign * connectorDoorHalfWidth);
+		group.add(jamb);
+	}
+	const lintel = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, connectorDoorHalfWidth * 2 + 0.2), brass);
+	lintel.position.set(x + inset, connectorDoorHeight, connectorDoorZ);
+	group.add(lintel);
+	return group;
+}
+
+function createGalleryConnectors() {
+	const group = new THREE.Group();
+	for (const { a, b } of galleryConnections) {
+		group.add(createGalleryConnector(a, b));
+	}
+	return group;
+}
+
+function sideDoorwayWorld(room, neighbor) {
+	const onRight =
+		(neighbor.center.x - room.center.x) * room.tangent.x +
+			(neighbor.center.z - room.center.z) * room.tangent.z >
+		0;
+	const lx = onRight ? roomWidth / 2 : -roomWidth / 2;
+	return new THREE.Vector3(
+		room.center.x + room.tangent.x * lx + room.normal.x * connectorDoorZ,
+		0,
+		room.center.z + room.tangent.z * lx + room.normal.z * connectorDoorZ
+	);
+}
+
+function createGalleryConnector(a, b) {
+	const group = new THREE.Group();
+	const doorA = sideDoorwayWorld(a, b);
+	const doorB = sideDoorwayWorld(b, a);
+	const mx = (doorA.x + doorB.x) / 2;
+	const mz = (doorA.z + doorB.z) / 2;
+	const dx = doorB.x - doorA.x;
+	const dz = doorB.z - doorA.z;
+	const gap = Math.hypot(dx, dz);
+	const dir = Math.atan2(dx, dz);
+	const halfW = connectorDoorHalfWidth + 0.04;
+	const height = connectorDoorHeight + 0.18;
+	const length = gap + 1.0; // embed the open ends into both room walls
+
+	const inner = new THREE.Group();
+	inner.position.set(mx, 0, mz);
+	inner.rotation.y = dir;
+	group.add(inner);
+
+	const floor = new THREE.Mesh(
+		new THREE.PlaneGeometry(halfW * 2, length),
+		createMuseumMaterial('roomFloor', {
+			repeatX: (halfW * 2) / floorTileSpan,
+			repeatY: length / floorTileSpan,
+			roughness: 0.26,
+			metalness: 0.3,
+		})
+	);
+	floor.rotation.x = -Math.PI / 2;
+	floor.position.y = 0.02;
+	inner.add(floor);
+
+	const runner = new THREE.Mesh(
+		new THREE.PlaneGeometry(halfW * 1.3, length - 0.3),
+		new THREE.MeshBasicMaterial({ color: a.color || 0xffd166, transparent: true, opacity: 0.5, depthWrite: false })
+	);
+	runner.rotation.x = -Math.PI / 2;
+	runner.position.y = 0.05;
+	inner.add(runner);
+
+	const ceiling = new THREE.Mesh(
+		new THREE.PlaneGeometry(halfW * 2 + wallThickness * 2, length),
+		new THREE.MeshStandardMaterial({ color: 0x18223a, roughness: 0.6, metalness: 0.16, side: THREE.DoubleSide })
+	);
+	ceiling.rotation.x = Math.PI / 2;
+	ceiling.position.y = height;
+	inner.add(ceiling);
+
+	const wallMat = createRoomWallMaterial(length);
+	for (const sx of [-1, 1]) {
+		const wall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, height, length), wallMat);
+		wall.position.set(sx * (halfW + wallThickness / 2), height / 2, 0);
+		inner.add(wall);
+	}
+
+	const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.1, 14, 10), new THREE.MeshBasicMaterial({ color: 0xffefb4 }));
+	bulb.position.set(0, height - 0.22, 0);
+	inner.add(bulb);
+	const lamp = new THREE.PointLight(0xffe6b0, 0.85, 7);
+	lamp.position.set(0, height - 0.35, 0);
+	registerAnimation(lamp, (object, elapsed) => {
+		object.intensity = 0.72 + Math.sin(elapsed * 1.5) * 0.08;
+	});
+	inner.add(lamp);
+
+	// "Web of the time" poster on a corridor side wall, for the later era.
+	const laterEra = eras.indexOf(a.era) >= eras.indexOf(b.era) ? a.era : b.era;
+	const poster = new THREE.Mesh(
+		new THREE.PlaneGeometry(1.04, 1.36),
+		new THREE.MeshBasicMaterial({ map: createWebEraPosterTexture(laterEra), side: THREE.DoubleSide })
+	);
+	poster.position.set(-(halfW - 0.02), 2.0, 0);
+	poster.rotation.y = Math.PI / 2;
+	inner.add(poster);
+	const posterFrame = new THREE.Mesh(
+		new THREE.BoxGeometry(0.06, 1.5, 1.18),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.46 })
+	);
+	posterFrame.position.set(-(halfW + 0.01), 2.0, 0);
+	inner.add(posterFrame);
+
+	connectorRegions.push({ mx, mz, dir, halfW, length });
+	return group;
 }
 
 function createRoomWallSegment(side, length, tangentOffset) {
@@ -5342,13 +5510,24 @@ function addEraVignette(group, room, roomIndex) {
 }
 
 // A framed "what the web looked like then" poster — a period-styled
-// browser mock-up — on each room's front side-wall bay near the entrance.
+// browser mock-up — on a free front side-wall bay near the entrance. Skipped
+// when both side walls have connecting doorways (the corridors carry posters).
 function createWebEraPoster(room) {
 	const group = new THREE.Group();
+	// Prefer a side wall without a connecting doorway.
+	let sideSign;
+	if (!room.connectLeft) {
+		sideSign = -1;
+	} else if (!room.connectRight) {
+		sideSign = 1;
+	} else {
+		return group;
+	}
 	const posterW = 1.24;
 	const posterH = 1.62;
-	const x = -roomWidth / 2 + wallThickness / 2 + 0.06;
+	const x = sideSign * (roomWidth / 2 - wallThickness / 2 - 0.06);
 	const z = -roomDepth / 2 + 1.6;
+	const facing = sideSign === -1 ? Math.PI / 2 : -Math.PI / 2;
 	const frameMat = new THREE.MeshStandardMaterial({
 		color: 0xc79b43,
 		emissive: 0x2a1c06,
@@ -5358,14 +5537,14 @@ function createWebEraPoster(room) {
 	});
 	const frame = new THREE.Mesh(new THREE.BoxGeometry(posterW + 0.16, posterH + 0.16, 0.08), frameMat);
 	frame.position.set(x, 2.35, z);
-	frame.rotation.y = Math.PI / 2;
+	frame.rotation.y = facing;
 	group.add(frame);
 	const art = new THREE.Mesh(
 		new THREE.PlaneGeometry(posterW, posterH),
 		new THREE.MeshBasicMaterial({ map: createWebEraPosterTexture(room.era), side: THREE.DoubleSide })
 	);
-	art.position.set(x + 0.05, 2.35, z);
-	art.rotation.y = Math.PI / 2;
+	art.position.set(x - sideSign * 0.05, 2.35, z);
+	art.rotation.y = facing;
 	group.add(art);
 	return group;
 }
@@ -7671,6 +7850,44 @@ function getEraReleaseGroups() {
 	}));
 }
 
+function computeGalleryConnections() {
+	// Find adjacent room pairs (45deg apart) and mark which local side wall
+	// (left/right) each connecting doorway lives on.
+	for (const side of roomSides) {
+		side.connectLeft = false;
+		side.connectRight = false;
+	}
+	const pairs = [];
+	const seen = new Set();
+	for (const side of roomSides) {
+		for (const other of roomSides) {
+			if (side === other) {
+				continue;
+			}
+			let delta = other.angle - side.angle;
+			delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+			if (Math.abs(Math.abs(delta) - Math.PI / 4) > 0.02) {
+				continue;
+			}
+			const onRight =
+				(other.center.x - side.center.x) * side.tangent.x +
+					(other.center.z - side.center.z) * side.tangent.z >
+				0;
+			if (onRight) {
+				side.connectRight = true;
+			} else {
+				side.connectLeft = true;
+			}
+			const key = [side.era, other.era].sort().join('|');
+			if (!seen.has(key)) {
+				seen.add(key);
+				pairs.push({ a: side, b: other });
+			}
+		}
+	}
+	return pairs;
+}
+
 function getMuseumBounds() {
 	const bounds = {
 		minX: Infinity,
@@ -8170,7 +8387,12 @@ function initDebugApi() {
 			center: vectorToPlainObject(side.center),
 			normal: vectorToPlainObject(side.normal),
 			tangent: vectorToPlainObject(side.tangent),
+			connectLeft: !!side.connectLeft,
+			connectRight: !!side.connectRight,
 		})),
+		connectorRegions,
+		connections: galleryConnections.map((p) => [p.a.era, p.b.era]),
+		isInside: (x, z) => isPointInsideClosedMuseum(new THREE.Vector3(x, 1.6, z)),
 		setCameraView(position, target) {
 			stopGuidedTour();
 			guidedTarget = null;
@@ -8763,12 +8985,31 @@ function isPointInsideClosedMuseum(position) {
 	return (
 		isPointInsideHub(position) ||
 		isPointInsideMuralPortals(position) ||
+		isPointInsideConnector(position) ||
 		movementZones.some(
 			(room) =>
 				isPointInsideRoom(position, room) ||
 				isPointInsideDoorway(position, room)
 		)
 	);
+}
+
+function isPointInsideConnector(position) {
+	for (const region of connectorRegions) {
+		const dx = position.x - region.mx;
+		const dz = position.z - region.mz;
+		const cos = Math.cos(region.dir);
+		const sin = Math.sin(region.dir);
+		const localX = dx * cos - dz * sin;
+		const localZ = dx * sin + dz * cos;
+		if (
+			Math.abs(localX) <= region.halfW + 0.1 &&
+			Math.abs(localZ) <= region.length / 2 + 0.6
+		) {
+			return true;
+		}
+	}
+	return false;
 }
 
 function isPointInsideMuralPortals(position) {
