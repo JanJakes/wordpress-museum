@@ -5850,7 +5850,9 @@ function addEraVignette(group, room, roomIndex) {
 		}
 		group.add(createWebEraPoster(room));
 		if (room.era === eras[0]) {
-			addLocal(group, createUnderConstructionPlaque(), 3.95, -roomDepth / 2 + wallThickness / 2 + 0.05);
+			const frontWallZ = -roomDepth / 2 + wallThickness / 2 + 0.05;
+			addLocal(group, createUnderConstructionPlaque(), 3.95, frontWallZ);
+			addLocal(group, createWebSafePalettePanel(), -3.95, frontWallZ);
 		}
 	}
 	addRoomVignetteLights(group, color);
@@ -6111,6 +6113,72 @@ function createMarqueeTexture() {
 	const tex = new THREE.CanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.wrapS = THREE.RepeatWrapping;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+// The 216-colour "web-safe palette" — the other early-web relic, framed beside
+// the Under Construction sign in the earliest gallery.
+function createWebSafePalettePanel() {
+	const group = new THREE.Group();
+
+	const frame = new THREE.Mesh(
+		new THREE.BoxGeometry(1.62, 1.22, 0.08),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	frame.position.set(0, 2.35, 0);
+	group.add(frame);
+
+	const panel = new THREE.Mesh(
+		new THREE.PlaneGeometry(1.46, 1.06),
+		new THREE.MeshBasicMaterial({ map: createWebSafePaletteTexture() })
+	);
+	panel.position.set(0, 2.35, 0.05);
+	group.add(panel);
+
+	return group;
+}
+
+function createWebSafePaletteTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 372;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#1c1c1c';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	ctx.fillStyle = '#f4ead0';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.font = '900 38px Arial Black, Impact, sans-serif';
+	ctx.fillText('THE WEB-SAFE PALETTE', 256, 38);
+	ctx.fillStyle = '#9a7a3a';
+	ctx.font = '700 17px ui-monospace, Menlo, monospace';
+	ctx.fillText('216 colours · safe on any 256-colour screen', 256, 70);
+
+	const levels = [0, 0x33, 0x66, 0x99, 0xcc, 0xff];
+	const cols = 18;
+	const rows = 12;
+	const gridX = 28;
+	const gridY = 92;
+	const gridW = canvas.width - gridX * 2;
+	const cellW = gridW / cols;
+	const cellH = (canvas.height - gridY - 28) / rows;
+	let index = 0;
+	for (const r of levels) {
+		for (const g of levels) {
+			for (const b of levels) {
+				const col = index % cols;
+				const row = Math.floor(index / cols);
+				ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+				ctx.fillRect(gridX + col * cellW, gridY + row * cellH, cellW - 1, cellH - 1);
+				index += 1;
+			}
+		}
+	}
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
 }
