@@ -8198,13 +8198,18 @@ function createVisitorCounterTexture() {
 }
 
 function addAtriumBenches(group) {
-	// Proper-scale benches flanking the entrance/Playground desk, facing the
-	// mural so visitors can sit and take in the rotunda.
-	for (const benchX of [-3.6, 3.6]) {
-		addPlaced(group, createLoadedModel('detailBench', {
-			targetHeight: 0.86,
-			fallback: 'bench',
-		}), benchX, -4.7, 0);
+	// A symmetric pair of plush viewing benches in the open floor wedges flanking
+	// the entrance arm (the -z carpet spoke), set on each wedge bisector (±22.5°)
+	// at a radius that clears the central medallion and rope ring. Both face
+	// inward toward the rotunda centrepiece, sized to read in the grand hub.
+	const radius = 6.8;
+	for (const wedgeAngle of [-Math.PI / 8, Math.PI / 8]) {
+		const outward = getDirectionFromAngle(wedgeAngle);
+		const spot = outward.clone().multiplyScalar(radius);
+		const bench = createLoadedModel('loungeDesignSofa', { targetLength: 2.0, fallback: 'bench' });
+		// Face the centre: the seat opens toward local -z, so aiming local +z
+		// outward turns the open side inward, toward the rotunda centrepiece.
+		addPlaced(group, bench, spot.x, spot.z, getRotationForNormal(outward));
 	}
 }
 
@@ -11671,6 +11676,10 @@ function addEraModelProps(group, room, roomIndex, color, secondary) {
 	//   'plant'             — tucked into a back corner, out of the way.
 	const model = (key, height, fallback) =>
 		createLoadedModel(key, { targetHeight: height, fallback });
+	// A plush gallery viewing sofa, scaled by length (the dimension that reads as
+	// "size" in the large rooms) rather than its low height.
+	const sofa = (length) =>
+		createLoadedModel('loungeDesignSofa', { targetLength: length, fallback: 'bench' });
 	const propSets = {
 		'Blogging Roots': [
 			{ obj: model('radio', 0.46, 'radio'), side: 'left', z: -5.7, inset: 0.4 },
@@ -11690,11 +11699,11 @@ function addEraModelProps(group, room, roomIndex, color, secondary) {
 		],
 		'API and Customizer': [
 			{ obj: createRetroCRT(color, secondary), side: 'left', z: -5.6, inset: 0.55 },
-			{ obj: model('loungeDesignSofa', 0.6, 'bench'), role: 'bench', side: 'right' },
+			{ obj: sofa(2.0), role: 'bench', side: 'right' },
 		],
 		'Block Editor': [
 			{ obj: model('laptop', 0.46, 'screen'), side: 'left', z: -5.7, inset: 0.45 },
-			{ obj: model('loungeDesignSofa', 0.58, 'bench'), role: 'bench', side: 'left' },
+			{ obj: sofa(2.0), role: 'bench', side: 'left' },
 		],
 		'Blocks Everywhere': [
 			{ obj: createFlatPhoneExhibit(secondary), side: 'right', z: -5.7, inset: 0.45 },
@@ -11710,14 +11719,16 @@ function addEraModelProps(group, room, roomIndex, color, secondary) {
 }
 
 // Places one era prop by role. Exhibits hug the side wall facing inward; benches
-// sit mid-room turned to look at a side wall; plants tuck into a back corner.
+// sit back in the room facing the back/story wall; plants tuck into a back corner.
 function placeEraProp(group, { obj, role = 'exhibit', side, z, inset = 0.5 }) {
 	if (role === 'bench') {
-		// Mid-room, off the runner, seat (local +z front) turned to face the
-		// side wall so a seated visitor looks out at the wall art.
-		const x = side === 'left' ? -2.6 : 2.6;
-		const rotation = side === 'left' ? -(Math.PI / 2 + wedgeHalfAngle) : Math.PI / 2 + wedgeHalfAngle;
-		addLocal(group, obj, x, -1.4, rotation);
+		// A viewing bench set back in the room facing the back/story wall, offset
+		// to one side so it clears the central red runner (|x|<1.14). Sits in the
+		// back third (z≈+1.7), well past the side-to-side ring chord at z=-2.5, at a
+		// natural distance from the back-wall art. The seat opens toward local -z,
+		// so a rotation of PI turns it to face the back wall (+z).
+		const x = side === 'left' ? -2.7 : 2.7;
+		addLocal(group, obj, x, 1.7, Math.PI);
 		return;
 	}
 	if (role === 'plant') {
@@ -12112,7 +12123,7 @@ function addLocal(group, object, x, z, rotationY = 0) {
 
 function createLoadedModel(modelKey, options = {}) {
 	const anchor = new THREE.Group();
-	anchor.add(createModelPlaceholder(options.fallback || modelKey, options.targetHeight || 0.7));
+	anchor.add(createModelPlaceholder(options.fallback || modelKey, options.targetHeight || 0.7, options.targetLength));
 	scheduleDeferredAssetTask(() => {
 		loadModel(modelKey)
 			.then((template) => {
@@ -12125,7 +12136,7 @@ function createLoadedModel(modelKey, options = {}) {
 						}
 					}
 				});
-				normalizeModel(instance, options.targetHeight || 0.7);
+				normalizeModel(instance, options.targetHeight || 0.7, options.targetLength);
 				anchor.clear();
 				anchor.add(instance);
 			})
@@ -12160,12 +12171,12 @@ function loadModel(modelKey) {
 	return modelCache.get(modelKey);
 }
 
-function createModelPlaceholder(type, targetHeight) {
+function createModelPlaceholder(type, targetHeight, targetLength) {
 	if (type.includes('plant') || type.includes('tree')) {
 		return createPlant(activeVariant.eraColors[3], targetHeight > 1 ? 1 : 0.7);
 	}
 	if (type.includes('bench') || type.includes('Sofa')) {
-		return createBench(activeVariant.eraColors[5]);
+		return createBench(activeVariant.eraColors[5], targetLength);
 	}
 	if (type.includes('radio') || type.includes('screen') || type.includes('Computer') || type.includes('Television')) {
 		return createKnobConsole(activeVariant.eraColors[2]);
@@ -12184,10 +12195,16 @@ function createModelPlaceholder(type, targetHeight) {
 	return createBlockStack(activeVariant.eraColors[0]);
 }
 
-function normalizeModel(object, targetHeight) {
+// Scales a model to a target size then drops it onto the floor (y=0) and centres
+// it on x/z. By default the target is the model's height; pass `targetLength` to
+// instead scale by the longest horizontal axis, which reads as "size" for wide,
+// low furniture (sofas/benches) whose height is a poor proxy for footprint.
+function normalizeModel(object, targetHeight, targetLength) {
 	const box = new THREE.Box3().setFromObject(object);
 	const size = box.getSize(new THREE.Vector3());
-	const scale = targetHeight / Math.max(size.y, 0.001);
+	const scale = targetLength
+		? targetLength / Math.max(size.x, size.z, 0.001)
+		: targetHeight / Math.max(size.y, 0.001);
 	object.scale.multiplyScalar(scale);
 	const scaledBox = new THREE.Box3().setFromObject(object);
 	const center = scaledBox.getCenter(new THREE.Vector3());
@@ -13076,20 +13093,27 @@ function createPlant(color, scale = 1) {
 	return group;
 }
 
-function createBench(color) {
+// Real-world-scaled museum bench used as a seating placeholder until the GLB
+// loads. Seat top sits at 0.45m, legs reach the floor; `length` lets it match
+// the loaded model's footprint so the swap is seamless. Seat runs along x, with
+// its open (sit-in) side on local -z to match the loaded benches/sofas.
+function createBench(color, length = 1.9) {
 	const group = new THREE.Group();
 	const material = new THREE.MeshStandardMaterial({ color, roughness: 0.58 });
 	const dark = new THREE.MeshStandardMaterial({ color: 0x141820, roughness: 0.5 });
-	const seat = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.16, 0.42), material);
-	seat.position.y = 0.52;
+	const depth = 0.5;
+	const seatTop = 0.45;
+	const legInset = 0.16;
+	const seat = new THREE.Mesh(new THREE.BoxGeometry(length, 0.14, depth), material);
+	seat.position.set(0, seatTop - 0.07, 0);
 	group.add(seat);
-	const back = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.52, 0.12), material);
-	back.position.set(0, 0.84, 0.22);
+	const back = new THREE.Mesh(new THREE.BoxGeometry(length, 0.46, 0.1), material);
+	back.position.set(0, seatTop + 0.21, depth / 2 - 0.05);
 	group.add(back);
-	for (const x of [-0.68, 0.68]) {
-		for (const z of [-0.12, 0.18]) {
-			const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.5, 0.08), dark);
-			leg.position.set(x, 0.25, z);
+	for (const x of [-length / 2 + legInset, length / 2 - legInset]) {
+		for (const z of [-depth / 2 + legInset, depth / 2 - legInset]) {
+			const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, seatTop - 0.07, 0.08), dark);
+			leg.position.set(x, (seatTop - 0.07) / 2, z);
 			group.add(leg);
 		}
 	}
