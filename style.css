@@ -41,6 +41,13 @@ button {
 	background: rgba(255, 255, 255, 0.08);
 	color: var(--paper);
 	cursor: pointer;
+	/* Stop long-press on mobile from selecting the label or popping the
+	   callout/selection menu, and drop the tap-highlight flash. */
+	-webkit-user-select: none;
+	user-select: none;
+	-webkit-touch-callout: none;
+	-webkit-tap-highlight-color: transparent;
+	touch-action: manipulation;
 }
 
 button:hover,
