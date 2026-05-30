@@ -5885,6 +5885,16 @@ function addEraVignette(group, room, roomIndex) {
 		} else if (room.era === 'CMS Toolkit') {
 			addLocal(group, createSkeuomorphicPanel(), 3.95, frontWallZ);
 			addLocal(group, createFauxMaterialsPanel(), -3.95, frontWallZ);
+		} else if (room.era === 'Dashboard Foundations') {
+			addLocal(group, createWeb2Panel(), 3.95, frontWallZ);
+		} else if (room.era === 'Modern Admin') {
+			addLocal(group, createFlatDesignPanel(), 3.95, frontWallZ);
+		} else if (room.era === 'API and Customizer') {
+			addLocal(group, createMaterialDesignPanel(), 3.95, frontWallZ);
+		} else if (room.era === 'Block Editor') {
+			addLocal(group, createBigTypePanel(), 3.95, frontWallZ);
+		} else if (room.era === 'Blocks Everywhere') {
+			addLocal(group, createDarkModePanel(), 3.95, frontWallZ);
 		}
 	}
 	addRoomVignetteLights(group, color);
@@ -6643,6 +6653,505 @@ function drawStarburst(ctx, cx, cy, r, color, text) {
 	ctx.textBaseline = 'middle';
 	ctx.fillText(text, 0, 0);
 	ctx.restore();
+	ctx.textBaseline = 'alphabetic';
+}
+
+// ── "Design of the web" showcase panels ───────────────────────────────────
+// One per gallery, threaded through the eras: each captures the dominant
+// visual style of the web in that period, rendered on a brass-framed plaque
+// in a gallery's free front-wall bay.
+
+// Web 2.0 (the Dashboard Foundations era, ~2007): gel buttons, glossy logos,
+// gradients, big rounded corners and the inescapable "Beta!" starburst.
+function createWeb2Panel() {
+	return createFramedPlaque(createWeb2Texture());
+}
+
+function createWeb2Texture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 372;
+	const ctx = canvas.getContext('2d');
+
+	// Sky-to-white gradient, the de-facto Web 2.0 backdrop.
+	const bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
+	bg.addColorStop(0, '#dff1ff');
+	bg.addColorStop(1, '#ffffff');
+	ctx.fillStyle = bg;
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	// Glossy header bar.
+	const hb = ctx.createLinearGradient(0, 0, 0, 64);
+	hb.addColorStop(0, '#5bb4ec');
+	hb.addColorStop(0.5, '#2a8fd8');
+	hb.addColorStop(0.5, '#1f7fc8');
+	hb.addColorStop(1, '#3ba0e0');
+	ctx.fillStyle = hb;
+	ctx.fillRect(0, 0, canvas.width, 64);
+	ctx.fillStyle = 'rgba(255,255,255,0.35)';
+	ctx.fillRect(0, 0, canvas.width, 22);
+	ctx.fillStyle = '#ffffff';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.font = '900 30px Arial Black, Impact, sans-serif';
+	ctx.fillText('WEB 2.0 · 2007', 256, 32);
+
+	// Reflective "logo" lozenge with a glassy highlight and mirror reflection.
+	const lx = 70;
+	const ly = 96;
+	const lw = 200;
+	const lh = 84;
+	const lg = ctx.createLinearGradient(0, ly, 0, ly + lh);
+	lg.addColorStop(0, '#ff8a5b');
+	lg.addColorStop(1, '#e8521f');
+	ctx.fillStyle = lg;
+	roundRectPath(ctx, lx, ly, lw, lh, 22);
+	ctx.fill();
+	const lgloss = ctx.createLinearGradient(0, ly, 0, ly + lh * 0.5);
+	lgloss.addColorStop(0, 'rgba(255,255,255,0.7)');
+	lgloss.addColorStop(1, 'rgba(255,255,255,0.05)');
+	ctx.fillStyle = lgloss;
+	roundRectPath(ctx, lx + 4, ly + 3, lw - 8, lh * 0.46, 18);
+	ctx.fill();
+	ctx.fillStyle = '#ffffff';
+	ctx.font = '900 34px Helvetica, Arial, sans-serif';
+	ctx.fillText('blogr', lx + lw / 2, ly + lh / 2 + 2);
+	// Mirror reflection beneath.
+	ctx.save();
+	ctx.globalAlpha = 0.28;
+	ctx.translate(0, (ly + lh) * 2 + 6);
+	ctx.scale(1, -1);
+	const rg = ctx.createLinearGradient(0, ly, 0, ly + lh);
+	rg.addColorStop(0, '#ff8a5b');
+	rg.addColorStop(1, '#e8521f');
+	ctx.fillStyle = rg;
+	roundRectPath(ctx, lx, ly, lw, lh, 22);
+	ctx.fill();
+	ctx.restore();
+
+	// Big rounded gradient call-to-action buttons.
+	drawWeb2Button(ctx, 70, 232, 184, 56, 'Sign up', '#9be36a', '#4ba61f');
+	drawWeb2Button(ctx, 280, 232, 162, 56, 'Login', '#bcd9ff', '#3a8fe0');
+
+	// Rounded tag pills, the other Web 2.0 staple.
+	const tags = ['ajax', 'rss', 'tags', 'mashup'];
+	let tx = 70;
+	const ty = 312;
+	ctx.font = '700 18px system-ui, sans-serif';
+	tags.forEach((t) => {
+		const tw = ctx.measureText(t).width + 28;
+		const tg = ctx.createLinearGradient(0, ty, 0, ty + 34);
+		tg.addColorStop(0, '#fbe7a8');
+		tg.addColorStop(1, '#f3c95a');
+		ctx.fillStyle = tg;
+		roundRectPath(ctx, tx, ty, tw, 34, 17);
+		ctx.fill();
+		ctx.strokeStyle = 'rgba(160,110,20,0.5)';
+		ctx.lineWidth = 1.5;
+		roundRectPath(ctx, tx, ty, tw, 34, 17);
+		ctx.stroke();
+		ctx.fillStyle = '#6a4a08';
+		ctx.fillText(t, tx + tw / 2, ty + 18);
+		tx += tw + 12;
+	});
+
+	// The mandatory "Beta!" starburst.
+	drawStarburst(ctx, 446, 132, 46, '#ff3b30', 'Beta!');
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+function drawWeb2Button(ctx, x, y, w, h, label, top, bottom) {
+	const r = 16;
+	ctx.save();
+	ctx.shadowColor = 'rgba(0,0,0,0.22)';
+	ctx.shadowBlur = 6;
+	ctx.shadowOffsetY = 3;
+	const g = ctx.createLinearGradient(0, y, 0, y + h);
+	g.addColorStop(0, top);
+	g.addColorStop(1, bottom);
+	ctx.fillStyle = g;
+	roundRectPath(ctx, x, y, w, h, r);
+	ctx.fill();
+	ctx.restore();
+	const gloss = ctx.createLinearGradient(0, y, 0, y + h * 0.5);
+	gloss.addColorStop(0, 'rgba(255,255,255,0.65)');
+	gloss.addColorStop(1, 'rgba(255,255,255,0.05)');
+	ctx.fillStyle = gloss;
+	roundRectPath(ctx, x + 3, y + 2, w - 6, h * 0.46, r * 0.8);
+	ctx.fill();
+	ctx.fillStyle = '#ffffff';
+	ctx.font = '800 24px system-ui, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.save();
+	ctx.shadowColor = 'rgba(0,0,0,0.4)';
+	ctx.shadowOffsetY = 1;
+	ctx.fillText(label, x + w / 2, y + h / 2 + 1);
+	ctx.restore();
+}
+
+// Flat design (the Modern Admin era, ~2014): bold flat colour blocks, no
+// gradients or shadows, simple line/long-shadow icons — the anti-skeuomorphism.
+function createFlatDesignPanel() {
+	return createFramedPlaque(createFlatDesignTexture());
+}
+
+function createFlatDesignTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 372;
+	const ctx = canvas.getContext('2d');
+
+	// Solid flat field.
+	ctx.fillStyle = '#ecf0f1';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	// Flat colour title band — no gradient.
+	ctx.fillStyle = '#1abc9c';
+	ctx.fillRect(0, 0, canvas.width, 64);
+	ctx.fillStyle = '#ffffff';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.font = '900 30px Arial Black, Impact, sans-serif';
+	ctx.fillText('FLAT DESIGN · 2014', 256, 32);
+
+	// A row of flat colour tiles, each with a simple long-shadow glyph.
+	const tiles = [
+		{ c: '#e74c3c', glyph: '✦' },
+		{ c: '#3498db', glyph: '✉' },
+		{ c: '#f1c40f', glyph: '★' },
+		{ c: '#9b59b6', glyph: '⚙' },
+	];
+	const tw = 104;
+	const th = 104;
+	const gap = 16;
+	const startX = (canvas.width - (tiles.length * tw + (tiles.length - 1) * gap)) / 2;
+	const ty = 92;
+	tiles.forEach((t, i) => {
+		const tx = startX + i * (tw + gap);
+		ctx.fillStyle = t.c;
+		ctx.fillRect(tx, ty, tw, th);
+		// Long shadow: a diagonal flat-darker wedge from the glyph.
+		ctx.save();
+		ctx.beginPath();
+		ctx.rect(tx, ty, tw, th);
+		ctx.clip();
+		ctx.fillStyle = 'rgba(0,0,0,0.16)';
+		ctx.beginPath();
+		ctx.moveTo(tx + 30, ty + 38);
+		ctx.lineTo(tx + 74, ty + 38);
+		ctx.lineTo(tx + tw + 60, ty + th + 60);
+		ctx.lineTo(tx + 30 + 60, ty + th + 60);
+		ctx.closePath();
+		ctx.fill();
+		ctx.restore();
+		ctx.fillStyle = '#ffffff';
+		ctx.font = '52px system-ui, "Segoe UI Symbol", sans-serif';
+		ctx.fillText(t.glyph, tx + tw / 2, ty + th / 2 + 4);
+	});
+
+	// Two flat full-width buttons, hard edges, no bevels.
+	ctx.fillStyle = '#2ecc71';
+	ctx.fillRect(64, 224, 184, 50);
+	ctx.fillStyle = '#34495e';
+	ctx.fillRect(264, 224, 184, 50);
+	ctx.fillStyle = '#ffffff';
+	ctx.font = '800 22px system-ui, sans-serif';
+	ctx.fillText('Get started', 156, 250);
+	ctx.fillText('Learn more', 356, 250);
+
+	// Thin flat caption rules.
+	ctx.fillStyle = '#bdc3c7';
+	ctx.fillRect(64, 300, 384, 8);
+	ctx.fillRect(64, 322, 260, 8);
+	ctx.fillStyle = '#7f8c8d';
+	ctx.font = '700 16px system-ui, sans-serif';
+	ctx.fillText('no gradients · no bevels · no drop shadows', 256, 352);
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+// Material Design (the API and Customizer era, ~2016): paper-metaphor cards
+// with elevation shadows, a bold primary app bar, a ripple hint and the FAB.
+function createMaterialDesignPanel() {
+	return createFramedPlaque(createMaterialDesignTexture());
+}
+
+function createMaterialDesignTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 372;
+	const ctx = canvas.getContext('2d');
+
+	// Light grey "surface" backdrop.
+	ctx.fillStyle = '#eceff1';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	// Bold primary-colour app bar (Indigo 500).
+	ctx.fillStyle = '#3f51b5';
+	ctx.fillRect(0, 0, canvas.width, 64);
+	ctx.fillStyle = '#ffffff';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.font = '900 28px Arial Black, Impact, sans-serif';
+	ctx.fillText('MATERIAL DESIGN · 2016', 256, 32);
+	// Hamburger + overflow icons on the bar.
+	ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+	ctx.lineWidth = 2.5;
+	for (let i = 0; i < 3; i++) {
+		ctx.beginPath();
+		ctx.moveTo(20, 22 + i * 8);
+		ctx.lineTo(40, 22 + i * 8);
+		ctx.stroke();
+	}
+	ctx.fillStyle = 'rgba(255,255,255,0.9)';
+	for (let i = 0; i < 3; i++) {
+		ctx.beginPath();
+		ctx.arc(484, 22 + i * 9, 2.4, 0, Math.PI * 2);
+		ctx.fill();
+	}
+
+	// Elevated paper cards with soft drop shadows.
+	const drawCard = (x, y, w, h, accent) => {
+		ctx.save();
+		ctx.shadowColor = 'rgba(0,0,0,0.28)';
+		ctx.shadowBlur = 12;
+		ctx.shadowOffsetY = 6;
+		ctx.fillStyle = '#ffffff';
+		roundRectPath(ctx, x, y, w, h, 4);
+		ctx.fill();
+		ctx.restore();
+		// Coloured media strip.
+		ctx.save();
+		roundRectPath(ctx, x, y, w, h, 4);
+		ctx.clip();
+		ctx.fillStyle = accent;
+		ctx.fillRect(x, y, w, 46);
+		ctx.restore();
+		// Title + body lines.
+		ctx.fillStyle = '#212121';
+		ctx.fillRect(x + 14, y + 60, w - 40, 10);
+		ctx.fillStyle = '#9e9e9e';
+		ctx.fillRect(x + 14, y + 80, w - 28, 6);
+		ctx.fillRect(x + 14, y + 94, w - 50, 6);
+	};
+	drawCard(40, 92, 198, 150, '#26a69a');
+	drawCard(274, 92, 198, 150, '#ef5350');
+
+	// Ripple hint on the right card — concentric translucent rings.
+	ctx.save();
+	ctx.beginPath();
+	ctx.rect(274, 92, 198, 150);
+	ctx.clip();
+	for (let i = 3; i >= 1; i--) {
+		ctx.fillStyle = `rgba(255,255,255,${0.12 * i})`;
+		ctx.beginPath();
+		ctx.arc(360, 170, i * 26, 0, Math.PI * 2);
+		ctx.fill();
+	}
+	ctx.restore();
+
+	// Caption.
+	ctx.fillStyle = '#616161';
+	ctx.font = '700 16px Roboto, system-ui, sans-serif';
+	ctx.fillText('elevation · ink & paper · the floating action button', 246, 300);
+
+	// Floating Action Button (FAB) with a "+" and its own shadow.
+	ctx.save();
+	ctx.shadowColor = 'rgba(0,0,0,0.4)';
+	ctx.shadowBlur = 10;
+	ctx.shadowOffsetY = 5;
+	ctx.fillStyle = '#ff4081';
+	ctx.beginPath();
+	ctx.arc(446, 322, 34, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.restore();
+	ctx.strokeStyle = '#ffffff';
+	ctx.lineWidth = 4;
+	ctx.beginPath();
+	ctx.moveTo(446 - 14, 322);
+	ctx.lineTo(446 + 14, 322);
+	ctx.moveTo(446, 322 - 14);
+	ctx.lineTo(446, 322 + 14);
+	ctx.stroke();
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+// Big type & whitespace (the Block Editor era, ~2018): an oversized editorial
+// headline, generous margins, hairline rules — minimalist content-first design.
+function createBigTypePanel() {
+	return createFramedPlaque(createBigTypeTexture());
+}
+
+function createBigTypeTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 372;
+	const ctx = canvas.getContext('2d');
+
+	// Clean off-white page.
+	ctx.fillStyle = '#fbfbf9';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	// Small eyebrow label.
+	ctx.fillStyle = '#111111';
+	ctx.textAlign = 'left';
+	ctx.textBaseline = 'alphabetic';
+	ctx.font = '800 14px system-ui, sans-serif';
+	ctx.fillText('B I G   T Y P E   ·   2 0 1 8', 56, 64);
+
+	// Hairline rule under the eyebrow.
+	ctx.strokeStyle = '#111111';
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+	ctx.moveTo(56, 76);
+	ctx.lineTo(456, 76);
+	ctx.stroke();
+
+	// Oversized editorial headline, set tight across two lines.
+	ctx.fillStyle = '#111111';
+	ctx.font = '900 76px Georgia, "Times New Roman", serif';
+	ctx.fillText('Less', 52, 168);
+	ctx.fillText('chrome,', 52, 240);
+	ctx.font = '900 76px Georgia, "Times New Roman", serif';
+	ctx.fillStyle = '#b8b2a6';
+	ctx.fillText('more', 232, 168);
+
+	// A single thin accent hairline in the whitespace.
+	ctx.strokeStyle = '#111111';
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	ctx.moveTo(52, 276);
+	ctx.lineTo(140, 276);
+	ctx.stroke();
+
+	// Quiet caption set small, far from the headline (whitespace).
+	ctx.fillStyle = '#6b6b6b';
+	ctx.font = '400 17px Georgia, serif';
+	ctx.fillText('Generous margins. Thin rules. The content is the interface.', 52, 312);
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+// Dark mode & system fonts (the Blocks Everywhere era, ~2022): a dark UI card,
+// a native system-font stack sample, a light/dark toggle and an FSE block hint.
+function createDarkModePanel() {
+	return createFramedPlaque(createDarkModeTexture());
+}
+
+function createDarkModeTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 372;
+	const ctx = canvas.getContext('2d');
+
+	// Deep slate dark-mode surface.
+	ctx.fillStyle = '#0f172a';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	ctx.fillStyle = '#e2e8f0';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.font = '900 28px Arial Black, Impact, sans-serif';
+	ctx.fillText('DARK MODE · 2022', 256, 34);
+	ctx.fillStyle = '#64748b';
+	ctx.font = '700 15px system-ui, sans-serif';
+	ctx.fillText('system fonts · prefers-color-scheme · full-site editing', 256, 62);
+
+	// Elevated dark card.
+	ctx.save();
+	ctx.shadowColor = 'rgba(0,0,0,0.5)';
+	ctx.shadowBlur = 14;
+	ctx.shadowOffsetY = 6;
+	ctx.fillStyle = '#1e293b';
+	roundRectPath(ctx, 40, 88, 432, 170, 14);
+	ctx.fill();
+	ctx.restore();
+	ctx.strokeStyle = 'rgba(148,163,184,0.18)';
+	ctx.lineWidth = 1;
+	roundRectPath(ctx, 40, 88, 432, 170, 14);
+	ctx.stroke();
+
+	// System-font stack sample, set in the actual native UI font.
+	ctx.textAlign = 'left';
+	ctx.fillStyle = '#f1f5f9';
+	ctx.font = '600 26px -apple-system, "Segoe UI", system-ui, sans-serif';
+	ctx.fillText('The quick brown fox', 64, 134);
+	ctx.fillStyle = '#94a3b8';
+	ctx.font = '13px ui-monospace, Menlo, monospace';
+	ctx.fillText('font-family: -apple-system, "Segoe UI", system-ui;', 64, 162);
+
+	// Accent block "hint" bar (WordPress block-blue) with handles.
+	ctx.fillStyle = '#3858e9';
+	roundRectPath(ctx, 64, 184, 280, 44, 8);
+	ctx.fill();
+	ctx.fillStyle = 'rgba(255,255,255,0.9)';
+	ctx.font = '700 16px system-ui, sans-serif';
+	ctx.fillText('Group block', 80, 207);
+	// Block selection handles.
+	ctx.fillStyle = '#3858e9';
+	[[64, 184], [344, 184], [64, 228], [344, 228]].forEach(([hx, hy]) => {
+		ctx.fillStyle = '#ffffff';
+		ctx.fillRect(hx - 3, hy - 3, 6, 6);
+		ctx.strokeStyle = '#3858e9';
+		ctx.lineWidth = 1.5;
+		ctx.strokeRect(hx - 3, hy - 3, 6, 6);
+	});
+
+	// Light/dark toggle (currently "dark" = on, knob to the right, moon glyph).
+	drawDayNightToggle(ctx, 372, 192, 84, 36);
+
+	// Caption.
+	ctx.fillStyle = '#64748b';
+	ctx.textAlign = 'center';
+	ctx.font = '700 15px system-ui, sans-serif';
+	ctx.fillText('one theme, two appearances', 256, 296);
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+function drawDayNightToggle(ctx, x, y, w, h) {
+	const r = h / 2;
+	// Dark track (toggle is in dark mode).
+	ctx.fillStyle = '#0b1120';
+	roundRectPath(ctx, x, y, w, h, r);
+	ctx.fill();
+	ctx.strokeStyle = 'rgba(148,163,184,0.3)';
+	ctx.lineWidth = 1.5;
+	roundRectPath(ctx, x, y, w, h, r);
+	ctx.stroke();
+	// Tiny sun on the left.
+	ctx.fillStyle = 'rgba(148,163,184,0.5)';
+	ctx.font = '16px system-ui, "Segoe UI Symbol", sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('☀', x + r, y + h / 2);
+	// Knob on the right with a crescent moon.
+	const kx = x + w - h + 3;
+	ctx.fillStyle = '#e2e8f0';
+	ctx.beginPath();
+	ctx.arc(kx + (h - 6) / 2, y + h / 2, (h - 6) / 2, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.fillStyle = '#1e293b';
+	ctx.font = '15px system-ui, "Segoe UI Symbol", sans-serif';
+	ctx.fillText('☾', kx + (h - 6) / 2, y + h / 2 + 1);
 	ctx.textBaseline = 'alphabetic';
 }
 
