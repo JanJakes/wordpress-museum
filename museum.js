@@ -1870,12 +1870,13 @@ function createMercantileShelves() {
 	mugTag.position.set(leftX + 0.21, 1.16, pegZ);
 	mugTag.rotation.y = Math.PI / 2;
 	group.add(mugTag);
-	// Poster on the left wall.
+	// Poster on the left wall, hung high and centred over the mug pegboard so it
+	// clears the Blogging Roots doorway opening (front-left, z≈21.5–23.5).
 	const poster = new THREE.Mesh(
 		new THREE.PlaneGeometry(1.7, 2.3),
 		new THREE.MeshBasicMaterial({ map: createMercantilePosterTexture(), transparent: true })
 	);
-	poster.position.set(leftX + 0.05, 3.0, pegZ - 1.9);
+	poster.position.set(leftX + 0.05, 3.6, pegZ);
 	poster.rotation.y = Math.PI / 2;
 	group.add(poster);
 
