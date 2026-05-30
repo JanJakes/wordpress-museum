@@ -4914,7 +4914,9 @@ function createRoomMuseumArchitecture(room) {
 	for (const side of ['left', 'right']) {
 		for (const z of [-2.8, 2.35]) {
 			const sconce = createWallSconce(room.color);
-			placeOnSideWall(sconce, side, z, 3.85, 0.06);
+			// Inset 0.18 lifts the brass body proud of the angled wall's inner
+			// face so the fixture reads as a sconce, not a buried glow.
+			placeOnSideWall(sconce, side, z, 3.85, 0.18);
 			group.add(sconce);
 		}
 	}
@@ -5314,7 +5316,7 @@ function createWallSconce(color) {
 		new THREE.SphereGeometry(0.16, 16, 10),
 		new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 })
 	);
-	lamp.position.z = -0.08;
+	lamp.position.z = 0.13; // in front of the back-plate, glowing into the room
 	registerAnimation(lamp, (object, elapsed) => {
 		object.material.opacity = 0.78 + Math.sin(elapsed * 1.7) * 0.1;
 	});
