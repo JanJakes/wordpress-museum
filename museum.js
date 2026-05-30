@@ -6810,6 +6810,7 @@ function addEraVignette(group, room, roomIndex) {
 		if (room.era === eras[0]) {
 			addLocal(group, createUnderConstructionPlaque(), 3.95, frontWallZ);
 			addLocal(group, createWebSafePalettePanel(), -3.95, frontWallZ);
+			addWebOf2004Display(group);
 		} else if (room.era === 'CMS Toolkit') {
 			addLocal(group, createSkeuomorphicPanel(), 3.95, frontWallZ);
 			addLocal(group, createFauxMaterialsPanel(), -3.95, frontWallZ);
@@ -6913,6 +6914,173 @@ function createWebEraPosterTexture(era) {
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
+}
+
+// A "Web of 2004" nostalgia display for the Blogging Roots gallery. The side
+// walls are packed with release exhibits, so the two framed boards take the free
+// front-wall corner bays flanking the entrance (clear of the existing era panels
+// at x=±3.95) and the PHP ElePHPant tucks into the back-left wall corner.
+function addWebOf2004Display(group) {
+	const frontWallZ = -roomDepth / 2 + wallThickness / 2 + 0.05;
+	addLocal(group, createLinkButtonBoard(), -5.7, frontWallZ);
+}
+
+// (A) A framed board of period 88x31 web "badge" buttons in a tidy grid, drawn
+// crisp on a high-resolution canvas with the classic chiseled-bevel look. Built
+// as a front-wall plaque (art faces +z, into the room) sized for the corner bay.
+function createLinkButtonBoard() {
+	const group = new THREE.Group();
+	const boardW = 1.78;
+	const boardH = 1.32;
+	const frame = new THREE.Mesh(
+		new THREE.BoxGeometry(boardW + 0.16, boardH + 0.16, 0.08),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	frame.position.set(0, 2.05, 0);
+	group.add(frame);
+	const art = new THREE.Mesh(
+		new THREE.PlaneGeometry(boardW, boardH),
+		new THREE.MeshBasicMaterial({ map: createLinkButtonBoardTexture() })
+	);
+	art.position.set(0, 2.05, 0.05);
+	group.add(art);
+	return group;
+}
+
+function createLinkButtonBoardTexture() {
+	// Integer-scaled cells keep the 88x31 buttons pixel-crisp: a 4px-wide
+	// "device pixel" gives each button a true 352x124 cell on the canvas.
+	const px = 4;
+	const cols = 3;
+	const rows = 5;
+	const cellW = 88 * px; // 352
+	const cellH = 31 * px; // 124
+	const gapX = 24;
+	const gapY = 22;
+	const padX = 40;
+	const headerH = 132;
+	const padBottom = 40;
+	const canvas = document.createElement('canvas');
+	canvas.width = padX * 2 + cols * cellW + (cols - 1) * gapX;
+	canvas.height = headerH + rows * cellH + (rows - 1) * gapY + padBottom;
+	const ctx = canvas.getContext('2d');
+
+	// Cream matte backing with a thin inner keyline.
+	ctx.fillStyle = '#1a1208';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#f4ead0';
+	ctx.fillRect(16, 16, canvas.width - 32, canvas.height - 32);
+
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillStyle = '#241a0c';
+	ctx.font = '900 64px Arial Black, Impact, sans-serif';
+	ctx.fillText('LINK BUTTONS', canvas.width / 2, 60);
+	ctx.fillStyle = '#9a7a3a';
+	ctx.font = '700 26px ui-monospace, Menlo, monospace';
+	ctx.fillText('88 × 31 · the currency of the early web', canvas.width / 2, 102);
+
+	const buttons = [
+		{ kind: 'gradient', a: '#0a0a3c', b: '#3a3aff', text: 'Netscape Now!', fg: '#ffffff' },
+		{ kind: 'split', a: '#cc0000', b: '#000000', text: 'Get Firefox', fg: '#ffffff' },
+		{ kind: 'plain', a: '#c0c0c0', text: 'Made with Notepad', fg: '#000080' },
+		{ kind: 'badge', a: '#3366cc', text: 'Valid HTML 4.01', fg: '#ffffff' },
+		{ kind: 'badge', a: '#5599cc', text: 'Valid CSS', fg: '#ffffff' },
+		{ kind: 'php', a: '#777bb3', text: 'Powered by PHP', fg: '#ffffff' },
+		{ kind: 'plain', a: '#e48d00', text: 'Powered by MySQL', fg: '#0a2a4a' },
+		{ kind: 'plain', a: '#c0c0c0', text: 'Powered by Apache', fg: '#900000' },
+		{ kind: 'split', a: '#ff6600', b: '#ffffff', text: 'XML', fg: '#ffffff', sub: 'RSS feed' },
+		{ kind: 'plain', a: '#000080', text: 'Best viewed in 800×600', fg: '#ffffff' },
+		{ kind: 'plain', a: '#000000', text: 'Lynx friendly', fg: '#00ff00' },
+		{ kind: 'wp', a: '#21759b', text: 'WordPress', fg: '#ffffff' },
+		{ kind: 'badge', a: '#0a3a6b', text: 'W3C', fg: '#ffffff', sub: 'standards' },
+		{ kind: 'split', a: '#1f50a8', b: '#ffd200', text: 'Internet Explorer', fg: '#ffffff' },
+		{ kind: 'plain', a: '#660099', text: 'Any Browser', fg: '#ffff66' },
+	];
+
+	buttons.forEach((btn, i) => {
+		const col = i % cols;
+		const row = Math.floor(i / cols);
+		const x = padX + col * (cellW + gapX);
+		const y = headerH + row * (cellH + gapY);
+		draw88x31Button(ctx, x, y, cellW, cellH, btn);
+	});
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+// Draws a single 88x31-proportioned button with the chiseled two-tone bevel
+// that defined the genre: a light top/left edge and a dark bottom/right edge.
+function draw88x31Button(ctx, x, y, w, h, btn) {
+	// Fill / background variants.
+	if (btn.kind === 'gradient') {
+		const g = ctx.createLinearGradient(x, y, x + w, y);
+		g.addColorStop(0, btn.a);
+		g.addColorStop(1, btn.b);
+		ctx.fillStyle = g;
+		ctx.fillRect(x, y, w, h);
+	} else if (btn.kind === 'split' || btn.kind === 'php' || btn.kind === 'wp' || btn.kind === 'badge') {
+		ctx.fillStyle = btn.kind === 'split' ? btn.b : btn.a;
+		ctx.fillRect(x, y, w, h);
+		ctx.fillStyle = btn.a;
+		ctx.fillRect(x, y, Math.round(w * 0.36), h);
+	} else {
+		ctx.fillStyle = btn.a;
+		ctx.fillRect(x, y, w, h);
+	}
+
+	// Chiseled bevel: bright NW edge, dark SE edge.
+	const t = 4;
+	ctx.fillStyle = 'rgba(255,255,255,0.55)';
+	ctx.fillRect(x, y, w, t);
+	ctx.fillRect(x, y, t, h);
+	ctx.fillStyle = 'rgba(0,0,0,0.45)';
+	ctx.fillRect(x, y + h - t, w, t);
+	ctx.fillRect(x + w - t, y, t, h);
+
+	// Left "icon" zone glyph for the badge-style buttons.
+	const iconCx = x + Math.round(w * 0.18);
+	const iconCy = y + h / 2;
+	if (btn.kind === 'php') {
+		ctx.fillStyle = '#ffffff';
+		ctx.font = 'italic 900 44px Georgia, serif';
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'middle';
+		ctx.fillText('php', iconCx, iconCy + 2);
+	} else if (btn.kind === 'wp') {
+		ctx.fillStyle = '#ffffff';
+		ctx.font = '900 56px Georgia, serif';
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'middle';
+		ctx.fillText('W', iconCx, iconCy + 2);
+	} else if (btn.kind === 'badge') {
+		ctx.fillStyle = '#ffffff';
+		ctx.font = '900 40px Arial Black, sans-serif';
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'middle';
+		ctx.fillText('✓', iconCx, iconCy + 2);
+	}
+
+	// Label text on the right (or centered for plain buttons), pixel-sharp.
+	const hasIcon = btn.kind === 'php' || btn.kind === 'wp' || btn.kind === 'badge';
+	const textX = hasIcon ? x + Math.round(w * 0.38) : x + t + 8;
+	const textRight = x + w - t - 8;
+	const maxTextW = textRight - textX;
+	ctx.fillStyle = btn.fg;
+	ctx.textAlign = 'left';
+	if (btn.sub) {
+		ctx.textBaseline = 'alphabetic';
+		fillFittedCanvasText(ctx, btn.text, textX, y + Math.round(h * 0.48), maxTextW, 36, '900', 'Arial, sans-serif');
+		ctx.font = '700 22px Arial, sans-serif';
+		ctx.fillText(btn.sub, textX, y + Math.round(h * 0.78));
+	} else {
+		ctx.textBaseline = 'middle';
+		fillFittedCanvasText(ctx, btn.text, textX, iconCy + 2, maxTextW, 36, '700', 'Arial, sans-serif');
+	}
+	ctx.textAlign = 'center';
 }
 
 // A wink to the GeoCities era: a framed "Under Construction" plaque with a
