@@ -108,7 +108,7 @@
 		{
 			"version": "4.9",
 			"name": "Tipton",
-			"released": "November 16, 2017",
+			"released": "November 15, 2017",
 			"php": "5.2",
 			"file": "wp-4-9.json",
 			"title": "Museum Dispatch: WordPress 4.9 (Tipton)"
@@ -276,7 +276,7 @@
 		{
 			"version": "2.8",
 			"name": "Baker",
-			"released": "June 10, 2009",
+			"released": "June 11, 2009",
 			"php": "5.2",
 			"file": "wp-2-8.json",
 			"title": "Museum Dispatch: WordPress 2.8 (Baker)"
