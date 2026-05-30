@@ -7275,7 +7275,7 @@ function addPhpElephpantCorner(group) {
 	station.add(pedestal);
 
 	const elephpant = createElephpantPlush();
-	elephpant.scale.setScalar(0.74);
+	elephpant.scale.setScalar(0.92);
 	elephpant.position.y = 0.66;
 	// The plush front (trunk/eyes on +z, with a built-in −0.4 turn) is rotated to
 	// look out the plinth front (local −z) in a relaxed three-quarter pose.
@@ -7297,7 +7297,7 @@ function addPhpElephpantCorner(group) {
 	);
 	art.position.z = 0.03;
 	badge.add(art);
-	badge.position.set(0, 1.4, 0.26);
+	badge.position.set(0, 1.55, 0.26);
 	badge.rotation.y = Math.PI; // face local −z (the plinth front, toward the room)
 	station.add(badge);
 
