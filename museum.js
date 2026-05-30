@@ -6813,6 +6813,7 @@ function addEraVignette(group, room, roomIndex) {
 			addWebOf2004Display(group);
 			addGuestbookLectern(group);
 			addRetroHomepageStation(group);
+			addBloggingRootsScreenshots(group);
 		} else if (room.era === 'CMS Toolkit') {
 			addLocal(group, createSkeuomorphicPanel(), 3.95, frontWallZ);
 			addLocal(group, createFauxMaterialsPanel(), -3.95, frontWallZ);
@@ -8598,6 +8599,46 @@ function addDashboardScreenshots(group) {
 	});
 }
 
+// Period browser-window screenshots for the Blogging Roots gallery (2003–2005),
+// when Google and Yahoo! ruled the web. Mounted on the solid right side wall —
+// the doorway is on the left, the lone release exhibit sits at z≈+1.0 and the
+// WebEraPoster at z≈−2.5, leaving the front segment free for two framed shots.
+function addBloggingRootsScreenshots(group) {
+	const shots = [
+		{ z: -6.2, draw: drawSiteGoogle1998, url: 'http://www.google.com', caption: 'Google · 1998' },
+		{ z: -4.6, draw: drawSiteYahoo, url: 'http://www.yahoo.com', caption: 'Yahoo! · 2003' },
+	];
+	shots.forEach((shot) => {
+		group.add(createSideWallScreenshot(shot, 'right', shot.z));
+	});
+}
+
+// The same brass-framed browser-window picture as the Dashboard set, but built
+// at local y=0 so it can be flush-mounted on an angled side wall via
+// placeOnSideWall (height set there) instead of the front wall.
+function createSideWallScreenshot(spec, side, z) {
+	const frameW = 1.42;
+	const frameH = 1.18;
+	const inner = new THREE.Group();
+	const frame = new THREE.Mesh(
+		new THREE.BoxGeometry(frameW + 0.14, frameH + 0.14, 0.08),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	frame.position.z = -0.02;
+	inner.add(frame);
+	const art = new THREE.Mesh(
+		new THREE.PlaneGeometry(frameW, frameH),
+		new THREE.MeshBasicMaterial({ map: createBrowserScreenshotTexture(spec) })
+	);
+	art.position.z = 0.05;
+	inner.add(art);
+	// Stand the frame proud of the angled wall: the 0.08-deep frame's back face
+	// tucks into the 0.26-thick wall while the picture clears its inner surface by
+	// ~0.05, so it reads as hung art without z-fighting.
+	placeOnSideWall(inner, side, z, 2.3, 0.15);
+	return inner;
+}
+
 // A brass-framed picture carrying a single browser-window screenshot canvas.
 // Sized to slot between the entrance jambs and the corner without crowding.
 function createBrowserScreenshotPlaque(spec) {
@@ -8954,6 +8995,143 @@ function drawSiteFacebook2007(ctx, x, y, w, h) {
 		ctx.font = '11px Arial, sans-serif';
 		ctx.fillText('2 minutes ago · Comment · Like', feedX + 60, ry + 60);
 	}
+}
+
+// Google, 1998 — the famously spare home page: a near-empty white field, the
+// multicolour wordmark centred high, a single search box, and the twin
+// "Google Search" / "I'm Feeling Lucky" buttons beneath it.
+function drawSiteGoogle1998(ctx, x, y, w, h) {
+	ctx.fillStyle = '#ffffff';
+	ctx.fillRect(x, y, w, h);
+	const cx = x + w / 2;
+	// Wordmark in the classic blue/red/yellow/blue/green/red letter colours.
+	const letters = [
+		['G', '#4285f4'],
+		['o', '#ea4335'],
+		['o', '#fbbc05'],
+		['g', '#4285f4'],
+		['l', '#34a853'],
+		['e', '#ea4335'],
+	];
+	ctx.font = '900 56px "Times New Roman", Georgia, serif';
+	ctx.textBaseline = 'alphabetic';
+	ctx.textAlign = 'left';
+	const total = letters.reduce((sum, [ch]) => sum + ctx.measureText(ch).width, 0);
+	let lx = cx - total / 2;
+	const ly = y + 86;
+	letters.forEach(([ch, color]) => {
+		ctx.fillStyle = color;
+		ctx.fillText(ch, lx, ly);
+		lx += ctx.measureText(ch).width;
+	});
+	// Search box with a faint inner shadow line, centred under the logo.
+	const boxW = Math.min(w - 80, 380);
+	const boxX = cx - boxW / 2;
+	const boxY = y + 118;
+	const boxH = 30;
+	ctx.fillStyle = '#ffffff';
+	ctx.fillRect(boxX, boxY, boxW, boxH);
+	ctx.strokeStyle = '#9aa3b2';
+	ctx.lineWidth = 1.5;
+	ctx.strokeRect(boxX + 0.75, boxY + 0.75, boxW - 1.5, boxH - 1.5);
+	ctx.fillStyle = 'rgba(0,0,0,0.08)';
+	ctx.fillRect(boxX + 1.5, boxY + 1.5, boxW - 3, 6);
+	// The two grey beveled buttons.
+	const buttons = ['Google Search', "I'm Feeling Lucky"];
+	ctx.font = '13px Arial, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	let bx = cx - 150;
+	buttons.forEach((label) => {
+		const bw = ctx.measureText(label).width + 24;
+		const by = boxY + boxH + 16;
+		const bh = 26;
+		ctx.fillStyle = '#f0f0f0';
+		ctx.fillRect(bx, by, bw, bh);
+		ctx.strokeStyle = '#b8b8b8';
+		ctx.lineWidth = 1;
+		ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+		ctx.fillStyle = '#3a3a3a';
+		ctx.fillText(label, bx + bw / 2, by + bh / 2 + 1);
+		bx += bw + 14;
+	});
+	// The tiny footer tagline of the day.
+	ctx.fillStyle = '#777777';
+	ctx.font = '12px Arial, sans-serif';
+	ctx.fillText('Searching 1,346,966,000 web pages', cx, y + h - 24);
+}
+
+// Yahoo!, early-2000s portal — the busy directory front page: the red exclaimed
+// wordmark, a wide search box with a "Search" button, and a two-column grid of
+// blue category links in the classic Yahoo! directory style.
+function drawSiteYahoo(ctx, x, y, w, h) {
+	ctx.fillStyle = '#ffffff';
+	ctx.fillRect(x, y, w, h);
+	const cx = x + w / 2;
+	// "Yahoo!" wordmark — red letters with a purple exclamation flourish.
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'alphabetic';
+	ctx.font = '900 46px Verdana, Geneva, sans-serif';
+	const mark = 'Yahoo';
+	const markW = ctx.measureText(mark).width;
+	ctx.fillStyle = '#e0001a';
+	ctx.fillText(mark, cx - 8, y + 56);
+	ctx.fillStyle = '#7b0099';
+	ctx.font = '900 46px Verdana, Geneva, sans-serif';
+	ctx.fillText('!', cx - 8 + markW / 2 + 12, y + 56);
+	// Centred search box + button.
+	const boxW = Math.min(w - 120, 360);
+	const boxX = cx - boxW / 2 - 32;
+	const boxY = y + 76;
+	const boxH = 28;
+	ctx.fillStyle = '#ffffff';
+	ctx.fillRect(boxX, boxY, boxW, boxH);
+	ctx.strokeStyle = '#8a93a2';
+	ctx.lineWidth = 1.5;
+	ctx.strokeRect(boxX + 0.75, boxY + 0.75, boxW - 1.5, boxH - 1.5);
+	ctx.fillStyle = '#3a3f7a';
+	ctx.fillRect(boxX + boxW + 6, boxY, 58, boxH);
+	ctx.fillStyle = '#ffffff';
+	ctx.font = '700 13px Arial, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('Search', boxX + boxW + 35, boxY + boxH / 2 + 1);
+	// Directory heading + a two-column list of blue category links.
+	ctx.fillStyle = '#444444';
+	ctx.font = '700 14px Arial, sans-serif';
+	ctx.textAlign = 'left';
+	ctx.fillText('Yahoo! Directory', x + 20, y + 128);
+	const categories = [
+		'Arts & Humanities',
+		'Business & Economy',
+		'Computers & Internet',
+		'Education',
+		'Entertainment',
+		'Government',
+		'Health',
+		'News & Media',
+		'Recreation & Sports',
+		'Reference',
+		'Regional',
+		'Science',
+	];
+	ctx.font = '13px Arial, sans-serif';
+	const colW = (w - 40) / 2;
+	const rows = Math.ceil(categories.length / 2);
+	categories.forEach((cat, i) => {
+		const col = Math.floor(i / rows);
+		const row = i % rows;
+		const tx = x + 20 + col * colW;
+		const ty = y + 150 + row * 22;
+		ctx.fillStyle = '#1a4fd0';
+		ctx.fillText(cat, tx, ty);
+		ctx.strokeStyle = '#1a4fd0';
+		ctx.lineWidth = 0.75;
+		ctx.beginPath();
+		ctx.moveTo(tx, ty + 3.5);
+		ctx.lineTo(tx + ctx.measureText(cat).width, ty + 3.5);
+		ctx.stroke();
+	});
 }
 
 // Flat design (the Modern Admin era, ~2014): bold flat colour blocks, no
