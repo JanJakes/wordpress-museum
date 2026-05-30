@@ -539,6 +539,18 @@ window.WP_MUSEUM_RELEASES = [
 		artifact: 'Permalink fossil',
 		blueprint: './blueprints/wordpress-museum/wp-1-0.json',
 	},
+	{
+		version: '0.7',
+		name: '',
+		musician: '',
+		released: 'May 27, 2003',
+		year: 2003,
+		era: 'Blogging Roots',
+		knownFor: 'The first WordPress',
+		detail: 'The very first public release, forked from b2/cafelog. It shipped before the jazz-codename tradition began at 1.0, so it carries no musician name.',
+		artifact: 'b2/cafelog fork stone',
+		blueprint: './blueprints/wordpress-museum/wp-1-0.json',
+	},
 ];
 
 window.WP_MUSEUM_ERAS = [

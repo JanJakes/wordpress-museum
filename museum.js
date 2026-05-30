@@ -8871,20 +8871,30 @@ function createPlaqueTexture(release, color) {
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 
-	scheduleDeferredAssetTask(() => {
-		Promise.all([
-			loadPlaqueImage(getMusicianImagePath(release)),
-			loadPlaqueImage(getScreenshotImagePath(release)),
-		]).then(([musicianImage, screenshotImage]) => {
-			drawPlaqueTexture(ctx, canvas, release, color, {
-				musicianImage,
-				screenshotImage,
+	// Pre-codename releases (before 1.0) have no captured portrait or
+	// screenshot; skip those loads so they don't 404 and log console errors.
+	if (releaseHasCapturedAssets(release)) {
+		scheduleDeferredAssetTask(() => {
+			Promise.all([
+				loadPlaqueImage(getMusicianImagePath(release)),
+				loadPlaqueImage(getScreenshotImagePath(release)),
+			]).then(([musicianImage, screenshotImage]) => {
+				drawPlaqueTexture(ctx, canvas, release, color, {
+					musicianImage,
+					screenshotImage,
+				});
+				texture.needsUpdate = true;
 			});
-			texture.needsUpdate = true;
 		});
-	});
+	}
 
 	return texture;
+}
+
+// Pre-1.0 releases predate the jazz-codename tradition and have no captured
+// portrait or screenshot, so their image assets are intentionally absent.
+function releaseHasCapturedAssets(release) {
+	return Boolean(release.musician);
 }
 
 function drawPlaqueTexture(ctx, canvas, release, color, images) {
@@ -9657,7 +9667,7 @@ function focusRelease(index, immediate = false, options = {}) {
 function updatePanel(release) {
 	document.querySelector('#release-era').textContent = release.era;
 	document.querySelector('#release-title').textContent =
-		`WordPress ${release.version} ${release.name}`;
+		`WordPress ${release.version}${release.name ? ' ' + release.name : ''}`;
 	document.querySelector('#release-date').textContent = release.released;
 	document.querySelector('#release-known-for').textContent = release.knownFor;
 	document.querySelector('#release-detail').textContent = release.detail;
