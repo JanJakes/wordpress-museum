@@ -322,6 +322,7 @@ buildScene();
 buildRail();
 bindControls();
 startAtMuseumCenter();
+applyReleaseDeepLink();
 initDebugApi();
 animate();
 
@@ -14590,6 +14591,23 @@ function startAtMuseumCenter() {
 	updatePanel(releases[activeIndex]);
 	updateRail();
 	updateActiveExhibitMarker();
+}
+
+// Deep-link: ?release=<version> (e.g. ?release=2.0) jumps the camera straight
+// to that release's exhibit on load. Museum dispatch posts in the Playground
+// blueprints link back here so a reader lands in front of the right release.
+function applyReleaseDeepLink() {
+	const requested = new URLSearchParams(window.location.search).get('release');
+	if (!requested) {
+		return;
+	}
+	const wanted = requested.trim().toLowerCase();
+	const index = releases.findIndex(
+		(release) => release.version.toLowerCase() === wanted
+	);
+	if (index !== -1) {
+		focusRelease(index, true);
+	}
 }
 
 function getMuralLookPoint() {
