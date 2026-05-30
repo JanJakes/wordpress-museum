@@ -6819,6 +6819,7 @@ function addEraVignette(group, room, roomIndex) {
 			group.add(createIE6RetirementCard());
 		} else if (room.era === 'Dashboard Foundations') {
 			addLocal(group, createWeb2Panel(), 3.95, frontWallZ);
+			addDashboardScreenshots(group);
 		} else if (room.era === 'Modern Admin') {
 			addLocal(group, createFlatDesignPanel(), 3.95, frontWallZ);
 		} else if (room.era === 'API and Customizer') {
@@ -8572,6 +8573,387 @@ function drawWeb2Button(ctx, x, y, w, h, label, top, bottom) {
 	ctx.shadowOffsetY = 1;
 	ctx.fillText(label, x + w / 2, y + h / 2 + 1);
 	ctx.restore();
+}
+
+// ── Iconic early-web screenshots (Dashboard Foundations, 2007–2009) ─────────
+// Brass-framed "browser window" recreations of the sites that defined the
+// 2005–2007 web, hung like museum pictures. Each is an evocative (not
+// pixel-perfect) canvas drawing of the site's layout/logo/colours at the time,
+// wrapped in period browser chrome with an address bar showing its URL.
+//
+// Space is tight: the back wall and side walls carry release exhibits, story
+// panels and props, so these take the front (entrance) wall — the only clean
+// stretch. The left of the doorway is empty marble (two frames) and the right
+// has a free corner bay beyond the Web 2.0 panel at x=+3.95 (one frame). Mounted
+// as front-wall plaques (art faces +z, into the room) at the picture-rail height.
+function addDashboardScreenshots(group) {
+	const frontWallZ = -roomDepth / 2 + wallThickness / 2 + 0.05;
+	const shots = [
+		{ x: -5.62, draw: drawSiteYouTube2005, url: 'http://www.youtube.com', caption: 'YouTube · 2005' },
+		{ x: -3.92, draw: drawSiteTwitter2006, url: 'http://twitter.com', caption: 'Twitter · 2006' },
+		{ x: 5.62, draw: drawSiteFacebook2007, url: 'http://www.facebook.com', caption: 'Facebook · 2007' },
+	];
+	shots.forEach((shot) => {
+		addLocal(group, createBrowserScreenshotPlaque(shot), shot.x, frontWallZ);
+	});
+}
+
+// A brass-framed picture carrying a single browser-window screenshot canvas.
+// Sized to slot between the entrance jambs and the corner without crowding.
+function createBrowserScreenshotPlaque(spec) {
+	const group = new THREE.Group();
+	const frameW = 1.42;
+	const frameH = 1.18;
+	const y = 2.42;
+	const frame = new THREE.Mesh(
+		new THREE.BoxGeometry(frameW + 0.14, frameH + 0.14, 0.08),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	frame.position.set(0, y, 0);
+	group.add(frame);
+	const art = new THREE.Mesh(
+		new THREE.PlaneGeometry(frameW, frameH),
+		new THREE.MeshBasicMaterial({ map: createBrowserScreenshotTexture(spec) })
+	);
+	art.position.set(0, y, 0.05);
+	group.add(art);
+	return group;
+}
+
+function createBrowserScreenshotTexture(spec) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 768;
+	canvas.height = 636;
+	const ctx = canvas.getContext('2d');
+
+	// Cream matte mount with a thin keyline, like the other gallery plaques.
+	ctx.fillStyle = '#1a1208';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#f4ead0';
+	ctx.fillRect(14, 14, canvas.width - 28, canvas.height - 28);
+
+	// Browser window inset into the mount, with a period chrome bar on top.
+	const bx = 46;
+	const by = 44;
+	const bw = canvas.width - 92;
+	const bh = 470;
+	const content = drawPeriodBrowserChrome(ctx, bx, by, bw, bh, spec.url);
+	ctx.save();
+	ctx.beginPath();
+	ctx.rect(content.x, content.y, content.w, content.h);
+	ctx.clip();
+	spec.draw(ctx, content.x, content.y, content.w, content.h);
+	ctx.restore();
+
+	// Engraved caption on the mount below the window.
+	ctx.fillStyle = '#241a0c';
+	ctx.font = '900 36px Georgia, serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'alphabetic';
+	ctx.fillText(spec.caption, canvas.width / 2, by + bh + 56);
+	ctx.fillStyle = '#9a7a3a';
+	ctx.font = '700 22px ui-monospace, Menlo, monospace';
+	ctx.fillText(spec.url, canvas.width / 2, by + bh + 92);
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+// A mid-2000s browser frame: silver title bar with square min/max/close boxes,
+// a toolbar with Back/Forward, and a recessed address bar showing the URL.
+// Returns the inner content rectangle for the page drawing.
+function drawPeriodBrowserChrome(ctx, x, y, w, h, url) {
+	const titleH = 34;
+	const toolH = 44;
+	// Window body shell.
+	ctx.fillStyle = '#aeb6c2';
+	ctx.fillRect(x - 3, y - 3, w + 6, h + 6);
+
+	// Title bar — brushed silver with a faint gradient.
+	const tb = ctx.createLinearGradient(0, y, 0, y + titleH);
+	tb.addColorStop(0, '#f2f4f8');
+	tb.addColorStop(1, '#c3cbd7');
+	ctx.fillStyle = tb;
+	ctx.fillRect(x, y, w, titleH);
+	ctx.fillStyle = '#41485a';
+	ctx.font = '700 18px Tahoma, "Segoe UI", sans-serif';
+	ctx.textAlign = 'left';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('Web Browser', x + 12, y + titleH / 2 + 1);
+	// Square window controls (minimise / maximise / close).
+	const btn = (cx, label, fill) => {
+		ctx.fillStyle = fill;
+		ctx.fillRect(cx, y + 7, 20, 18);
+		ctx.strokeStyle = '#6b7486';
+		ctx.lineWidth = 1;
+		ctx.strokeRect(cx + 0.5, y + 7.5, 19, 17);
+		ctx.fillStyle = label === '✕' ? '#ffffff' : '#2a3142';
+		ctx.font = '700 13px Tahoma, sans-serif';
+		ctx.textAlign = 'center';
+		ctx.fillText(label, cx + 10, y + 16);
+		ctx.textAlign = 'left';
+	};
+	btn(x + w - 74, '_', '#dfe4ec');
+	btn(x + w - 50, '□', '#dfe4ec');
+	btn(x + w - 26, '✕', '#c2453a');
+
+	// Toolbar with the address bar.
+	const ty = y + titleH;
+	const tg = ctx.createLinearGradient(0, ty, 0, ty + toolH);
+	tg.addColorStop(0, '#eef1f6');
+	tg.addColorStop(1, '#d4dae3');
+	ctx.fillStyle = tg;
+	ctx.fillRect(x, ty, w, toolH);
+	// Back / forward chevrons.
+	const chevron = (cx, dir) => {
+		ctx.fillStyle = '#7d8698';
+		ctx.beginPath();
+		ctx.moveTo(cx, ty + toolH / 2);
+		ctx.lineTo(cx + dir * 11, ty + toolH / 2 - 8);
+		ctx.lineTo(cx + dir * 11, ty + toolH / 2 + 8);
+		ctx.closePath();
+		ctx.fill();
+	};
+	chevron(x + 18, -1);
+	chevron(x + 36, -1);
+	chevron(x + 52, 1);
+	// "Address" label + recessed white URL field.
+	ctx.fillStyle = '#5a6272';
+	ctx.font = '700 15px Tahoma, sans-serif';
+	ctx.textAlign = 'left';
+	ctx.fillText('Address', x + 74, ty + toolH / 2 + 1);
+	const ax = x + 148;
+	const aw = w - 148 - 14;
+	const ah = 24;
+	const ayy = ty + (toolH - ah) / 2;
+	ctx.fillStyle = '#ffffff';
+	ctx.fillRect(ax, ayy, aw, ah);
+	ctx.strokeStyle = '#9aa3b2';
+	ctx.lineWidth = 1;
+	ctx.strokeRect(ax + 0.5, ayy + 0.5, aw - 1, ah - 1);
+	// Tiny page favicon dot + the URL text.
+	ctx.fillStyle = '#3a8fd8';
+	ctx.fillRect(ax + 6, ayy + 7, 10, 10);
+	ctx.fillStyle = '#1a1a1a';
+	ctx.font = '15px ui-monospace, Menlo, monospace';
+	ctx.fillText(url, ax + 24, ayy + ah / 2 + 1);
+	// "Go" button at the field's right edge.
+	ctx.fillStyle = '#dfe4ec';
+	ctx.fillRect(ax + aw - 34, ayy, 34, ah);
+	ctx.strokeRect(ax + aw - 33.5, ayy + 0.5, 33, ah - 1);
+	ctx.fillStyle = '#2a3142';
+	ctx.textAlign = 'center';
+	ctx.fillText('Go', ax + aw - 17, ayy + ah / 2 + 1);
+
+	ctx.textAlign = 'left';
+	ctx.textBaseline = 'alphabetic';
+	return { x, y: ty + toolH, w, h: h - titleH - toolH };
+}
+
+// YouTube, 2005 — the original red-on-white "Broadcast Yourself" layout: a red
+// wordmark in a rounded box, a search row, and a featured video with a big
+// play triangle over a grey thumbnail.
+function drawSiteYouTube2005(ctx, x, y, w, h) {
+	ctx.fillStyle = '#ffffff';
+	ctx.fillRect(x, y, w, h);
+	// Header band.
+	ctx.fillStyle = '#f4f4f4';
+	ctx.fillRect(x, y, w, 64);
+	ctx.strokeStyle = '#dcdcdc';
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+	ctx.moveTo(x, y + 64);
+	ctx.lineTo(x + w, y + 64);
+	ctx.stroke();
+	// "You" + red "Tube" lozenge logo.
+	ctx.textAlign = 'left';
+	ctx.textBaseline = 'middle';
+	ctx.fillStyle = '#222222';
+	ctx.font = '900 38px Arial, Helvetica, sans-serif';
+	ctx.fillText('You', x + 20, y + 33);
+	const youW = ctx.measureText('You').width;
+	const tubeX = x + 20 + youW + 4;
+	ctx.fillStyle = '#cc181e';
+	roundRectPath(ctx, tubeX, y + 12, 92, 40, 7);
+	ctx.fill();
+	ctx.fillStyle = '#ffffff';
+	ctx.fillText('Tube', tubeX + 9, y + 33);
+	ctx.fillStyle = '#888888';
+	ctx.font = 'italic 13px Arial, sans-serif';
+	ctx.fillText('Broadcast Yourself ™', tubeX + 100, y + 36);
+	// Search row.
+	const sy = y + 84;
+	ctx.fillStyle = '#ffffff';
+	ctx.fillRect(x + 20, sy, w - 150, 30);
+	ctx.strokeStyle = '#aaaaaa';
+	ctx.strokeRect(x + 20.5, sy + 0.5, w - 150, 29);
+	ctx.fillStyle = '#999999';
+	ctx.font = '15px Arial, sans-serif';
+	ctx.fillText('Search', x + 30, sy + 16);
+	ctx.fillStyle = '#e6e6e6';
+	ctx.fillRect(x + w - 122, sy, 60, 30);
+	ctx.strokeRect(x + w - 121.5, sy + 0.5, 59, 29);
+	ctx.fillStyle = '#333333';
+	ctx.font = '700 14px Arial, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.fillText('Search', x + w - 92, sy + 16);
+	// Featured video thumbnail with a play triangle.
+	const vx = x + 20;
+	const vy = y + 132;
+	const vw = w - 40;
+	const vh = h - 168;
+	ctx.fillStyle = '#cfcfcf';
+	ctx.fillRect(vx, vy, vw, vh);
+	ctx.fillStyle = '#bdbdbd';
+	for (let i = 0; i < 6; i++) {
+		ctx.fillRect(vx + 20 + i * (vw / 6), vy + 16, vw / 6 - 16, vh - 56);
+	}
+	const pcx = vx + vw / 2;
+	const pcy = vy + vh / 2 - 8;
+	ctx.fillStyle = 'rgba(0,0,0,0.55)';
+	ctx.beginPath();
+	ctx.arc(pcx, pcy, 34, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.fillStyle = '#ffffff';
+	ctx.beginPath();
+	ctx.moveTo(pcx - 11, pcy - 16);
+	ctx.lineTo(pcx - 11, pcy + 16);
+	ctx.lineTo(pcx + 18, pcy);
+	ctx.closePath();
+	ctx.fill();
+	ctx.fillStyle = '#333333';
+	ctx.font = '700 16px Arial, sans-serif';
+	ctx.textAlign = 'left';
+	ctx.fillText('Featured Video', vx, vy + vh + 22);
+}
+
+// Twitter, 2006 — the early light-blue "Twttr" build: a rounded logo, the
+// "What are you doing?" status box with an update button, and a couple of
+// timeline rows of short messages.
+function drawSiteTwitter2006(ctx, x, y, w, h) {
+	ctx.fillStyle = '#eaf4fb';
+	ctx.fillRect(x, y, w, h);
+	// Header band.
+	ctx.fillStyle = '#9ae4f8';
+	ctx.fillRect(x, y, w, 56);
+	ctx.fillStyle = '#ffffff';
+	ctx.font = '900 34px "Comic Sans MS", "Trebuchet MS", sans-serif';
+	ctx.textAlign = 'left';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('twttr', x + 22, y + 29);
+	ctx.fillStyle = '#3a7d9a';
+	ctx.font = 'italic 14px "Trebuchet MS", sans-serif';
+	ctx.fillText('a global community of friends', x + 132, y + 31);
+	// "What are you doing?" prompt + status box.
+	ctx.fillStyle = '#33627a';
+	ctx.font = '700 22px "Trebuchet MS", Arial, sans-serif';
+	ctx.fillText('What are you doing?', x + 22, y + 92);
+	const sx = x + 22;
+	const sy = y + 112;
+	const sw = w - 150;
+	ctx.fillStyle = '#ffffff';
+	ctx.fillRect(sx, sy, sw, 56);
+	ctx.strokeStyle = '#9cc4d6';
+	ctx.lineWidth = 1.5;
+	ctx.strokeRect(sx + 0.5, sy + 0.5, sw - 1, 55);
+	// Update button.
+	ctx.fillStyle = '#a8e24b';
+	roundRectPath(ctx, x + w - 116, sy + 8, 94, 40, 6);
+	ctx.fill();
+	ctx.fillStyle = '#3a5c10';
+	ctx.font = '700 18px "Trebuchet MS", Arial, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.fillText('update', x + w - 69, sy + 28);
+	// Timeline rows.
+	const rows = [
+		{ name: 'jack', msg: 'inviting coworkers' },
+		{ name: 'biz', msg: 'reading on the couch' },
+		{ name: 'noah', msg: 'eating a sandwich' },
+	];
+	ctx.textAlign = 'left';
+	rows.forEach((r, i) => {
+		const ry = y + 196 + i * 56;
+		ctx.fillStyle = '#ffffff';
+		ctx.fillRect(x + 22, ry, w - 44, 46);
+		ctx.fillStyle = '#cfe7f1';
+		ctx.fillRect(x + 30, ry + 8, 30, 30);
+		ctx.fillStyle = '#2a5c75';
+		ctx.font = '700 16px "Trebuchet MS", Arial, sans-serif';
+		ctx.fillText(r.name, x + 70, ry + 19);
+		ctx.fillStyle = '#444444';
+		ctx.font = '15px "Trebuchet MS", Arial, sans-serif';
+		ctx.fillText(r.msg, x + 70, ry + 37);
+	});
+}
+
+// Facebook, 2007 — "The Facebook" had just become facebook.com: the deep-blue
+// top bar with the lowercase wordmark, a left profile column, and a centre feed
+// of status/photo stories on the familiar pale-blue canvas.
+function drawSiteFacebook2007(ctx, x, y, w, h) {
+	ctx.fillStyle = '#ffffff';
+	ctx.fillRect(x, y, w, h);
+	// Dark-blue brand bar.
+	ctx.fillStyle = '#3b5998';
+	ctx.fillRect(x, y, w, 46);
+	ctx.fillStyle = '#ffffff';
+	ctx.font = '900 26px "Lucida Grande", Helvetica, Arial, sans-serif';
+	ctx.textAlign = 'left';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('facebook', x + 16, y + 24);
+	// Search pill on the right of the bar.
+	ctx.fillStyle = '#ffffff';
+	ctx.fillRect(x + w - 150, y + 12, 134, 22);
+	ctx.fillStyle = '#999999';
+	ctx.font = '13px Arial, sans-serif';
+	ctx.fillText('Search', x + w - 142, y + 23);
+	// Pale-blue page canvas.
+	ctx.fillStyle = '#eceff5';
+	ctx.fillRect(x, y + 46, w, h - 46);
+	// Left profile column.
+	const colX = x + 16;
+	const colY = y + 62;
+	const colW = 132;
+	ctx.fillStyle = '#ffffff';
+	ctx.fillRect(colX, colY, colW, h - 78);
+	ctx.strokeStyle = '#cdd3e0';
+	ctx.lineWidth = 1;
+	ctx.strokeRect(colX + 0.5, colY + 0.5, colW - 1, h - 79);
+	ctx.fillStyle = '#9aa6c6';
+	ctx.fillRect(colX + 16, colY + 14, colW - 32, colW - 32); // profile photo
+	ctx.fillStyle = '#3b5998';
+	ctx.font = '700 16px Arial, sans-serif';
+	ctx.fillText('Your Name', colX + 16, colY + colW + 2);
+	ctx.fillStyle = '#888888';
+	ctx.font = '12px Arial, sans-serif';
+	['View Photos', 'Edit Profile', 'Wall', 'Friends'].forEach((t, i) => {
+		ctx.fillText('• ' + t, colX + 16, colY + colW + 26 + i * 18);
+	});
+	// Centre news feed.
+	const feedX = colX + colW + 16;
+	const feedW = x + w - 16 - feedX;
+	ctx.fillStyle = '#3b5998';
+	ctx.font = '700 16px Arial, sans-serif';
+	ctx.fillText('News Feed', feedX, colY + 10);
+	for (let i = 0; i < 3; i++) {
+		const ry = colY + 28 + i * 86;
+		ctx.fillStyle = '#ffffff';
+		ctx.fillRect(feedX, ry, feedW, 74);
+		ctx.strokeStyle = '#cdd3e0';
+		ctx.strokeRect(feedX + 0.5, ry + 0.5, feedW - 1, 73);
+		ctx.fillStyle = '#bcc6dd';
+		ctx.fillRect(feedX + 10, ry + 12, 40, 40);
+		ctx.fillStyle = '#3b5998';
+		ctx.font = '700 14px Arial, sans-serif';
+		ctx.fillText('A friend', feedX + 60, ry + 22);
+		ctx.fillStyle = '#555555';
+		ctx.font = '13px Arial, sans-serif';
+		ctx.fillText('updated their status', feedX + 60, ry + 42);
+		ctx.fillStyle = '#888888';
+		ctx.font = '11px Arial, sans-serif';
+		ctx.fillText('2 minutes ago · Comment · Like', feedX + 60, ry + 60);
+	}
 }
 
 // Flat design (the Modern Admin era, ~2014): bold flat colour blocks, no
