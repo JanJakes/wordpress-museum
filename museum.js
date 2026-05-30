@@ -6224,25 +6224,50 @@ function createAtriumFloorMedallion(color, secondary) {
 	return group;
 }
 
-// Red carpet runners on the rotunda floor approaching each doorway: one per hub
-// side (seven galleries plus the south mural/exit path), each running outward
-// along that side's normal from radius 13 to the doorway at the hub wall
-// (~16.6). Radius ≥13 keeps them clear of the central rotunda decals (rope
-// barrier ~r4, version orbit ~r6.9, timeline ~r9.4, pylons ~r11.85), so the
-// outer hub floor stays free of z-fighting.
+// The rotunda red-carpet STAR: eight runners (one per hub side, the seven
+// galleries plus the south mural/exit path) converge at the centre, joined by a
+// round central medallion disc. Each arm runs from just under the disc edge out
+// to its doorway at the hub wall (~16.6), aligning with that gallery's interior
+// runner for continuity through the opening. The whole star is laid LOW (y≈0.03,
+// disc 0.034) — above the hub floor (y=0) but BELOW every central decal (medallion
+// ring/orbit/timeline/pylons/arcs at y≥0.045), so the centrepiece reads as sitting
+// ON the carpet with no z-fighting.
 function createAtriumCarpetRunners() {
 	const group = new THREE.Group();
-	const innerRadius = 13;
-	const outerRadius = 16.6;
+	const armY = 0.03;
+	const discRadius = 2.3; // framed by the medallion ring at r2.35–2.65
+	const innerRadius = discRadius - 0.5; // arm inner ends tuck under the disc
+	const outerRadius = 16.6; // the doorway at the hub wall
 	const length = outerRadius - innerRadius;
 	const midRadius = (innerRadius + outerRadius) / 2;
 	for (const side of hubSides) {
 		const runner = createCarpetRunner(2.2, length);
 		runner.position.copy(side.normal).multiplyScalar(midRadius);
-		runner.position.y = 0.05;
+		runner.position.y = armY;
 		runner.rotation.y = getRotationForNormal(side.normal);
 		group.add(runner);
 	}
+
+	// Central disc where the arms meet, slightly above them to hide the overlap.
+	const disc = new THREE.Mesh(
+		new THREE.CircleGeometry(discRadius, 64),
+		new THREE.MeshStandardMaterial({ color: 0x8b1a1a, roughness: 0.85, metalness: 0.04 })
+	);
+	disc.rotation.x = -Math.PI / 2;
+	disc.position.y = armY + 0.004;
+	group.add(disc);
+	const discBorder = new THREE.Mesh(
+		new THREE.RingGeometry(discRadius, discRadius + 0.16, 64),
+		new THREE.MeshStandardMaterial({
+			color: 0xc79b43,
+			roughness: 0.62,
+			metalness: 0.12,
+			side: THREE.DoubleSide,
+		})
+	);
+	discBorder.rotation.x = -Math.PI / 2;
+	discBorder.position.y = armY + 0.003;
+	group.add(discBorder);
 	return group;
 }
 
