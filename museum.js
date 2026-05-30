@@ -6814,6 +6814,7 @@ function addEraVignette(group, room, roomIndex) {
 		} else if (room.era === 'CMS Toolkit') {
 			addLocal(group, createSkeuomorphicPanel(), 3.95, frontWallZ);
 			addLocal(group, createFauxMaterialsPanel(), -3.95, frontWallZ);
+			group.add(createIE6RetirementCard());
 		} else if (room.era === 'Dashboard Foundations') {
 			addLocal(group, createWeb2Panel(), 3.95, frontWallZ);
 		} else if (room.era === 'Modern Admin') {
@@ -6923,6 +6924,7 @@ function createWebEraPosterTexture(era) {
 function addWebOf2004Display(group) {
 	const frontWallZ = -roomDepth / 2 + wallThickness / 2 + 0.05;
 	addLocal(group, createLinkButtonBoard(), -5.7, frontWallZ);
+	addLocal(group, createBrowserWarsPanel(), 5.7, frontWallZ);
 }
 
 // (A) A framed board of period 88x31 web "badge" buttons in a tidy grid, drawn
@@ -7081,6 +7083,236 @@ function draw88x31Button(ctx, x, y, w, h, btn) {
 		fillFittedCanvasText(ctx, btn.text, textX, iconCy + 2, maxTextW, 36, '700', 'Arial, sans-serif');
 	}
 	ctx.textAlign = 'center';
+}
+
+// (B) A framed panel charting the 2003–2005 browser landscape with clean,
+// canvas-drawn logos for IE6, Netscape, Firefox and Opera. Front-wall plaque
+// (art faces +z, into the room) sized for the opposite corner bay.
+function createBrowserWarsPanel() {
+	const group = new THREE.Group();
+	const w = 1.78;
+	const h = 1.2;
+	const frame = new THREE.Mesh(
+		new THREE.BoxGeometry(w + 0.16, h + 0.16, 0.08),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	frame.position.set(0, 2.05, 0);
+	group.add(frame);
+	const art = new THREE.Mesh(
+		new THREE.PlaneGeometry(w, h),
+		new THREE.MeshBasicMaterial({ map: createBrowserWarsTexture() })
+	);
+	art.position.set(0, 2.05, 0.05);
+	group.add(art);
+	return group;
+}
+
+function createBrowserWarsTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 760;
+	canvas.height = 516;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#10131c';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#f4ead0';
+	ctx.fillRect(16, 16, canvas.width - 32, canvas.height - 32);
+
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillStyle = '#241a0c';
+	ctx.font = '900 50px Arial Black, Impact, sans-serif';
+	ctx.fillText('THE BROWSER WARS · 2004', canvas.width / 2, 60);
+
+	const cells = [
+		{ logo: drawIELogo, name: 'Internet Explorer 6', note: '~90% share' },
+		{ logo: drawNetscapeLogo, name: 'Netscape Navigator', note: 'the fading pioneer' },
+		{ logo: drawFirefoxLogo, name: 'Mozilla Firefox', note: 'new in 2004' },
+		{ logo: drawOperaLogo, name: 'Opera', note: 'the standards keeper' },
+	];
+	const cols = 2;
+	const cellW = (canvas.width - 64) / cols;
+	const cellH = 184;
+	const top = 108;
+	const logoR = 52;
+	cells.forEach((cell, i) => {
+		const col = i % cols;
+		const row = Math.floor(i / cols);
+		const cx = 32 + col * cellW + cellW / 2;
+		const cy = top + row * cellH;
+		cell.logo(ctx, cx, cy, logoR);
+		ctx.fillStyle = '#241a0c';
+		ctx.font = '800 26px Arial, sans-serif';
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'middle';
+		ctx.fillText(cell.name, cx, cy + logoR + 26);
+		ctx.fillStyle = '#7a6534';
+		ctx.font = 'italic 20px Georgia, serif';
+		ctx.fillText(cell.note, cx, cy + logoR + 52);
+	});
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+// Classic blue "e" with a yellow orbit ring.
+function drawIELogo(ctx, cx, cy, r) {
+	ctx.lineWidth = r * 0.34;
+	ctx.strokeStyle = '#1f6fd6';
+	ctx.beginPath();
+	ctx.arc(cx, cy, r * 0.72, Math.PI * 0.18, Math.PI * 1.78);
+	ctx.stroke();
+	ctx.lineWidth = r * 0.22;
+	ctx.beginPath();
+	ctx.moveTo(cx - r * 0.55, cy);
+	ctx.lineTo(cx + r * 0.55, cy);
+	ctx.stroke();
+	// Yellow orbit ring (squashed ellipse).
+	ctx.save();
+	ctx.translate(cx, cy - r * 0.12);
+	ctx.rotate(-0.5);
+	ctx.scale(1, 0.34);
+	ctx.lineWidth = r * 0.18;
+	ctx.strokeStyle = '#f4c20d';
+	ctx.beginPath();
+	ctx.arc(0, 0, r * 1.05, 0, Math.PI * 2);
+	ctx.stroke();
+	ctx.restore();
+}
+
+// Netscape ship's-wheel "N" on a dark globe.
+function drawNetscapeLogo(ctx, cx, cy, r) {
+	const g = ctx.createLinearGradient(cx, cy - r, cx, cy + r);
+	g.addColorStop(0, '#1b2a55');
+	g.addColorStop(1, '#04060f');
+	ctx.fillStyle = g;
+	ctx.beginPath();
+	ctx.arc(cx, cy, r, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.fillStyle = '#00a8e8';
+	ctx.font = '900 ' + Math.round(r * 1.5) + 'px Georgia, serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('N', cx, cy + r * 0.04);
+	// Horizon arc sweeping across the lower globe.
+	ctx.strokeStyle = 'rgba(0,168,232,0.85)';
+	ctx.lineWidth = r * 0.12;
+	ctx.beginPath();
+	ctx.arc(cx, cy + r * 1.1, r * 1.3, Math.PI * 1.25, Math.PI * 1.75);
+	ctx.stroke();
+}
+
+// Firefox: orange fox curled around a blue globe.
+function drawFirefoxLogo(ctx, cx, cy, r) {
+	const g = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.2, cx, cy, r);
+	g.addColorStop(0, '#7fd0ff');
+	g.addColorStop(1, '#16448c');
+	ctx.fillStyle = g;
+	ctx.beginPath();
+	ctx.arc(cx, cy, r, 0, Math.PI * 2);
+	ctx.fill();
+	// Meridians.
+	ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+	ctx.lineWidth = r * 0.05;
+	for (const k of [-0.5, 0, 0.5]) {
+		ctx.beginPath();
+		ctx.ellipse(cx, cy, r * Math.abs(0.85 - Math.abs(k) * 0.9 + 0.05), r, 0, 0, Math.PI * 2);
+		ctx.stroke();
+	}
+	// Fox sweeping around the right side.
+	const fg = ctx.createLinearGradient(cx, cy - r, cx + r, cy + r);
+	fg.addColorStop(0, '#ffb33b');
+	fg.addColorStop(1, '#e24a17');
+	ctx.fillStyle = fg;
+	ctx.beginPath();
+	ctx.moveTo(cx - r * 0.2, cy - r * 1.0);
+	ctx.quadraticCurveTo(cx + r * 1.25, cy - r * 0.95, cx + r * 1.05, cy + r * 0.35);
+	ctx.quadraticCurveTo(cx + r * 0.9, cy + r * 1.2, cx - r * 0.1, cy + r * 1.05);
+	ctx.quadraticCurveTo(cx + r * 0.55, cy + r * 0.35, cx + r * 0.2, cy - r * 0.55);
+	ctx.quadraticCurveTo(cx + r * 0.05, cy - r * 0.85, cx - r * 0.2, cy - r * 1.0);
+	ctx.closePath();
+	ctx.fill();
+}
+
+// Opera: bold red "O".
+function drawOperaLogo(ctx, cx, cy, r) {
+	const g = ctx.createLinearGradient(cx, cy - r, cx, cy + r);
+	g.addColorStop(0, '#e8443a');
+	g.addColorStop(1, '#a30f0f');
+	ctx.fillStyle = g;
+	ctx.beginPath();
+	ctx.ellipse(cx, cy, r * 0.82, r, 0, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.fillStyle = '#f4ead0';
+	ctx.beginPath();
+	ctx.ellipse(cx, cy, r * 0.36, r * 0.56, 0, 0, Math.PI * 2);
+	ctx.fill();
+}
+
+// A tasteful 2011 "good riddance, IE6" wall card for the CMS Toolkit room,
+// echoing WP 3.2's dropping of IE6 support. Mounted low in the front-wall corner
+// bay beside the era panel (both CMS Toolkit side walls carry doorways).
+function createIE6RetirementCard() {
+	const group = new THREE.Group();
+	const w = 1.18;
+	const h = 0.86;
+	const frame = new THREE.Mesh(
+		new THREE.BoxGeometry(w + 0.12, h + 0.12, 0.07),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	const cardY = 1.46;
+	frame.position.set(0, cardY, 0);
+	group.add(frame);
+	const art = new THREE.Mesh(
+		new THREE.PlaneGeometry(w, h),
+		new THREE.MeshBasicMaterial({ map: createIE6RetirementTexture() })
+	);
+	art.position.set(0, cardY, 0.045);
+	group.add(art);
+	const frontWallZ = -roomDepth / 2 + wallThickness / 2 + 0.05;
+	group.position.set(-5.55, 0, frontWallZ);
+	return group;
+}
+
+function createIE6RetirementTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 560;
+	canvas.height = 408;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#101010';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#f4ead0';
+	ctx.fillRect(14, 14, canvas.width - 28, canvas.height - 28);
+
+	// Crossed-out IE6 logo.
+	const cx = canvas.width / 2;
+	const cy = 150;
+	drawIELogo(ctx, cx, cy, 64);
+	ctx.strokeStyle = 'rgba(200,30,30,0.9)';
+	ctx.lineWidth = 16;
+	ctx.lineCap = 'round';
+	ctx.beginPath();
+	ctx.moveTo(cx - 92, cy - 80);
+	ctx.lineTo(cx + 92, cy + 80);
+	ctx.stroke();
+
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillStyle = '#241a0c';
+	ctx.font = '900 46px Arial Black, Impact, sans-serif';
+	ctx.fillText('GOOD RIDDANCE, IE6', cx, 280);
+	ctx.fillStyle = '#7a3a1a';
+	ctx.font = '700 24px system-ui, sans-serif';
+	ctx.fillText('WordPress 3.2 dropped IE6 support · 2011', cx, 326);
+	ctx.fillStyle = '#9a7a3a';
+	ctx.font = 'italic 22px Georgia, serif';
+	ctx.fillText('2001 – 2011 · you will not be missed', cx, 364);
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
 }
 
 // A wink to the GeoCities era: a framed "Under Construction" plaque with a
