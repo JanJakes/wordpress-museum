@@ -5936,7 +5936,7 @@ function createRoomMuseumArchitecture(room) {
 	group.add(createWallRail('back', wallHeight - 0.58, brass, 0.12));
 	group.add(createRoomPilasterGrid(marble, brass));
 	group.add(createRoomAccentWashes(room));
-	group.add(createRoomRopeBarriers(room.color));
+	group.add(createRoomRopeBarriers(room.color, room));
 	group.add(createRoomTrackLighting(room.color));
 	for (const side of ['left', 'right']) {
 		// On a gallery's shop-facing wall the front sconce shifts toward the inner
@@ -6018,8 +6018,11 @@ function createRoomAccentWashes(room) {
 	return group;
 }
 
-function createRoomRopeBarriers(color) {
+function createRoomRopeBarriers(color, room) {
 	const group = new THREE.Group();
+	// The Playground annex opens through Blocks Everywhere's right (+x) chamfer,
+	// so that chamfer must not be roped off (matches createRoomBackChamfers).
+	const skipRightChamfer = isCurrentVariant && room && room.era === eras[6];
 	// Low rope-and-post railings guard every picture wall: the flat back wall,
 	// both 45deg chamfers, and both angled side walls. Each rope sits a short
 	// distance in front of its wall, inside the room; the side rails break at
@@ -6060,11 +6063,13 @@ function createRoomRopeBarriers(color) {
 			x: cax + (cbx - cax) * u - sign * cn * chamferOffset,
 			z: caz + (cbz - caz) * u - cn * chamferOffset,
 		});
-		group.add(createMuseumRopeLine(
-			[chamferPoint(0.08), chamferPoint(0.5), chamferPoint(0.92)],
-			color,
-			ropeOptions
-		));
+		if (!(sign === 1 && skipRightChamfer)) {
+			group.add(createMuseumRopeLine(
+				[chamferPoint(0.08), chamferPoint(0.5), chamferPoint(0.92)],
+				color,
+				ropeOptions
+			));
+		}
 
 		// Side rope: wall at x=sign*sideHalfWidthAtZ(z); offset inward along the
 		// tilted wall normal (-sign*cos, +sin).
