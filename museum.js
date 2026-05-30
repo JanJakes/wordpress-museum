@@ -465,6 +465,8 @@ function buildScene() {
 	root.add(createRadialSpokes());
 	// Carpet threading the side doorways, shop passages and Playground annex.
 	root.add(createDoorwayCarpetRunners());
+	// In-room runners joining each gallery's two doorways into a continuous ring.
+	root.add(createRingCarpetRunners());
 }
 
 function getReleaseYearRange(items) {
@@ -6710,6 +6712,65 @@ function createDoorwayCarpetRunners() {
 		cross(playgroundDoorWallX, playgroundDoorZCenter, passageNormal, 1.6, 3.0);
 	}
 	return group;
+}
+
+// In-room ring runners: every gallery carries a doorway on each of its two side
+// walls (a room↔room connector, or — in the two end galleries — a shop-passage
+// door), both sitting near the connector-door z just behind the front exhibit
+// stations. A runner laid as a chord between those two openings turns the
+// per-room carpets, the through-door cross-runners and the shop passages into
+// one continuous octagonal ring around the central rotunda. World-space, current
+// variant only, matching the gallery/atrium/doorway runners.
+function createRingCarpetRunners() {
+	const group = new THREE.Group();
+	if (!isCurrentVariant) {
+		return group;
+	}
+	// 2mm below the cross-runners (y=0.092) so the chords cleanly lose the depth
+	// test wherever they overlap a doorway cross-runner or the central runner —
+	// continuous coverage, deterministic ordering, no z-fighting. Still above the
+	// floor stripes/vignette rings (y≈0.088), so the ring covers them.
+	const runnerY = 0.09;
+	const doorHalfW = sideHalfWidthAtZ(connectorDoorZ);
+	for (const room of roomSides) {
+		const doors = getGalleryDoorwayPoints(room, doorHalfW);
+		if (doors.length < 2) {
+			continue;
+		}
+		const [p, q] = doors;
+		const length = Math.hypot(q.x - p.x, q.z - p.z);
+		const runner = createCarpetRunner(1.6, length);
+		runner.position.set((p.x + q.x) / 2, runnerY, (p.z + q.z) / 2);
+		// Runner length runs along local +z; aim that axis along the chord.
+		runner.rotation.y = Math.atan2(q.x - p.x, q.z - p.z);
+		group.add(runner);
+	}
+	return group;
+}
+
+// World midpoints of a gallery's two side-wall doorways: the room↔room connector
+// door(s) at local x = ±doorHalfW, local z = connectorDoorZ, plus the shop-passage
+// gallery-end door for the two end galleries. Returns exactly two points.
+function getGalleryDoorwayPoints(room, doorHalfW) {
+	const points = [];
+	const toWorld = (localX, localZ) =>
+		room.tangent
+			.clone()
+			.multiplyScalar(localX)
+			.add(room.normal.clone().multiplyScalar(localZ))
+			.add(room.center);
+	if (room.connectLeft) {
+		points.push(toWorld(-doorHalfW, connectorDoorZ));
+	}
+	if (room.connectRight) {
+		points.push(toWorld(doorHalfW, connectorDoorZ));
+	}
+	for (const door of shopPassageDoorways) {
+		if (door.era === room.era && door.end === 'gallery') {
+			points.push(new THREE.Vector3(door.x, 0, door.z));
+		}
+	}
+	return points;
 }
 
 // Floor wayfinding: a chronological "era timeline" laid out on the rotunda
