@@ -462,6 +462,8 @@ function buildScene() {
 	// Shared radial spokes (the room side walls) are structural — always built,
 	// so rooms stay enclosed in every variant.
 	root.add(createRadialSpokes());
+	// Carpet threading the side doorways, shop passages and Playground annex.
+	root.add(createDoorwayCarpetRunners());
 }
 
 function getReleaseYearRange(items) {
@@ -6268,6 +6270,74 @@ function createAtriumCarpetRunners() {
 	discBorder.rotation.x = -Math.PI / 2;
 	discBorder.position.y = armY + 0.003;
 	group.add(discBorder);
+	return group;
+}
+
+// Carpet through every walk-through doorway: the six shared-wall side doorways
+// between adjacent galleries, the two gift-shop passages, and the Playground
+// annex doorway. Each is a short cross-runner laid at the gallery runner height
+// (y≈0.092) so the red carpet visibly threads from one space into the next.
+// World-space, current variant only — matching the gallery/atrium runners.
+function createDoorwayCarpetRunners() {
+	const group = new THREE.Group();
+	if (!isCurrentVariant) {
+		return group;
+	}
+	const runnerY = 0.092;
+	// A flat runner spanning `length` along a world-space crossing direction
+	// `normal`, centred on a doorway midpoint (cx, cz).
+	const cross = (cx, cz, normal, width, length) => {
+		const runner = createCarpetRunner(width, length);
+		runner.position.set(cx, runnerY, cz);
+		runner.rotation.y = getRotationForNormal(normal);
+		group.add(runner);
+	};
+
+	// Side doorways: each shared radial wall carries a doorway at connectorDoorZ on
+	// the connecting room's side wall. The crossing direction is that wall's inward
+	// normal; the runner reaches ~1.6m into each adjacent gallery.
+	const cos = Math.cos(wedgeHalfAngle);
+	const sin = Math.sin(wedgeHalfAngle);
+	const doorHalfW = sideHalfWidthAtZ(connectorDoorZ);
+	for (const { a, b } of galleryConnections) {
+		const onRight =
+			(b.center.x - a.center.x) * a.tangent.x +
+				(b.center.z - a.center.z) * a.tangent.z >
+			0;
+		const localX = onRight ? doorHalfW : -doorHalfW;
+		const mid = a.center
+			.clone()
+			.add(a.tangent.clone().multiplyScalar(localX))
+			.add(a.normal.clone().multiplyScalar(connectorDoorZ));
+		const nx = onRight ? -cos : cos; // inward normal of that wall (toward a)
+		const normal = a.tangent
+			.clone()
+			.multiplyScalar(nx)
+			.add(a.normal.clone().multiplyScalar(sin))
+			.normalize();
+		cross(mid.x, mid.z, normal, 1.6, 3.4);
+	}
+
+	// Gift-shop passages: both run along world x at z=shopPassageZCenter, from the
+	// shop wall to the gallery wall. A single runner spans the passage with margin.
+	const passageNormal = new THREE.Vector3(1, 0, 0);
+	for (const era of [eras[0], eras[eras.length - 1]]) {
+		const ends = shopPassageDoorways.filter((d) => d.era === era);
+		if (ends.length < 2) {
+			continue;
+		}
+		const xs = ends.map((d) => d.x);
+		const x0 = Math.min(...xs);
+		const x1 = Math.max(...xs);
+		// Overrun each end ~0.5m so the carpet tucks under both doorways.
+		cross((x0 + x1) / 2, shopPassageZCenter, passageNormal, 1.4, x1 - x0 + 1.0);
+	}
+
+	// Playground annex doorway: the carpet crosses the chamfer wall (faces ±x) at
+	// playgroundDoorZCenter, reaching from inside the gallery into the annex.
+	if (playgroundRoom) {
+		cross(playgroundDoorWallX, playgroundDoorZCenter, passageNormal, 1.6, 3.0);
+	}
 	return group;
 }
 
