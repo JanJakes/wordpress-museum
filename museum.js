@@ -1002,7 +1002,87 @@ function createMercantileShop() {
 	group.add(createMercantileShelves());
 	group.add(createMercantileTables());
 	group.add(createMercantileCounter());
+	group.add(createWordCampBanner());
 	return group;
+}
+
+// A felt WordCamp pennant banner strung high on the shop's clean mid right wall,
+// between the Blocks Everywhere doorway and the checkout — a nod to the community
+// events where this merch is sold. Hung from a small cord, gently swaying.
+function createWordCampBanner() {
+	const group = new THREE.Group();
+	const wallX = shopMaxX - shopWallThickness / 2 - 0.04;
+	const z = shopCenterZ - 0.4; // clear of the front doorway and the back checkout
+	const y = shopHeight - 1.5;
+	// Cord the banner hangs from, fixed to two small pegs.
+	const cordMat = new THREE.MeshStandardMaterial({ color: 0x6f4a2c, roughness: 0.7 });
+	const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 2.0, 8), cordMat);
+	cord.rotation.x = Math.PI / 2;
+	cord.position.set(wallX - 0.02, y + 0.62, z);
+	group.add(cord);
+	for (const dz of [-1.0, 1.0]) {
+		const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.1, 8), cordMat);
+		peg.rotation.z = Math.PI / 2;
+		peg.position.set(wallX, y + 0.62, z + dz);
+		group.add(peg);
+	}
+	// The triangular felt pennant, art on both faces, tip pointing down.
+	const pennant = new THREE.Mesh(
+		createPennantGeometry(1.7, 1.05),
+		new THREE.MeshBasicMaterial({ map: createWordCampBannerTexture(), side: THREE.DoubleSide })
+	);
+	pennant.position.set(wallX - 0.05, y, z);
+	pennant.rotation.y = -Math.PI / 2; // face the shop interior (−x)
+	registerAnimation(pennant, (object, elapsed) => {
+		object.rotation.z = Math.sin(elapsed * 0.9) * 0.025;
+	});
+	group.add(pennant);
+	return group;
+}
+
+// A downward-pointing triangular pennant in the local x/y plane (top edge along
+// z at y=+height/2, apex at y=−height/2), UV-mapped so a banner canvas reads
+// upright. Front faces +z.
+function createPennantGeometry(width, height) {
+	const geometry = new THREE.BufferGeometry();
+	const hw = width / 2;
+	const positions = new Float32Array([
+		-hw, height / 2, 0,
+		hw, height / 2, 0,
+		0, -height / 2, 0,
+	]);
+	const uvs = new Float32Array([0, 1, 1, 1, 0.5, 0]);
+	geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+	geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+	geometry.computeVertexNormals();
+	return geometry;
+}
+
+function createWordCampBannerTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 420;
+	canvas.height = 260;
+	const ctx = canvas.getContext('2d');
+	// Felt-blue field with a cream border, the WordCamp standby look.
+	ctx.fillStyle = '#21759b';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.strokeStyle = '#fff5df';
+	ctx.lineWidth = 10;
+	ctx.strokeRect(14, 12, canvas.width - 28, canvas.height - 24);
+	ctx.textAlign = 'center';
+	ctx.fillStyle = '#fff5df';
+	ctx.font = '900 52px Arial Black, Impact, sans-serif';
+	ctx.fillText('WordCamp', canvas.width / 2, 84);
+	ctx.fillStyle = '#ffd166';
+	ctx.font = '800 30px system-ui, sans-serif';
+	ctx.fillText('★ COMMUNITY ★', canvas.width / 2, 130);
+	ctx.fillStyle = '#fff5df';
+	ctx.font = '600 22px ui-monospace, Menlo, monospace';
+	ctx.fillText('contributor day', canvas.width / 2, 168);
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
 }
 
 // The two short side passages that make the museum loop-walkable, bridging the
@@ -1855,6 +1935,15 @@ function createMercantileTables() {
 		sheet.rotation.y = (Math.random() - 0.5) * 0.3;
 		group.add(sheet);
 	}
+	// A printed "There's a plugin for that" sticker laid face-up among the blank
+	// sheets — the community catchphrase, integrated as a real shop sticker.
+	const pluginSticker = new THREE.Mesh(
+		new THREE.BoxGeometry(0.5, 0.014, 0.34),
+		new THREE.MeshStandardMaterial({ map: createPluginStickerTexture(), roughness: 0.45 })
+	);
+	pluginSticker.position.set(shopCenterX - 2.45, 0.938, shopCenterZ + 1.74);
+	pluginSticker.rotation.y = 0.22;
+	group.add(pluginSticker);
 	// Pin badges (tiny cylinders) in a small tray.
 	const tray = new THREE.Mesh(
 		new THREE.BoxGeometry(0.7, 0.06, 0.5),
@@ -1877,6 +1966,36 @@ function createMercantileTables() {
 	group.add(pinTag);
 
 	return group;
+}
+
+function createPluginStickerTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 384;
+	canvas.height = 256;
+	const ctx = canvas.getContext('2d');
+	// Rounded die-cut white sticker on a transparent corner; bold WP-blue type.
+	ctx.fillStyle = '#ffffff';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.strokeStyle = '#21759b';
+	ctx.lineWidth = 12;
+	ctx.strokeRect(16, 16, canvas.width - 32, canvas.height - 32);
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillStyle = '#21759b';
+	ctx.font = '900 40px Arial Black, Impact, sans-serif';
+	ctx.fillText("THERE'S A", canvas.width / 2, 86);
+	ctx.fillText('PLUGIN', canvas.width / 2, 134);
+	ctx.fillStyle = '#c24a2c';
+	ctx.font = '900 40px Arial Black, Impact, sans-serif';
+	ctx.fillText('FOR THAT', canvas.width / 2, 182);
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	// The box top face maps V toward −z; rotate 180° so the text reads upright for
+	// a visitor approaching the table from the shop entrance (−z) side.
+	tex.center.set(0.5, 0.5);
+	tex.rotation = Math.PI;
+	return tex;
 }
 
 // Checkout counter with a cash register and the "shop online" link, near the
@@ -8010,6 +8129,7 @@ function addEraVignette(group, room, roomIndex) {
 		} else if (room.era === 'Dashboard Foundations') {
 			addLocal(group, createWeb2Panel(), 3.95, frontWallZ);
 			addDashboardScreenshots(group);
+			addLocal(group, createHowdyAdminBar(), -4.7, frontWallZ);
 		} else if (room.era === 'Modern Admin') {
 			addLocal(group, createFlatDesignPanel(), 3.95, frontWallZ);
 		} else if (room.era === 'API and Customizer') {
@@ -9944,6 +10064,63 @@ function addDashboardScreenshots(group) {
 	shots.forEach((shot) => {
 		addLocal(group, createBrowserScreenshotPlaque(shot), shot.x, frontWallZ);
 	});
+}
+
+// A slim replica of the WordPress admin toolbar mounted high on the front wall,
+// greeting visitors with "Howdy, admin!" — the dashboard era's signature toolbar
+// salutation. Hung above the period screenshots, facing the room interior (+z).
+function createHowdyAdminBar() {
+	const group = new THREE.Group();
+	const width = 2.7;
+	const height = 0.44;
+	const y = 4.1;
+	const bar = new THREE.Mesh(
+		new THREE.PlaneGeometry(width, height),
+		new THREE.MeshBasicMaterial({ map: createHowdyAdminBarTexture(width, height) })
+	);
+	bar.position.set(0, y, 0.02);
+	group.add(bar);
+	// A thin dark rail behind it so the bar reads as a mounted toolbar, not a decal.
+	const backing = new THREE.Mesh(
+		new THREE.BoxGeometry(width + 0.04, height + 0.04, 0.04),
+		new THREE.MeshStandardMaterial({ color: 0x23282d, roughness: 0.6, metalness: 0.2 })
+	);
+	backing.position.set(0, y, 0);
+	group.add(backing);
+	return group;
+}
+
+function createHowdyAdminBarTexture(width, height) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 1024;
+	canvas.height = Math.round((1024 * height) / width);
+	const ctx = canvas.getContext('2d');
+	const h = canvas.height;
+	// The dark grey admin-bar field of the era.
+	ctx.fillStyle = '#23282d';
+	ctx.fillRect(0, 0, canvas.width, h);
+	ctx.textBaseline = 'middle';
+	// Left: the WordPress "W" logo glyph in a tinted square, like the toolbar icon.
+	ctx.fillStyle = '#0073aa';
+	ctx.fillRect(0, 0, h, h);
+	ctx.fillStyle = '#ffffff';
+	ctx.font = `900 ${Math.round(h * 0.66)}px Georgia, serif`;
+	ctx.textAlign = 'center';
+	ctx.fillText('W', h / 2, h / 2 + 2);
+	// The greeting, large and bright so the joke is unmistakable.
+	ctx.textAlign = 'center';
+	ctx.fillStyle = '#f4f6f8';
+	ctx.font = `700 ${Math.round(h * 0.5)}px system-ui, sans-serif`;
+	ctx.fillText('Howdy, admin!', canvas.width / 2 + h * 0.1, h / 2 + 2);
+	// Right: a round avatar bubble.
+	ctx.fillStyle = '#0073aa';
+	ctx.beginPath();
+	ctx.arc(canvas.width - h * 0.6, h / 2, h * 0.32, 0, Math.PI * 2);
+	ctx.fill();
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
 }
 
 // Period browser-window screenshots for the Blogging Roots gallery (2003–2005),
