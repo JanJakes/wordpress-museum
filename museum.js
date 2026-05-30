@@ -10833,7 +10833,7 @@ function fillFittedCanvasText(
 
 function bindControls() {
 	document.querySelector('#walk-button').addEventListener('click', () => {
-		canvas.requestPointerLock();
+		enterWalkMode();
 	});
 	document.querySelector('#tour-button').addEventListener('click', () => {
 		guidedTour = !guidedTour;
@@ -10895,12 +10895,13 @@ function bindControls() {
 	});
 
 	canvas.addEventListener('click', (event) => {
-		// Clicking the scene enters walk mode; once walking, a click inspects
-		// whatever the centre reticle is pointed at.
+		// Clicking anywhere in the scene enters walk mode; once walking, a click
+		// inspects whatever the centre reticle is pointed at. Clicking directly
+		// on a plaque still inspects it instead of locking the pointer.
 		if (document.pointerLockElement === canvas) {
 			pickFromScreen(0, 0);
 		} else if (!pickFromPointerEvent(event)) {
-			canvas.requestPointerLock();
+			enterWalkMode();
 		} else {
 			event.preventDefault();
 		}
@@ -10967,6 +10968,18 @@ function bindControls() {
 			mobileMotion[direction] = false;
 		});
 	});
+}
+
+function enterWalkMode() {
+	if (document.pointerLockElement === canvas) {
+		return;
+	}
+	// Browsers reject (and may warn about) a lock requested during the brief
+	// cooldown right after an ESC release; swallow that to keep the console clean.
+	const request = canvas.requestPointerLock();
+	if (request && typeof request.catch === 'function') {
+		request.catch(() => {});
+	}
 }
 
 function initDebugApi() {
