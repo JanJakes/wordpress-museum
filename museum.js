@@ -6812,6 +6812,7 @@ function addEraVignette(group, room, roomIndex) {
 			addLocal(group, createWebSafePalettePanel(), -3.95, frontWallZ);
 			addWebOf2004Display(group);
 			addGuestbookLectern(group);
+			addRetroHomepageStation(group);
 		} else if (room.era === 'CMS Toolkit') {
 			addLocal(group, createSkeuomorphicPanel(), 3.95, frontWallZ);
 			addLocal(group, createFauxMaterialsPanel(), -3.95, frontWallZ);
@@ -7500,6 +7501,205 @@ function createGuestbookPlacardTexture() {
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
+}
+
+// (E) A beige CRT on a small desk against the left wall mid-room (clear between
+// the front vignette and the back-corner ElePHPant), screening a stereotypical
+// ~2004 personal homepage that bundles the period web tropes into one canvas.
+function addRetroHomepageStation(group) {
+	// Side-wall floor spot, screen (local −z front) turned to the room interior.
+	// Inset keeps the desk's front edge just behind the wall's rope barrier.
+	const spot = sideWallFloorSpot('left', -0.2, 0.5, '-z');
+	addLocal(group, createRetroHomepageStation(), spot.x, spot.z, spot.rotation);
+}
+
+function createRetroHomepageStation() {
+	const group = new THREE.Group();
+	const oak = new THREE.MeshStandardMaterial({ color: 0x8a5a2b, roughness: 0.62 });
+	const beige = new THREE.MeshStandardMaterial({ color: 0xe9e1c8, roughness: 0.72, metalness: 0.03 });
+	const beigeShade = new THREE.MeshStandardMaterial({ color: 0xd5c9a6, roughness: 0.74 });
+
+	// Small computer desk.
+	const deskH = 0.7;
+	const deskW = 1.0;
+	const deskD = 0.56;
+	const deskTop = new THREE.Mesh(new THREE.BoxGeometry(deskW, 0.05, deskD), oak);
+	deskTop.position.set(0, deskH, 0);
+	group.add(deskTop);
+	const legGeo = new THREE.BoxGeometry(0.07, deskH, 0.07);
+	[[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+		const leg = new THREE.Mesh(legGeo, oak);
+		leg.position.set(sx * (deskW / 2 - 0.08), deskH / 2, sz * (deskD / 2 - 0.08));
+		group.add(leg);
+	});
+
+	// CRT monitor sitting on the desk, screen toward the room (local −z).
+	const monitor = new THREE.Group();
+	monitor.position.set(0, deskH + 0.025, -0.02);
+	group.add(monitor);
+	const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.36, 0.5, 4), beige);
+	body.rotation.y = Math.PI / 4;
+	body.scale.set(1.0, 1.0, 0.92);
+	body.position.set(0, 0.27, 0.04);
+	monitor.add(body);
+	const bezel = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.44, 0.06), beige);
+	bezel.position.set(0, 0.27, -0.22);
+	monitor.add(bezel);
+	const screen = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.4, 0.3),
+		new THREE.MeshBasicMaterial({ map: createRetroHomepageScreenTexture(), side: THREE.DoubleSide })
+	);
+	screen.position.set(0, 0.27, -0.255);
+	screen.rotation.y = Math.PI; // readable face toward the room (local −z)
+	monitor.add(screen);
+	const led = new THREE.Mesh(
+		new THREE.SphereGeometry(0.014, 10, 8),
+		new THREE.MeshBasicMaterial({ color: 0x6cff9c })
+	);
+	led.position.set(0.17, 0.075, -0.25);
+	monitor.add(led);
+
+	// Beige tower beside the monitor and a chunky keyboard in front.
+	const tower = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.4, 0.42), beigeShade);
+	tower.position.set(-0.4, deskH + 0.225, 0.0);
+	group.add(tower);
+	const keyboard = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.04, 0.18), beige);
+	keyboard.position.set(0.05, deskH + 0.05, -0.34);
+	keyboard.rotation.x = 0.04;
+	group.add(keyboard);
+
+	return group;
+}
+
+// One high-resolution canvas bundling the classic ~2004 homepage tropes: tiled
+// star background, Comic-Sans welcome, an Under Construction banner, a hit
+// counter, a WebRing nav, "NEW!" / mail / MIDI badges and a Netscape footer.
+function createRetroHomepageScreenTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 768;
+	canvas.height = 576;
+	const ctx = canvas.getContext('2d');
+	const W = canvas.width;
+
+	// Tiled navy starfield background.
+	ctx.fillStyle = '#000033';
+	ctx.fillRect(0, 0, W, canvas.height);
+	ctx.fillStyle = 'rgba(255,255,255,0.85)';
+	for (let y = 16; y < canvas.height; y += 48) {
+		for (let x = 16; x < W; x += 48) {
+			const r = (x + y) % 96 === 0 ? 2.4 : 1.4;
+			ctx.beginPath();
+			ctx.arc(x, y, r, 0, Math.PI * 2);
+			ctx.fill();
+		}
+	}
+
+	// Centre "page" panel with a teal table border.
+	const px = 70;
+	const pw = W - 140;
+	ctx.fillStyle = '#0a8a8a';
+	ctx.fillRect(px - 6, 24, pw + 12, canvas.height - 56);
+	ctx.fillStyle = '#fffdf0';
+	ctx.fillRect(px, 30, pw, canvas.height - 68);
+
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	const comic = '"Comic Sans MS", "Segoe Script", cursive';
+
+	// Rainbow "Welcome to my homepage!!!" heading.
+	const heading = 'Welcome to my homepage!!!';
+	ctx.font = `900 40px ${comic}`;
+	const hues = ['#e02020', '#e08020', '#d0c020', '#20a020', '#2060e0', '#8020c0'];
+	let hx = W / 2 - ctx.measureText(heading).width / 2;
+	ctx.textAlign = 'left';
+	for (let i = 0; i < heading.length; i++) {
+		ctx.fillStyle = hues[i % hues.length];
+		ctx.fillText(heading[i], hx, 78);
+		hx += ctx.measureText(heading[i]).width;
+	}
+	ctx.textAlign = 'center';
+
+	// Under Construction banner with hazard stripes.
+	const by = 110;
+	const bw = 360;
+	const bx = W / 2 - bw / 2;
+	for (let i = 0; i < bw; i += 24) {
+		ctx.fillStyle = i % 48 === 0 ? '#ffcc00' : '#101010';
+		ctx.fillRect(bx + i, by, 24, 8);
+		ctx.fillRect(bx + i, by + 46, 24, 8);
+	}
+	ctx.fillStyle = '#ffcc00';
+	ctx.fillRect(bx, by + 8, bw, 38);
+	ctx.fillStyle = '#101010';
+	ctx.font = '900 24px Impact, Arial Black, sans-serif';
+	ctx.fillText('🚧 UNDER CONSTRUCTION 🚧', W / 2, by + 28);
+
+	// Intro line in friendly cursive.
+	ctx.fillStyle = '#202080';
+	ctx.font = `italic 22px ${comic}`;
+	ctx.fillText('~ thanx 4 visiting my lil corner of the web ~', W / 2, by + 84);
+
+	// Hit counter — odometer digits in an LCD box.
+	const cy = 248;
+	ctx.fillStyle = '#202080';
+	ctx.font = '700 20px ui-monospace, Menlo, monospace';
+	ctx.fillText('You are visitor No.', W / 2, cy);
+	const digits = '00013 37';
+	ctx.font = '900 40px ui-monospace, Menlo, monospace';
+	const dw = ctx.measureText(digits).width + 28;
+	ctx.fillStyle = '#0a0a0a';
+	roundRectPath(ctx, W / 2 - dw / 2, cy + 16, dw, 50, 6);
+	ctx.fill();
+	ctx.fillStyle = '#39ff5a';
+	ctx.fillText(digits, W / 2, cy + 43);
+
+	// Badges row: NEW!, You've got mail, MIDI playing.
+	const badgeY = 350;
+	drawHomepageBadge(ctx, W / 2 - 250, badgeY, 120, 40, '#cc0000', '#ffffff', 'NEW!');
+	drawHomepageBadge(ctx, W / 2 - 110, badgeY, 220, 40, '#1a3a8a', '#ffe070', '✉ You\'ve got mail');
+	drawHomepageBadge(ctx, W / 2 + 130, badgeY, 130, 40, '#3a1a6a', '#9cff9c', '♪ MIDI on');
+
+	// WebRing navigation.
+	const ringY = 430;
+	ctx.fillStyle = '#101010';
+	roundRectPath(ctx, W / 2 - 200, ringY, 400, 44, 8);
+	ctx.fill();
+	ctx.fillStyle = '#e8e8ff';
+	ctx.font = '700 22px ui-monospace, Menlo, monospace';
+	ctx.fillText('« prev   ·   ', W / 2 - 96, ringY + 24);
+	ctx.fillStyle = '#ffcc33';
+	ctx.font = '900 22px ui-monospace, Menlo, monospace';
+	ctx.fillText('WebRing', W / 2 + 4, ringY + 24);
+	ctx.fillStyle = '#e8e8ff';
+	ctx.font = '700 22px ui-monospace, Menlo, monospace';
+	ctx.fillText('   ·   next »', W / 2 + 104, ringY + 24);
+
+	// "Best viewed" footer.
+	ctx.fillStyle = '#404040';
+	ctx.font = '700 18px Verdana, Geneva, sans-serif';
+	ctx.fillText('Best viewed in Netscape at 800 × 600', W / 2, 506);
+	ctx.fillStyle = '#a0a0a0';
+	ctx.font = '14px Verdana, Geneva, sans-serif';
+	ctx.fillText('© 2004 · made with Notepad · sign my guestbook!', W / 2, 528);
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+// One pill-shaped homepage badge with a chiseled bevel and centred label.
+function drawHomepageBadge(ctx, x, y, w, h, bg, fg, text) {
+	ctx.fillStyle = bg;
+	roundRectPath(ctx, x, y, w, h, 6);
+	ctx.fill();
+	ctx.fillStyle = 'rgba(255,255,255,0.4)';
+	ctx.fillRect(x + 3, y + 3, w - 6, 3);
+	ctx.fillStyle = fg;
+	ctx.font = '900 20px Verdana, Geneva, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	fillFittedCanvasText(ctx, text, x + w / 2, y + h / 2 + 1, w - 16, 20, '900', 'Verdana, Geneva, sans-serif');
 }
 
 // A tasteful 2011 "good riddance, IE6" wall card for the CMS Toolkit room,
