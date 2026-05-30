@@ -6811,8 +6811,8 @@ function addEraVignette(group, room, roomIndex) {
 		group.add(createWebEraPoster(room));
 		const frontWallZ = -roomDepth / 2 + wallThickness / 2 + 0.05;
 		if (room.era === eras[0]) {
-			addLocal(group, createUnderConstructionPlaque(), 3.95, frontWallZ);
-			addLocal(group, createWebSafePalettePanel(), -3.95, frontWallZ);
+			addLocal(group, createUnderConstructionPlaque(), 3.88, frontWallZ);
+			addLocal(group, createWebSafePalettePanel(), -3.88, frontWallZ);
 			addWebOf2004Display(group);
 			addGuestbookLectern(group);
 			addRetroHomepageStation(group);
@@ -6933,8 +6933,11 @@ function createWebEraPosterTexture(era) {
 // at x=±3.95) and the PHP ElePHPant tucks into the back-left wall corner.
 function addWebOf2004Display(group) {
 	const frontWallZ = -roomDepth / 2 + wallThickness / 2 + 0.05;
-	addLocal(group, createLinkButtonBoard(), -5.7, frontWallZ);
-	addLocal(group, createBrowserWarsPanel(), 5.7, frontWallZ);
+	// Outer boards sit at ±5.78 and the inner panels at ±3.88 so each pair keeps a
+	// ~0.12m gap (their gold frames previously touched / z-fought at the seam)
+	// while the outer frames still clear the side-wall corner.
+	addLocal(group, createLinkButtonBoard(), -5.78, frontWallZ);
+	addLocal(group, createBrowserWarsPanel(), 5.78, frontWallZ);
 	addPhpElephpantCorner(group);
 }
 
