@@ -8492,6 +8492,7 @@ function createExhibitFrame(color) {
 		railMaterial
 	);
 	group.add(frame);
+	addFrameMolding(group, color, innerWidth, innerHeight);
 	addFrameAccents(group, color);
 
 	const inset = new THREE.Mesh(
@@ -8507,6 +8508,131 @@ function createExhibitFrame(color) {
 	inset.position.z = exhibitPlaqueRecess - 0.025;
 	group.add(inset);
 	return group;
+}
+
+// Layered ornate molding for the museum (classic) frames: a stepped outer
+// lip, an era-tinted reveal line, a brass inner liner around the picture, and
+// small brass corner rosettes plus a bottom nameplate strip. Kept inside the
+// existing rail so the outer footprint is unchanged.
+function addFrameMolding(group, color, innerWidth, innerHeight) {
+	const style = activeVariant.frameStyle || 'classic';
+	if (style !== 'classic' && style !== 'museum-brass') {
+		return;
+	}
+
+	const woodMaterial = new THREE.MeshStandardMaterial({
+		color: 0x3c2515,
+		roughness: 0.58,
+		metalness: 0.08,
+	});
+	const brassMaterial = new THREE.MeshStandardMaterial({
+		color: 0xc79b43,
+		roughness: 0.32,
+		metalness: 0.62,
+	});
+
+	// Stepped dark lip just inside the outer edge, raised to read as a molding.
+	const outerLip = makeFrameRingMesh(
+		exhibitOuterWidth - 0.03,
+		exhibitOuterHeight - 0.03,
+		exhibitOuterWidth - 0.13,
+		exhibitOuterHeight - 0.13,
+		0.05,
+		woodMaterial
+	);
+	outerLip.position.z = exhibitFrameDepth - 0.01;
+	group.add(outerLip);
+
+	// Era-tinted reveal: a thin flat line in the room color within the rail.
+	const reveal = makeFrameRingMesh(
+		innerWidth + 0.135,
+		innerHeight + 0.135,
+		innerWidth + 0.105,
+		innerHeight + 0.105,
+		0.012,
+		new THREE.MeshStandardMaterial({
+			color,
+			roughness: 0.4,
+			metalness: 0.2,
+			emissive: new THREE.Color(color),
+			emissiveIntensity: 0.12,
+		})
+	);
+	reveal.position.z = exhibitFrameDepth + 0.005;
+	group.add(reveal);
+
+	// Brass inner liner framing the picture opening, raised with a small bevel.
+	// Its inner edge stays just outside the picture so the plaque is unobstructed.
+	const liner = makeFrameRingMesh(
+		innerWidth + 0.08,
+		innerHeight + 0.08,
+		innerWidth + 0.02,
+		innerHeight + 0.02,
+		0.06,
+		brassMaterial,
+		0.01
+	);
+	liner.position.z = exhibitFrameDepth - 0.005;
+	group.add(liner);
+
+	// Small brass corner rosettes sitting on the molding.
+	const rosetteGeometry = new THREE.SphereGeometry(0.05, 14, 10);
+	for (const x of [-1, 1]) {
+		for (const y of [-1, 1]) {
+			const rosette = new THREE.Mesh(rosetteGeometry, brassMaterial);
+			rosette.position.set(
+				x * (exhibitOuterWidth / 2 - 0.07),
+				y * (exhibitOuterHeight / 2 - 0.07),
+				exhibitFrameDepth + 0.025
+			);
+			rosette.scale.set(1, 1, 0.6);
+			group.add(rosette);
+		}
+	}
+
+	// Bottom nameplate strip in brass with an era-tinted engraving line.
+	const plate = new THREE.Mesh(
+		new THREE.BoxGeometry(0.74, 0.16, 0.04),
+		brassMaterial
+	);
+	plate.position.set(0, -exhibitOuterHeight / 2 + 0.02, exhibitFrameDepth + 0.01);
+	group.add(plate);
+	const engraving = new THREE.Mesh(
+		new THREE.BoxGeometry(0.56, 0.02, 0.045),
+		new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.15 })
+	);
+	engraving.position.set(0, plate.position.y, exhibitFrameDepth + 0.025);
+	group.add(engraving);
+}
+
+// Builds a single flat picture-frame "ring" mesh (a rectangle with a
+// rectangular hole) extruded along z, used for layered molding bands.
+function makeFrameRingMesh(outerW, outerH, innerW, innerH, depth, material, bevel = 0) {
+	const shape = new THREE.Shape();
+	shape.moveTo(-outerW / 2, -outerH / 2);
+	shape.lineTo(outerW / 2, -outerH / 2);
+	shape.lineTo(outerW / 2, outerH / 2);
+	shape.lineTo(-outerW / 2, outerH / 2);
+	shape.lineTo(-outerW / 2, -outerH / 2);
+
+	const hole = new THREE.Path();
+	hole.moveTo(-innerW / 2, -innerH / 2);
+	hole.lineTo(-innerW / 2, innerH / 2);
+	hole.lineTo(innerW / 2, innerH / 2);
+	hole.lineTo(innerW / 2, -innerH / 2);
+	hole.lineTo(-innerW / 2, -innerH / 2);
+	shape.holes.push(hole);
+
+	return new THREE.Mesh(
+		new THREE.ExtrudeGeometry(shape, {
+			depth,
+			bevelEnabled: bevel > 0,
+			bevelSegments: 1,
+			bevelSize: bevel,
+			bevelThickness: bevel,
+		}),
+		material
+	);
 }
 
 function createFrameMaterial(color) {
