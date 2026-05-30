@@ -1363,36 +1363,20 @@ function createPlaygroundAnnex() {
 		group.add(trim);
 	}
 
-	// Ceiling, painted a friendly sky tone.
-	const ceiling = new THREE.Mesh(
-		new THREE.PlaneGeometry(playgroundDepth + wt * 2, playgroundWidth + wt * 2),
-		new THREE.MeshStandardMaterial({ color: 0x9fd2ef, roughness: 0.7, metalness: 0.08, side: THREE.DoubleSide })
-	);
-	ceiling.rotation.x = Math.PI / 2;
-	ceiling.position.set(cx, playgroundHeight, cz);
-	group.add(ceiling);
+	// Open-air courtyard "roof": rather than a flat plate, a painted bright sky
+	// with drifting clouds, framed by a cornice so it reads as a deliberate open
+	// top for a playground. Opaque, so the building shell above never shows through.
+	group.add(createPlaygroundSkyCeiling(cx, cz, wt));
 
-	// Ceiling light fixture + lamp so the room is bright, plus a back fill light.
-	const fixture = new THREE.Mesh(
-		new THREE.BoxGeometry(2.6, 0.12, 2.6),
-		new THREE.MeshStandardMaterial({ color: 0xf2cf86, emissive: 0x3a2710, emissiveIntensity: 0.18, roughness: 0.3, metalness: 0.5 })
-	);
-	fixture.position.set(cx, playgroundHeight - 0.08, cz);
-	group.add(fixture);
-	const panel = new THREE.Mesh(
-		new THREE.PlaneGeometry(2.3, 2.3),
-		new THREE.MeshBasicMaterial({ color: 0xfff2cf })
-	);
-	panel.rotation.x = Math.PI / 2;
-	panel.position.set(cx, playgroundHeight - 0.16, cz);
-	group.add(panel);
-	const lamp = new THREE.PointLight(0xffeccb, 1.6, 26);
-	lamp.position.set(cx, playgroundHeight - 0.7, cz);
-	registerAnimation(lamp, (object, elapsed) => {
+	// Daylight pours in from the open sky above: a warm "sun" high overhead plus a
+	// cool sky fill, so the courtyard stays bright without an indoor light fixture.
+	const sun = new THREE.PointLight(0xfff1d4, 1.6, 30);
+	sun.position.set(cx, playgroundHeight - 0.5, cz);
+	registerAnimation(sun, (object, elapsed) => {
 		object.intensity = 1.5 + Math.sin(elapsed * 1.3) * 0.12;
 	});
-	group.add(lamp);
-	const fill = new THREE.PointLight(0xeaf4ff, 0.6, 18);
+	group.add(sun);
+	const fill = new THREE.PointLight(0xeaf4ff, 0.7, 20);
 	fill.position.set(playgroundMaxX - 2.0, playgroundHeight - 1.4, cz);
 	group.add(fill);
 
@@ -1411,6 +1395,95 @@ function createPlaygroundAnnex() {
 	// WordPress Playground exhibit panel on the east wall, facing the doorway.
 	group.add(createPlaygroundExhibitSign());
 	return group;
+}
+
+// The annex reads as an open-air courtyard: a painted bright sky with clouds caps
+// the top (opaque, so the building shell above never peeks through), ringed by a
+// brass-and-cream cornice that frames it as a deliberate skylight opening.
+function createPlaygroundSkyCeiling(cx, cz, wt) {
+	const group = new THREE.Group();
+	const sky = new THREE.Mesh(
+		new THREE.PlaneGeometry(playgroundDepth + wt * 2, playgroundWidth + wt * 2),
+		new THREE.MeshBasicMaterial({ map: createPlaygroundSkyTexture(), side: THREE.DoubleSide })
+	);
+	sky.rotation.x = Math.PI / 2;
+	sky.position.set(cx, playgroundHeight, cz);
+	group.add(sky);
+
+	// Cornice ring around the wall tops: a brass top rail over a cream cove, hugging
+	// the four inner wall faces just below the sky so the opening reads as framed.
+	const brass = new THREE.MeshStandardMaterial({ color: 0xf2cf86, emissive: 0x3a2710, emissiveIntensity: 0.12, roughness: 0.3, metalness: 0.5 });
+	const cream = new THREE.MeshStandardMaterial({ color: 0xf2e7c9, roughness: 0.6, metalness: 0.08 });
+	const inX = playgroundDepth + 0.02;
+	const inZ = playgroundWidth + 0.02;
+	const railY = playgroundHeight - 0.16;
+	const coveY = playgroundHeight - 0.42;
+	const addBand = (geo, mat, y, x, z) => {
+		const band = new THREE.Mesh(geo, mat);
+		band.position.set(x, y, z);
+		group.add(band);
+	};
+	for (const xSign of [-1, 1]) {
+		const x = cx + xSign * (playgroundDepth / 2 - 0.05);
+		addBand(new THREE.BoxGeometry(0.16, 0.16, inZ), brass, railY, x, cz);
+		addBand(new THREE.BoxGeometry(0.26, 0.3, inZ), cream, coveY, x, cz);
+	}
+	for (const zSign of [-1, 1]) {
+		const z = cz + zSign * (playgroundWidth / 2 - 0.05);
+		addBand(new THREE.BoxGeometry(inX, 0.16, 0.16), brass, railY, cx, z);
+		addBand(new THREE.BoxGeometry(inX, 0.3, 0.26), cream, coveY, cx, z);
+	}
+	return group;
+}
+
+// A cheerful daytime sky for the playground roof: a clear-blue vertical gradient
+// with a soft warm sun glow and a few drifting cumulus clouds, drawn so it tiles
+// gently across the courtyard top.
+function createPlaygroundSkyTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 512;
+	const ctx = canvas.getContext('2d');
+
+	const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+	grad.addColorStop(0, '#6fb7ec');
+	grad.addColorStop(0.55, '#9fd2ef');
+	grad.addColorStop(1, '#d8eefb');
+	ctx.fillStyle = grad;
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	// Warm sun glow toward one corner.
+	const sun = ctx.createRadialGradient(370, 150, 10, 370, 150, 220);
+	sun.addColorStop(0, 'rgba(255, 248, 214, 0.9)');
+	sun.addColorStop(0.4, 'rgba(255, 244, 198, 0.35)');
+	sun.addColorStop(1, 'rgba(255, 244, 198, 0)');
+	ctx.fillStyle = sun;
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	// Soft cumulus clouds: overlapping pale puffs.
+	const puff = (x, y, r, alpha) => {
+		const g = ctx.createRadialGradient(x, y, r * 0.2, x, y, r);
+		g.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
+		g.addColorStop(0.7, `rgba(255, 255, 255, ${alpha * 0.5})`);
+		g.addColorStop(1, 'rgba(255, 255, 255, 0)');
+		ctx.fillStyle = g;
+		ctx.beginPath();
+		ctx.arc(x, y, r, 0, Math.PI * 2);
+		ctx.fill();
+	};
+	const clouds = [
+		[120, 110, 60], [165, 95, 48], [205, 120, 52], [85, 130, 40],
+		[360, 360, 66], [415, 345, 50], [310, 372, 46],
+		[150, 400, 44], [195, 415, 36],
+	];
+	for (const [x, y, r] of clouds) {
+		puff(x, y, r, 0.9);
+	}
+
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
 }
 
 // The annex's west wall is Blocks Everywhere's right chamfer (the plane at world x
