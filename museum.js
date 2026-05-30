@@ -868,13 +868,15 @@ function createMercantileShop() {
 	floor.position.set(cx, 0.012, cz);
 	group.add(floor);
 
-	// A warm rug to anchor the room center.
+	// A warm rug anchoring the merchandise cluster, set back from the front strip so
+	// the red carpet ring crossing the shop (z=shopPassageZCenter, joining the two
+	// gallery passages) reads as a distinct band in front of it, not crowding it.
 	const rug = new THREE.Mesh(
 		new THREE.PlaneGeometry(shopWidth * 0.5, shopDepth * 0.46),
 		new THREE.MeshStandardMaterial({ color: 0xb6442b, roughness: 0.92, metalness: 0.02 })
 	);
 	rug.rotation.x = -Math.PI / 2;
-	rug.position.set(cx, 0.05, cz + 0.4);
+	rug.position.set(cx, 0.05, cz + 0.9);
 	group.add(rug);
 
 	const wallMaterial = createMuseumMaterial('roomWall', {
@@ -6651,11 +6653,14 @@ function createAtriumCarpetRunners() {
 	return group;
 }
 
-// Carpet through every walk-through doorway: the six shared-wall side doorways
-// between adjacent galleries, the two gift-shop passages, and the Playground
-// annex doorway. Each is a short cross-runner laid at the gallery runner height
-// (y≈0.092) so the red carpet visibly threads from one space into the next.
-// World-space, current variant only — matching the gallery/atrium runners.
+// Carpet through every walk-through doorway. The six shared-wall side doorways
+// are each just the turn in the octagonal ring: the two adjacent galleries' ring
+// chords already meet exactly at the doorway midpoint, so a small round corner
+// patch there bridges the 45° turn (covering the notch/overlap two straight
+// strips leave) without an overlapping runner. The two gift-shop passages and the
+// Playground annex doorway get a short straight cross-runner so the carpet
+// visibly threads from one space into the next. All laid at the gallery runner
+// height (y≈0.092). World-space, current variant only.
 function createDoorwayCarpetRunners() {
 	const group = new THREE.Group();
 	if (!isCurrentVariant) {
@@ -6663,19 +6668,18 @@ function createDoorwayCarpetRunners() {
 	}
 	const runnerY = 0.092;
 	// A flat runner spanning `length` along a world-space crossing direction
-	// `normal`, centred on a doorway midpoint (cx, cz).
-	const cross = (cx, cz, normal, width, length) => {
+	// `normal`, centred on a doorway midpoint (cx, cz). `y` lets a runner sit just
+	// under the others where they overlap, keeping the depth order deterministic.
+	const cross = (cx, cz, normal, width, length, y = runnerY) => {
 		const runner = createCarpetRunner(width, length);
-		runner.position.set(cx, runnerY, cz);
+		runner.position.set(cx, y, cz);
 		runner.rotation.y = getRotationForNormal(normal);
 		group.add(runner);
 	};
 
-	// Side doorways: each shared radial wall carries a doorway at connectorDoorZ on
-	// the connecting room's side wall. The crossing direction is that wall's inward
-	// normal; the runner reaches ~1.6m into each adjacent gallery.
-	const cos = Math.cos(wedgeHalfAngle);
-	const sin = Math.sin(wedgeHalfAngle);
+	// Side doorways: a round red+gold corner patch at each shared-wall doorway
+	// midpoint, just above the ring chords (which converge there) so it cleanly
+	// rounds the octagon corner where the two straight chords turn.
 	const doorHalfW = sideHalfWidthAtZ(connectorDoorZ);
 	for (const { a, b } of galleryConnections) {
 		const onRight =
@@ -6687,13 +6691,7 @@ function createDoorwayCarpetRunners() {
 			.clone()
 			.add(a.tangent.clone().multiplyScalar(localX))
 			.add(a.normal.clone().multiplyScalar(connectorDoorZ));
-		const nx = onRight ? -cos : cos; // inward normal of that wall (toward a)
-		const normal = a.tangent
-			.clone()
-			.multiplyScalar(nx)
-			.add(a.normal.clone().multiplyScalar(sin))
-			.normalize();
-		cross(mid.x, mid.z, normal, 1.6, 3.4);
+		group.add(createCarpetCornerPatch(mid.x, mid.z, runnerY));
 	}
 
 	// Gift-shop passages: both run along world x at z=shopPassageZCenter, from the
@@ -6711,11 +6709,51 @@ function createDoorwayCarpetRunners() {
 		cross((x0 + x1) / 2, shopPassageZCenter, passageNormal, 1.4, x1 - x0 + 1.0);
 	}
 
+	// Close the ring through the shop: a single runner across the shop interior at
+	// z=shopPassageZCenter joins the two shop-wall passage entries (Blogging Roots
+	// on the left, Blocks Everywhere on the right), so the loop runs continuously
+	// BR gallery → passage → shop → passage → BE gallery. It crosses the clear
+	// front strip of the shop, in front of the central rug and clear of all
+	// merchandise/checkout, and overruns each entry to tuck under the passage runners.
+	const shopEntries = shopPassageDoorways.filter((d) => d.end === 'shop').map((d) => d.x);
+	if (shopEntries.length === 2) {
+		const x0 = Math.min(...shopEntries);
+		const x1 = Math.max(...shopEntries);
+		// Laid 1.5mm below the passage runners so the ~1m overlap at each entry has a
+		// deterministic depth order (the passage runner stays on top) — no z-fighting.
+		cross((x0 + x1) / 2, shopPassageZCenter, passageNormal, 1.4, x1 - x0 + 1.0, runnerY - 0.0015);
+	}
+
 	// Playground annex doorway: the carpet crosses the chamfer wall (faces ±x) at
 	// playgroundDoorZCenter, reaching from inside the gallery into the annex.
 	if (playgroundRoom) {
 		cross(playgroundDoorWallX, playgroundDoorZCenter, passageNormal, 1.6, 3.0);
 	}
+	return group;
+}
+
+// A small round red-carpet patch (deep-red disc + thin gold rim) used at a ring
+// corner doorway to round the 45° turn where two chords meet. Radius is the ring
+// chord's half-width (0.8) so it exactly fills the strip. The deep-red disc is
+// laid just above the chords' carpet plane (which is `y`+0.004) so it covers
+// their notch/overlap, with its gold rim a hair below it — no z-fighting.
+function createCarpetCornerPatch(cx, cz, y) {
+	const group = new THREE.Group();
+	const radius = 0.8;
+	const rim = new THREE.Mesh(
+		new THREE.CircleGeometry(radius + 0.14, 48),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.62, metalness: 0.12 })
+	);
+	rim.rotation.x = -Math.PI / 2;
+	rim.position.set(cx, y + 0.004, cz);
+	group.add(rim);
+	const disc = new THREE.Mesh(
+		new THREE.CircleGeometry(radius, 48),
+		new THREE.MeshStandardMaterial({ color: 0x8b1a1a, roughness: 0.85, metalness: 0.04 })
+	);
+	disc.rotation.x = -Math.PI / 2;
+	disc.position.set(cx, y + 0.006, cz);
+	group.add(disc);
 	return group;
 }
 
