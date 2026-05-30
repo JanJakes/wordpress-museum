@@ -7297,7 +7297,9 @@ function addPhpElephpantCorner(group) {
 
 	// Tuck against the left wall in the gap behind the lz≈+1 release exhibit,
 	// front turned to the interior so the badge and elephant face the runner.
-	const spot = sideWallFloorSpot('left', 2.6, 0.95, '-z');
+	// Inset 0.5 keeps the ~0.66-wide plinth clear of the side rope (offset 0.95),
+	// so the figure reads as guarded behind the barrier instead of clipping it.
+	const spot = sideWallFloorSpot('left', 2.6, 0.5, '-z');
 	addLocal(group, station, spot.x, spot.z, spot.rotation);
 }
 
