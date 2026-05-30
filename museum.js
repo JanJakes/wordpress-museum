@@ -92,8 +92,8 @@ const wapuuTextureSources = [
 // the real-world size of that block so individual slabs read ~2.6m.
 const floorTileSpan = 5.2;
 // Bright warm tint multiplied over the cool marble photo so the walls read
-// as light, airy limestone — lighter than the columns, to contrast the
-// dark polished floor.
+// as light, airy limestone that harmonises with the light polished marble
+// floor for a bright, monumental interior.
 const wallWarmTint = 0xf4eede;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(68, 1, 0.1, 420);
@@ -1576,13 +1576,14 @@ function drawAtriumFloorTexture(ctx, width, height) {
 	drawMonumentalFloor(ctx, width, height);
 }
 
-// Large polished DARK marble slabs in two near-black tones, laid as a 2x2
-// checkerboard that tiles seamlessly. Brass grout separates the slabs;
-// gold/white veining and a glossy sheen evoke a grand black-marble lobby
-// that contrasts the light limestone walls.
+// Large polished LIGHT marble slabs in two warm cream/grey tones, laid as a
+// 2x2 checkerboard that tiles seamlessly. A fine warm grout separates the
+// slabs; gold/brass and soft grey veining with a gentle polish sheen evoke a
+// bright, grand cream-marble lobby that makes the museum feel monumental and
+// welcoming rather than cave-like.
 function drawMonumentalFloor(ctx, width, height) {
-	const grout = '#0c0d12';
-	const tones = ['#24262e', '#1b1d24'];
+	const grout = '#cdbf9e';
+	const tones = ['#efe8d6', '#e4dbc4'];
 	ctx.fillStyle = grout;
 	ctx.fillRect(0, 0, width, height);
 
@@ -1609,16 +1610,17 @@ function drawMarbleSlab(ctx, x, y, size, tone) {
 	ctx.fillStyle = `#${base.getHexString()}`;
 	ctx.fillRect(x, y, size, size);
 
-	// Glossy diagonal sheen — a bright streak fading to deep shadow.
+	// Soft polish sheen — a bright streak across a lightly shaded slab. Kept
+	// gentle so the stone stays light and luminous rather than glassy.
 	const sheen = ctx.createLinearGradient(x, y, x + size, y + size);
-	sheen.addColorStop(0, 'rgba(150, 170, 200, 0.22)');
-	sheen.addColorStop(0.42, 'rgba(120, 140, 170, 0.05)');
-	sheen.addColorStop(0.6, 'rgba(0, 0, 0, 0.18)');
-	sheen.addColorStop(1, 'rgba(0, 0, 0, 0.34)');
+	sheen.addColorStop(0, 'rgba(255, 252, 242, 0.34)');
+	sheen.addColorStop(0.42, 'rgba(255, 250, 236, 0.1)');
+	sheen.addColorStop(0.6, 'rgba(120, 108, 84, 0.06)');
+	sheen.addColorStop(1, 'rgba(96, 84, 60, 0.12)');
 	ctx.fillStyle = sheen;
 	ctx.fillRect(x, y, size, size);
 
-	// Gold and pale veins.
+	// Gold/brass and soft grey veining for richness against the cream base.
 	const veinCount = 6;
 	for (let index = 0; index < veinCount; index++) {
 		const seed = x * 0.013 + y * 0.017 + index * 1.7;
@@ -1634,17 +1636,17 @@ function drawMarbleSlab(ctx, x, y, size, tone) {
 			ctx.lineTo(cx, cy);
 		}
 		ctx.strokeStyle = index % 3 === 0
-			? 'rgba(201, 169, 97, 0.34)'
-			: 'rgba(206, 214, 226, 0.16)';
+			? 'rgba(176, 142, 70, 0.4)'
+			: 'rgba(150, 142, 122, 0.22)';
 		ctx.lineWidth = index % 3 === 0 ? 1.6 : 1.0;
 		ctx.stroke();
 	}
 
 	// Subtle inner bevel highlight + shadow for a cut-stone edge.
-	ctx.strokeStyle = 'rgba(180, 195, 215, 0.2)';
+	ctx.strokeStyle = 'rgba(255, 252, 244, 0.4)';
 	ctx.lineWidth = 2;
 	ctx.strokeRect(x + 2, y + 2, size - 4, size - 4);
-	ctx.strokeStyle = 'rgba(120, 104, 74, 0.18)';
+	ctx.strokeStyle = 'rgba(150, 132, 96, 0.22)';
 	ctx.strokeRect(x + 5, y + 5, size - 10, size - 10);
 	ctx.restore();
 }
@@ -3910,6 +3912,7 @@ function createRoom(room) {
 		group.add(createRoomMuseumArchitecture(room));
 		group.add(createRoomStoryWall(room));
 		group.add(createRoomFloorWayfinding(room));
+		group.add(createRoomCarpetRunner());
 		group.add(createSuspendedReleaseMobile(room));
 	}
 	if (shouldDecorateScene) {
@@ -4832,6 +4835,42 @@ function createFloorStripe(x, z, width, length, rotation, material) {
 	return stripe;
 }
 
+// Per-gallery red carpet runner: a deep-red plane on a thin gold/tan border,
+// laid down the room centreline from just inside the hub doorway to near the
+// back wall. It sits above the floor wayfinding stripes so it cleanly covers
+// the central stripe without z-fighting; the diagonal side stripes (x≈±2.25)
+// stay visible flanking the carpet.
+function createRoomCarpetRunner() {
+	const runner = createCarpetRunner(2.0, roomDepth - 2.0);
+	const front = -roomDepth / 2 + 0.4;
+	const back = roomDepth / 2 - 1.6;
+	runner.position.set(0, 0.092, (front + back) / 2);
+	return runner;
+}
+
+// Builds a red carpet runner laid flat in the XZ plane, centred at the local
+// origin and running along local +z: a slightly larger gold/tan border plane
+// just beneath a deep-red top plane. Both use MeshStandardMaterial (matte, low
+// metalness). Two meshes per runner. Callers position/rotate the returned group.
+function createCarpetRunner(width, length) {
+	const group = new THREE.Group();
+	const border = new THREE.Mesh(
+		new THREE.PlaneGeometry(width + 0.28, length + 0.28),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.62, metalness: 0.12 })
+	);
+	border.rotation.x = -Math.PI / 2;
+	group.add(border);
+
+	const carpet = new THREE.Mesh(
+		new THREE.PlaneGeometry(width, length),
+		new THREE.MeshStandardMaterial({ color: 0x8b1a1a, roughness: 0.85, metalness: 0.04 })
+	);
+	carpet.rotation.x = -Math.PI / 2;
+	carpet.position.y = 0.004;
+	group.add(carpet);
+	return group;
+}
+
 function createLightCone(color, radius, height, opacity, x, z) {
 	const cone = new THREE.Mesh(
 		new THREE.ConeGeometry(radius, height, 32, 1, true),
@@ -5279,6 +5318,7 @@ function createAtriumDecor() {
 	}
 	group.add(createAtriumFloorMedallion(color, secondary));
 	if (isCurrentVariant) {
+		group.add(createAtriumCarpetRunners());
 		group.add(createAtriumTimelineRing());
 		group.add(createAtriumVersionOrbit());
 		group.add(createAtriumRopeArcs(color, secondary));
@@ -5313,6 +5353,28 @@ function createAtriumFloorMedallion(color, secondary) {
 		spoke.rotation.y = (Math.PI * 2 * index) / 8;
 		spoke.position.y = 0.065;
 		group.add(spoke);
+	}
+	return group;
+}
+
+// Red carpet runners on the rotunda floor approaching each doorway: one per hub
+// side (seven galleries plus the south mural/exit path), each running outward
+// along that side's normal from radius 13 to the doorway at the hub wall
+// (~16.6). Radius ≥13 keeps them clear of the central rotunda decals (rope
+// barrier ~r4, version orbit ~r6.9, timeline ~r9.4, pylons ~r11.85), so the
+// outer hub floor stays free of z-fighting.
+function createAtriumCarpetRunners() {
+	const group = new THREE.Group();
+	const innerRadius = 13;
+	const outerRadius = 16.6;
+	const length = outerRadius - innerRadius;
+	const midRadius = (innerRadius + outerRadius) / 2;
+	for (const side of hubSides) {
+		const runner = createCarpetRunner(2.2, length);
+		runner.position.copy(side.normal).multiplyScalar(midRadius);
+		runner.position.y = 0.05;
+		runner.rotation.y = getRotationForNormal(side.normal);
+		group.add(runner);
 	}
 	return group;
 }
