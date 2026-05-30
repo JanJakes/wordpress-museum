@@ -4006,11 +4006,66 @@ function createMuralWall(side) {
 
 	if (isCurrentVariant) {
 		group.add(createMuralWapuuGreeter(side));
+		group.add(createMissionTablet(side));
 		for (const portal of muralPortals) {
 			group.add(createPortalSign(side, portal));
 		}
 	}
 	return group;
+}
+
+// An engraved "Code is Poetry" tablet on the central pier above the Wapuu
+// greeter — the project tagline as a prominent welcome inscription, with the
+// accurate mission ("democratize publishing") rather than a coined slogan.
+function createMissionTablet(side) {
+	const group = new THREE.Group();
+	const width = 1.66;
+	const height = 0.82;
+	const frame = new THREE.Mesh(
+		new THREE.BoxGeometry(width + 0.12, height + 0.12, 0.06),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	const art = new THREE.Mesh(
+		new THREE.PlaneGeometry(width, height),
+		new THREE.MeshBasicMaterial({ map: createMissionTabletTexture() })
+	);
+	art.position.z = 0.035;
+	group.add(frame, art);
+	group.position
+		.copy(side.midpoint)
+		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.06));
+	group.position.y = 2.78; // clear above the Wapuu cutout, below the doorway lintels
+	group.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
+	return group;
+}
+
+function createMissionTabletTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 768;
+	canvas.height = 380;
+	const ctx = canvas.getContext('2d');
+	// Dark engraved-stone field with a thin inner keyline, matching the gallery plaques.
+	ctx.fillStyle = '#10182a';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.strokeStyle = 'rgba(242, 207, 134, 0.5)';
+	ctx.lineWidth = 4;
+	ctx.strokeRect(18, 18, canvas.width - 36, canvas.height - 36);
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillStyle = '#f2cf86';
+	fillFittedCanvasText(ctx, 'CODE IS POETRY', canvas.width / 2, 138, 620, 92, '900', 'Georgia, serif');
+	// Thin divider rule.
+	ctx.fillRect(canvas.width / 2 - 150, 214, 300, 3);
+	ctx.fillStyle = '#dce6f5';
+	ctx.font = 'italic 600 34px Georgia, serif';
+	ctx.fillText('to democratize publishing', canvas.width / 2, 268);
+	ctx.fillStyle = 'rgba(220, 230, 245, 0.66)';
+	ctx.font = '600 22px ui-monospace, Menlo, monospace';
+	ctx.fillText('the WordPress mission · est. 2003', canvas.width / 2, 314);
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
 }
 
 function createWordPressMural(side) {
@@ -11305,7 +11360,7 @@ function getEraVignetteStations(roomIndex = 0) {
 function getEraVignetteItems(room, color, secondary) {
 	return {
 		'Blogging Roots': [
-			{ label: 'HELLO DOLLY', object: createRecordStack(color, { showLabel: false }), width: 1.6 },
+			{ label: 'HELLO DOLLY', object: createHelloDollyExhibit(color), width: 1.6 },
 			{ label: 'THE LOOP', object: createLoopSculpture(color, secondary), width: 1.5 },
 			{ label: 'COMMENTS', object: createCommentSculpture(secondary), width: 1.45 },
 		],
@@ -12346,6 +12401,46 @@ function createPluginCrates(color) {
 		group.add(label);
 	}
 	return group;
+}
+
+// The "HELLO DOLLY" vignette: the record stack plus a small standing card that
+// spells out the in-joke — Hello Dolly was WordPress's first bundled plugin, its
+// admin lyrics lifted from the Louis Armstrong standard.
+function createHelloDollyExhibit(color) {
+	const group = new THREE.Group();
+	group.add(createRecordStack(color, { showLabel: false }));
+	const card = createReadableLabel(createHelloDollyCardTexture(color), 0.62, 0.4);
+	// Stand it upright at the back of the plinth, peeking above the records.
+	card.position.set(0.34, 0.62, -0.16);
+	card.rotation.y = -0.32;
+	group.add(card);
+	return group;
+}
+
+function createHelloDollyCardTexture(color) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 384;
+	canvas.height = 248;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#fff5df';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = color;
+	ctx.fillRect(0, 0, canvas.width, 12);
+	ctx.fillRect(0, canvas.height - 12, canvas.width, 12);
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillStyle = '#111827';
+	ctx.font = 'italic 900 40px Georgia, serif';
+	ctx.fillText('“Hello, Dolly!”', canvas.width / 2, 58);
+	ctx.fillStyle = '#3a3a3a';
+	ctx.font = '600 21px system-ui, sans-serif';
+	ctx.fillText('the first plugin —', canvas.width / 2, 118);
+	ctx.fillText('a Louis Armstrong lyric', canvas.width / 2, 148);
+	ctx.fillText('in your admin', canvas.width / 2, 178);
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
 }
 
 function createRecordStack(color, options = {}) {
