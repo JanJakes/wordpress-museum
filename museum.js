@@ -3565,7 +3565,7 @@ function createWordPressMuralTexture() {
 
 	ctx.fillStyle = '#50d890';
 	ctx.font = '800 34px system-ui, sans-serif';
-	ctx.fillText('2004 -> BLOCKS -> PLAYGROUND', 512, 455);
+	ctx.fillText('2003 -> BLOCKS -> PLAYGROUND', 512, 455);
 
 	ctx.fillStyle = 'rgba(255, 245, 223, 0.72)';
 	ctx.font = '700 24px system-ui, sans-serif';
@@ -3617,7 +3617,7 @@ function drawUltimateMural(ctx, canvas) {
 	);
 	ctx.fillStyle = blue;
 	ctx.font = '900 42px system-ui, sans-serif';
-	ctx.fillText('2004 -> BLOCKS -> PLAYGROUND', 430, 308);
+	ctx.fillText('2003 -> BLOCKS -> PLAYGROUND', 430, 308);
 	ctx.fillStyle = 'rgba(255, 245, 223, 0.78)';
 	ctx.font = '800 25px system-ui, sans-serif';
 	ctx.fillText('Permalinks, plugins, REST, blocks, and one tiny Hello Dolly record', 430, 358);
