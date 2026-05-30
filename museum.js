@@ -3485,34 +3485,61 @@ function createRoomCeiling(color) {
 			roughness: 0.34,
 			metalness: 0.44,
 		});
+		// Room half-width at a given z, following the hexagon: the angled side
+		// spokes out to the beveled corner, then the chamfer in to the back wall.
+		const ceilHalfAt = (z) =>
+			z <= spokeEndZ ? sideHalfWidthAtZ(z) : sideEndHalfWidth - (z - spokeEndZ);
+		// Transverse coffer ribs span the hexagon's full width at their z so the
+		// grid fills the room instead of floating in a central island.
 		for (const z of [-4.2, -1.4, 1.4, 4.2]) {
-			const rib = new THREE.Mesh(new THREE.BoxGeometry(roomWidth - 1.2, 0.08, 0.08), brassMaterial);
+			const rib = new THREE.Mesh(
+				new THREE.BoxGeometry(ceilHalfAt(z) * 2 - 1.5, 0.08, 0.08),
+				brassMaterial
+			);
 			rib.position.set(0, wallHeight - 0.18, z);
 			group.add(rib);
 		}
-		for (const x of [-4.2, 0, 4.2]) {
+		for (const x of [-5.4, 0, 5.4]) {
 			const rib = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, roomDepth - 1.1), brassMaterial);
 			rib.position.set(x, wallHeight - 0.16, 0);
 			group.add(rib);
 		}
 		for (const z of [-4.85, -2.35, 0.15, 2.65, 5.05]) {
-			const start = new THREE.Vector3(-roomWidth / 2 + 0.95, wallHeight - 1.04, z);
+			const halfSpan = ceilHalfAt(z) - 0.95;
+			const start = new THREE.Vector3(-halfSpan, wallHeight - 1.04, z);
 			const control = new THREE.Vector3(0, wallHeight - 0.12, z);
-			const end = new THREE.Vector3(roomWidth / 2 - 0.95, wallHeight - 1.04, z);
+			const end = new THREE.Vector3(halfSpan, wallHeight - 1.04, z);
 			group.add(createVaultRib(start, control, end, 0.024, brassMaterial, 30));
 		}
-		for (const x of [-roomWidth / 2 + 0.54, roomWidth / 2 - 0.54]) {
-			const cove = new THREE.Mesh(
-				new THREE.BoxGeometry(0.08, 0.48, roomDepth - 1.15),
-				new THREE.MeshBasicMaterial({
-					color,
-					transparent: true,
-					opacity: 0.16,
-					depthWrite: false,
-				})
-			);
-			cove.position.set(x, wallHeight - 0.76, 0);
-			group.add(cove);
+		// Perimeter cove cornice: a thin glowing tube tracing the hexagon edge
+		// just below the ceiling, hugging both angled spokes and the chamfers so
+		// the room shape reads as intentional architecture rather than a box.
+		const coveMaterial = new THREE.MeshBasicMaterial({
+			color,
+			transparent: true,
+			opacity: 0.34,
+			depthWrite: false,
+		});
+		const coveY = wallHeight - 0.42;
+		const coveInset = 0.22;
+		const covePerimeter = [
+			[-(backFlatHalf - coveInset), roomDepth / 2 - coveInset],
+			[-(sideEndHalfWidth - coveInset), spokeEndZ - coveInset * 0.4],
+			[-(innerHalfWidth - coveInset), -roomDepth / 2 + coveInset],
+			[innerHalfWidth - coveInset, -roomDepth / 2 + coveInset],
+			[sideEndHalfWidth - coveInset, spokeEndZ - coveInset * 0.4],
+			[backFlatHalf - coveInset, roomDepth / 2 - coveInset],
+		];
+		for (let i = 0; i < covePerimeter.length - 1; i++) {
+			const [ax, az] = covePerimeter[i];
+			const [bx, bz] = covePerimeter[i + 1];
+			group.add(createCylinderBetween(
+				new THREE.Vector3(ax, coveY, az),
+				new THREE.Vector3(bx, coveY, bz),
+				0.05,
+				coveMaterial,
+				10
+			));
 		}
 
 		const oculusMaterial = new THREE.MeshBasicMaterial({
