@@ -10076,19 +10076,21 @@ function createHowdyAdminBar() {
 	const width = 2.7;
 	const height = 0.44;
 	const y = 4.1;
-	const bar = new THREE.Mesh(
-		new THREE.PlaneGeometry(width, height),
-		new THREE.MeshBasicMaterial({ map: createHowdyAdminBarTexture(width, height) })
-	);
-	bar.position.set(0, y, 0.02);
-	group.add(bar);
-	// A thin dark rail behind it so the bar reads as a mounted toolbar, not a decal.
+	// A thin dark rail the bar mounts onto, so it reads as a toolbar, not a decal.
 	const backing = new THREE.Mesh(
 		new THREE.BoxGeometry(width + 0.04, height + 0.04, 0.04),
 		new THREE.MeshStandardMaterial({ color: 0x23282d, roughness: 0.6, metalness: 0.2 })
 	);
 	backing.position.set(0, y, 0);
 	group.add(backing);
+	// The textured bar sits proud of the rail's front face (z=0.02) so the
+	// "Howdy, admin!" art is never hidden behind the opaque backing.
+	const bar = new THREE.Mesh(
+		new THREE.PlaneGeometry(width, height),
+		new THREE.MeshBasicMaterial({ map: createHowdyAdminBarTexture(width, height) })
+	);
+	bar.position.set(0, y, 0.04);
+	group.add(bar);
 	return group;
 }
 
