@@ -7946,6 +7946,8 @@ function addEraVignette(group, room, roomIndex) {
 			addGuestbookLectern(group);
 			addRetroHomepageStation(group);
 			addBloggingRootsScreenshots(group);
+			addCornerCobweb(group);
+			addWpHooksRail(group);
 		} else if (room.era === 'CMS Toolkit') {
 			addLocal(group, createSkeuomorphicPanel(), 3.95, frontWallZ);
 			addLocal(group, createFauxMaterialsPanel(), -3.95, frontWallZ);
@@ -9901,6 +9903,186 @@ function addBloggingRootsScreenshots(group) {
 	shots.forEach((shot) => {
 		group.add(createSideWallScreenshot(shot, 'right', shot.z));
 	});
+}
+
+// A procedural cobweb tucked high into the back-left corner where the back wall
+// meets the left chamfer — a quiet pun on "the Web". It strings across the
+// corner just below the cove cornice, well above the walkway and clear of the
+// release plaques and ceiling mobiles, with a tiny spider resting on it.
+function addCornerCobweb(group) {
+	const web = createCobweb(0xfff4d8);
+	// The corner vertical edge sits at (−backFlatHalf, +roomDepth/2); pull the web
+	// centre a touch off both walls so its spokes can anchor onto each surface.
+	web.position.set(-backFlatHalf + 0.5, wallHeight - 1.0, roomDepth / 2 - 0.5);
+	// Face diagonally down-and-in toward the room interior (the −x/−z runner side).
+	web.rotation.y = -Math.PI / 4 - Math.PI;
+	web.rotation.x = 0.32;
+	group.add(web);
+}
+
+// A flat cobweb in the local x/y plane (anchored corner at the +x edge): radial
+// spokes fanning out across a ~90° quarter and a few spiral chord rings strung
+// between them, drawn as thin pale translucent threads. A small spider sits near
+// the hub. The mesh faces local +z, so the caller tilts/rotates it into a corner.
+function createCobweb(threadColor) {
+	const group = new THREE.Group();
+	const threadMaterial = new THREE.MeshBasicMaterial({
+		color: threadColor,
+		transparent: true,
+		opacity: 0.42,
+		depthWrite: false,
+	});
+	const radius = 1.15;
+	const spokeCount = 7;
+	const spread = Math.PI * 0.62; // a corner fan, not a full disc
+	const start = Math.PI - spread; // spokes sweep from the +y wall round to −x
+	const spokeDirs = [];
+	for (let i = 0; i < spokeCount; i++) {
+		const angle = start + (spread / (spokeCount - 1)) * i;
+		const dir = new THREE.Vector2(Math.cos(angle), Math.sin(angle));
+		spokeDirs.push(dir);
+		group.add(createCylinderBetween(
+			new THREE.Vector3(0, 0, 0),
+			new THREE.Vector3(dir.x * radius, dir.y * radius, 0),
+			0.006,
+			threadMaterial,
+			5
+		));
+	}
+	// Spiral chord rings: connect successive spokes at growing radii so the strands
+	// sag slightly inward, reading as a hand-spun spiral rather than a wheel.
+	for (let ring = 1; ring <= 4; ring++) {
+		const base = (radius / 5) * ring;
+		for (let i = 0; i < spokeCount - 1; i++) {
+			const rA = base + ring * 0.03;
+			const rB = base + (ring + 1) * 0.03;
+			const a = new THREE.Vector3(spokeDirs[i].x * rA, spokeDirs[i].y * rA, 0);
+			const b = new THREE.Vector3(spokeDirs[i + 1].x * rB, spokeDirs[i + 1].y * rB, 0);
+			group.add(createCylinderBetween(a, b, 0.005, threadMaterial, 5));
+		}
+	}
+	group.add(createTinySpider());
+	return group;
+}
+
+// A minimal spider: a dark two-segment body and eight bent legs, sized to perch
+// on the cobweb near its hub. Modelled small (~9cm) so it reads as a detail.
+function createTinySpider() {
+	const spider = new THREE.Group();
+	const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x14110d, roughness: 0.7 });
+	const abdomen = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), bodyMaterial);
+	abdomen.scale.set(1, 0.85, 1.25);
+	spider.add(abdomen);
+	const head = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), bodyMaterial);
+	head.position.set(0, 0, -0.07);
+	spider.add(head);
+	for (const side of [-1, 1]) {
+		for (let i = 0; i < 4; i++) {
+			const reach = 0.09;
+			const ang = 0.5 - i * 0.32;
+			const knee = new THREE.Vector3(side * 0.035, 0, -0.04 + i * 0.035);
+			const foot = new THREE.Vector3(
+				side * (0.035 + reach * Math.cos(ang)),
+				-0.045,
+				knee.z + reach * Math.sin(ang) * 0.3
+			);
+			spider.add(createCylinderBetween(knee, foot, 0.004, bodyMaterial, 4));
+			spider.add(createCylinderBetween(new THREE.Vector3(0, 0, knee.z), knee, 0.004, bodyMaterial, 4));
+		}
+	}
+	spider.position.set(0.34, -0.34, 0.015);
+	spider.rotation.z = -0.4;
+	return spider;
+}
+
+// A short ceiling rail of literal metal HOOKS hanging from the left longitudinal
+// coffer rib — a pun on WordPress "hooks" (do_action / apply_filters). Hung high
+// in the front-left quadrant, clear of the central release mobiles, the side
+// vignette plinth below, and the back-wall plaques. A small label names the joke.
+function addWpHooksRail(group) {
+	const rail = createWpHooksRail(0x9aa3ad);
+	// The left longitudinal coffer rib sits at x=−5.4, y=wallHeight−0.16; hang the
+	// rail just beneath it in the open front-third band.
+	rail.position.set(-5.4, wallHeight - 0.22, -2.6);
+	group.add(rail);
+}
+
+function createWpHooksRail(metalColor) {
+	const group = new THREE.Group();
+	const metal = new THREE.MeshStandardMaterial({ color: metalColor, roughness: 0.4, metalness: 0.7 });
+	const railLength = 1.9;
+	const rail = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.024, 0.024, railLength, 12),
+		metal
+	);
+	rail.rotation.x = Math.PI / 2; // run the rail along local z
+	group.add(rail);
+	// A pair of short brackets fixing the rail up to the coffer rib above it.
+	for (const z of [-0.78, 0.78]) {
+		const bracket = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.14, 8), metal);
+		bracket.position.set(0, 0.09, z);
+		group.add(bracket);
+	}
+	// Three J-hooks dangling at staggered drops; their bends open toward the
+	// interior (+x) so the hook profile reads from the runner.
+	const drops = [-0.62, 0.02, 0.66];
+	drops.forEach((z, i) => {
+		const hook = createMetalHook(metal, 0.3 + (i % 2) * 0.06);
+		hook.position.set(0, -0.024, z);
+		group.add(hook);
+	});
+	// A double-sided label hung just below the hooks, turned to face the runner
+	// (+x). createReadableLabel gives a clean transparent plate, no brass slab.
+	const label = createReadableLabel(createWpHooksLabelTexture(), 1.34, 0.32);
+	label.position.set(0.05, -0.74, 0);
+	label.rotation.y = Math.PI / 2; // front (+z) turns to face +x, the interior
+	group.add(label);
+	return group;
+}
+
+// One hanging J-hook: a vertical shank dropping from the rail that curves into an
+// upward-cupping bend in the y/x plane, so its silhouette reads as a hook from
+// the interior side. Built hanging from local y≈0 downward.
+function createMetalHook(material, shankLength) {
+	const hook = new THREE.Group();
+	const shank = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.013, 0.013, shankLength, 8),
+		material
+	);
+	shank.position.y = -shankLength / 2;
+	hook.add(shank);
+	// Three-quarter torus forming the J curl, lying in the x/y plane so it opens
+	// toward +x (the room interior).
+	const bend = new THREE.Mesh(
+		new THREE.TorusGeometry(0.075, 0.013, 8, 18, Math.PI * 1.5),
+		material
+	);
+	bend.rotation.z = Math.PI * 0.75;
+	bend.position.set(0.0, -shankLength - 0.04, 0);
+	hook.add(bend);
+	return hook;
+}
+
+function createWpHooksLabelTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 640;
+	canvas.height = 150;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#1a1208';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#f4ead0';
+	ctx.fillRect(10, 10, canvas.width - 20, canvas.height - 20);
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillStyle = '#241a0c';
+	fillFittedCanvasText(ctx, 'WP HOOKS', canvas.width / 2, 52, 560, 46, '900', 'Arial Black, Impact, sans-serif');
+	ctx.fillStyle = '#7a5a1c';
+	ctx.font = '700 28px ui-monospace, Menlo, monospace';
+	ctx.fillText('do_action()  ·  apply_filters()', canvas.width / 2, 104);
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
 }
 
 // The same brass-framed browser-window picture as the Dashboard set, but built
