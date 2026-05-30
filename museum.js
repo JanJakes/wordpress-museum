@@ -562,7 +562,10 @@ function createPortalAlcove(portal) {
 
 	const ceiling = new THREE.Mesh(
 		new THREE.PlaneGeometry(width + wallThickness * 2, portalAlcoveDepth),
-		new THREE.MeshStandardMaterial({ color: 0x18223a, roughness: 0.6, metalness: 0.16, side: THREE.DoubleSide })
+		new THREE.MeshBasicMaterial({
+			map: createMuseumTexture('ceiling', (width + wallThickness * 2) / 4, portalAlcoveDepth / 4),
+			side: THREE.DoubleSide,
+		})
 	);
 	ceiling.rotation.x = Math.PI / 2;
 	ceiling.position.set(cx, height, centerZ);
@@ -1181,7 +1184,10 @@ function createShopGalleryPassage(xSign, room, shopWallInnerX) {
 	const ceilLen = Math.abs(galleryNearX - ceilShopX);
 	const ceiling = new THREE.Mesh(
 		new THREE.PlaneGeometry(ceilLen, z1 - z0 + wt * 2),
-		new THREE.MeshStandardMaterial({ color: 0x18223a, roughness: 0.6, metalness: 0.16, side: THREE.DoubleSide })
+		new THREE.MeshBasicMaterial({
+			map: createMuseumTexture('ceiling', ceilLen / 4, (z1 - z0 + wt * 2) / 4),
+			side: THREE.DoubleSide,
+		})
 	);
 	ceiling.rotation.x = Math.PI / 2;
 	ceiling.position.set((ceilShopX + galleryNearX) / 2, shopPassageHeight, shopPassageZCenter);
