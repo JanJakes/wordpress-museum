@@ -4933,6 +4933,25 @@ function placeOnSideWall(object, side, z, y, inset = 0) {
 	return object;
 }
 
+// Computes a floor placement that hugs an angled side wall. The object centre
+// sits `inset` in along the wall's inward normal (≈ half the footprint depth + a
+// small gap) and is rotated so its visual front looks squarely off the wall
+// toward the room interior. `front` is the object's local front axis ('+z' or
+// '-z'); the returned rotation aligns that axis with the inward normal. Returns
+// { x, z, rotation } for addLocal so the central path/runner stays clear.
+function sideWallFloorSpot(side, z, inset, front = '-z') {
+	const halfW = sideHalfWidthAtZ(z);
+	const cos = Math.cos(wedgeHalfAngle);
+	const sin = Math.sin(wedgeHalfAngle);
+	const nx = side === 'left' ? cos : -cos; // inward normal (toward interior)
+	const sign = front === '+z' ? 1 : -1;
+	return {
+		x: (side === 'left' ? -halfW : halfW) + nx * inset,
+		z: z + sin * inset,
+		rotation: Math.atan2(sign * nx, sign * sin),
+	};
+}
+
 function createRoomAccentWashes(room) {
 	const group = new THREE.Group();
 	const washSpecs = [
@@ -8315,60 +8334,87 @@ function createRoomDustMotes(color) {
 }
 
 function addEraModelProps(group, room, roomIndex, color, secondary) {
-	// Two grounded ambient props tucked into the entrance corners of each
-	// room. Era-appropriate: early rooms get a beige CRT, later rooms get
-	// laptops, TVs, and lounge furniture. No free-floating door/arch models.
+	// Grounded ambient props, era-appropriate (CRTs, laptops, TVs, furniture).
+	// Each prop carries a role that drives its placement so the central runner
+	// stays an open path:
+	//   'exhibit' (default) — pushed flush against a side wall, facing inward.
+	//   'bench'             — kept mid-room, turned to face a side wall.
+	//   'plant'             — tucked into a back corner, out of the way.
 	const model = (key, height, fallback) =>
 		createLoadedModel(key, { targetHeight: height, fallback });
 	const propSets = {
 		'Blogging Roots': [
-			{ obj: model('radio', 0.46, 'radio'), x: -4.6, z: -4.2, rot: 0.5 },
-			{ obj: createIMacG4Exhibit(color), x: 4.55, z: -4.3, rot: -0.62 },
+			{ obj: model('radio', 0.46, 'radio'), side: 'left', z: -5.7, inset: 0.4 },
+			{ obj: createIMacG4Exhibit(color), side: 'right', z: -5.6, inset: 0.55 },
 		],
 		'Dashboard Foundations': [
-			{ obj: createIPhoneExhibit(color), x: -4.55, z: -4.3, rot: 0.62 },
-			{ obj: createCdSpindleExhibit(secondary), x: 4.55, z: -4.3, rot: -0.62 },
+			{ obj: createIPhoneExhibit(color), side: 'left', z: -5.7, inset: 0.45 },
+			{ obj: createCdSpindleExhibit(secondary), side: 'right', z: -5.7, inset: 0.45 },
 		],
 		'CMS Toolkit': [
-			{ obj: createIPadEaselExhibit(color), x: -4.55, z: -4.3, rot: 0.62 },
-			{ obj: model('bookcaseOpenLow', 0.86, 'bookcase'), x: 4.65, z: -4.2, rot: -0.5 },
+			{ obj: createIPadEaselExhibit(color), side: 'left', z: -5.7, inset: 0.5 },
+			{ obj: model('bookcaseOpenLow', 0.86, 'bookcase'), side: 'right', z: -5.5, inset: 0.55 },
 		],
 		'Modern Admin': [
-			{ obj: createFlatPhoneExhibit(color), x: -4.55, z: -4.3, rot: 0.62 },
-			{ obj: model('televisionVintage', 0.72, 'screen'), x: 4.7, z: -3.78, rot: -0.5 },
+			{ obj: createFlatPhoneExhibit(color), side: 'left', z: -5.7, inset: 0.45 },
+			{ obj: model('televisionVintage', 0.72, 'screen'), side: 'right', z: -5.5, inset: 0.55 },
 		],
 		'API and Customizer': [
-			{ obj: createRetroCRT(color, secondary), x: -4.55, z: -3.7, rot: 0.5 },
-			{ obj: model('loungeDesignSofa', 0.6, 'bench'), x: 4.7, z: -3.82, rot: -0.5 },
+			{ obj: createRetroCRT(color, secondary), side: 'left', z: -5.6, inset: 0.55 },
+			{ obj: model('loungeDesignSofa', 0.6, 'bench'), role: 'bench', side: 'right' },
 		],
 		'Block Editor': [
-			{ obj: model('laptop', 0.46, 'screen'), x: -4.6, z: -3.66, rot: 0.5 },
-			{ obj: model('loungeDesignSofa', 0.58, 'bench'), x: 4.68, z: -3.82, rot: -0.5 },
+			{ obj: model('laptop', 0.46, 'screen'), side: 'left', z: -5.7, inset: 0.45 },
+			{ obj: model('loungeDesignSofa', 0.58, 'bench'), role: 'bench', side: 'left' },
 		],
 		'Blocks Everywhere': [
-			{ obj: createFlatPhoneExhibit(secondary), x: -4.55, z: -4.3, rot: 0.62 },
-			{ obj: model('pottedPlant', 0.88, 'plant'), x: 4.62, z: -3.78, rot: -0.42 },
+			{ obj: createFlatPhoneExhibit(secondary), side: 'right', z: -5.7, inset: 0.45 },
+			{ obj: model('pottedPlant', 0.88, 'plant'), role: 'plant', side: 'left' },
 		],
 	};
-	(propSets[room.era] || []).forEach(({ obj, x, z, rot }) => {
-		addLocal(group, obj, x, z, rot);
-	});
+	(propSets[room.era] || []).forEach((prop) => placeEraProp(group, prop));
 	const floorLight = createMuseumLamp(roomIndex % 2 ? color : secondary);
 	floorLight.scale.setScalar(0.8);
-	addLocal(group, floorLight, roomIndex % 2 ? -5.1 : 5.1, -4.05, 0);
+	const lightSide = roomIndex % 2 ? 'left' : 'right';
+	const lightSpot = sideWallFloorSpot(lightSide, -4.7, 0.4);
+	addLocal(group, floorLight, lightSpot.x, lightSpot.z, 0);
+}
+
+// Places one era prop by role. Exhibits hug the side wall facing inward; benches
+// sit mid-room turned to look at a side wall; plants tuck into a back corner.
+function placeEraProp(group, { obj, role = 'exhibit', side, z, inset = 0.5 }) {
+	if (role === 'bench') {
+		// Mid-room, off the runner, seat (local +z front) turned to face the
+		// side wall so a seated visitor looks out at the wall art.
+		const x = side === 'left' ? -2.6 : 2.6;
+		const rotation = side === 'left' ? -(Math.PI / 2 + wedgeHalfAngle) : Math.PI / 2 + wedgeHalfAngle;
+		addLocal(group, obj, x, -1.4, rotation);
+		return;
+	}
+	if (role === 'plant') {
+		// Deep back corner where the angled side wall nears the back wall.
+		const spot = sideWallFloorSpot(side, roomDepth / 2 - 5.2, 0.55);
+		addLocal(group, obj, spot.x, spot.z, 0);
+		return;
+	}
+	// Era exhibits model their front (screens, keyboards) on local +z.
+	const spot = sideWallFloorSpot(side, z, inset, '+z');
+	addLocal(group, obj, spot.x, spot.z, spot.rotation);
 }
 
 function getEraVignetteStations(roomIndex = 0) {
-	const sideStationZ = -roomDepth / 2 + 3.86;
-	const centerOffset = roomIndex % 2 ? -2.05 : 2.05;
+	// All three exhibit plinths hug a side wall and face the interior, leaving
+	// the central runner an open walking path. Two sit in the front third on
+	// opposite walls; the third is tucked back along one wall (side alternates
+	// per room so the layout reads varied across the ring).
+	const stationInset = 0.72; // ≈ half plinth depth + a small gap from the wall.
+	const frontZ = -roomDepth / 2 + 3.86;
+	const backZ = 1.6;
+	const backSide = roomIndex % 2 ? 'left' : 'right';
 	return [
-		{ x: -4.85, z: sideStationZ, rotation: -Math.PI / 2 },
-		{ x: 4.85, z: sideStationZ, rotation: Math.PI / 2 },
-		{
-			x: centerOffset,
-			z: -0.78,
-			rotation: roomIndex % 2 ? -Math.PI / 5 : Math.PI / 5,
-		},
+		sideWallFloorSpot('left', frontZ, stationInset),
+		sideWallFloorSpot('right', frontZ, stationInset),
+		sideWallFloorSpot(backSide, backZ, stationInset),
 	];
 }
 
