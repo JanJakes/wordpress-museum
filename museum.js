@@ -1440,7 +1440,7 @@ function createPlaygroundDoorWall(wallMaterial) {
 		roughness: 0.32,
 		metalness: 0.5,
 	});
-	const faceX = wallX + 0.03; // just proud of the interior face (annex is +x)
+	const faceX = wallX + wt / 2 + 0.03; // just proud of the interior face (annex is +x)
 	const lintel = new THREE.Mesh(
 		new THREE.BoxGeometry(0.2, 0.2, playgroundDoorHalfWidth * 2 + 0.36),
 		brass
@@ -1479,7 +1479,7 @@ function createPlaygroundDoorWall(wallMaterial) {
 		1.7,
 		0.4
 	);
-	returnSign.position.set(wallX - 0.08, playgroundDoorHeight + headerH * 0.42, playgroundDoorZCenter);
+	returnSign.position.set(wallX - wt / 2 - 0.05, playgroundDoorHeight + headerH * 0.42, playgroundDoorZCenter);
 	returnSign.rotation.y = -Math.PI / 2; // face -x, toward the gallery
 	group.add(returnSign);
 
