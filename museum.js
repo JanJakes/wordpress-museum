@@ -6925,6 +6925,7 @@ function addWebOf2004Display(group) {
 	const frontWallZ = -roomDepth / 2 + wallThickness / 2 + 0.05;
 	addLocal(group, createLinkButtonBoard(), -5.7, frontWallZ);
 	addLocal(group, createBrowserWarsPanel(), 5.7, frontWallZ);
+	addPhpElephpantCorner(group);
 }
 
 // (A) A framed board of period 88x31 web "badge" buttons in a tidy grid, drawn
@@ -7248,6 +7249,77 @@ function drawOperaLogo(ctx, cx, cy, r) {
 	ctx.beginPath();
 	ctx.ellipse(cx, cy, r * 0.36, r * 0.56, 0, 0, Math.PI * 2);
 	ctx.fill();
+}
+
+// (C) A PHP ElePHPant on a freestanding labeled plinth in the open back-left of
+// the gallery, with a front-facing "Powered by PHP" badge on a low backboard so
+// it reads clearly from the runner regardless of viewing angle. The plinth front
+// (local −z, where the label and badge face) is turned toward the room interior.
+function addPhpElephpantCorner(group) {
+	const station = new THREE.Group();
+
+	const pedestal = createPedestal(0.66, 0.66, 0x21759b);
+	station.add(pedestal);
+
+	const elephpant = createElephpantPlush();
+	elephpant.scale.setScalar(0.74);
+	elephpant.position.y = 0.66;
+	// The plush front (trunk/eyes on +z, with a built-in −0.4 turn) is rotated to
+	// look out the plinth front (local −z) in a relaxed three-quarter pose.
+	elephpant.rotation.y = Math.PI + 0.3;
+	station.add(elephpant);
+
+	// "Powered by PHP" badge on a slim brass-framed backboard raised above and
+	// behind the figure, facing the plinth front (local −z) so it stays legible.
+	const badge = new THREE.Group();
+	const badgeW = 0.86;
+	const frame = new THREE.Mesh(
+		new THREE.BoxGeometry(badgeW + 0.1, 0.46, 0.05),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	badge.add(frame);
+	const art = new THREE.Mesh(
+		new THREE.PlaneGeometry(badgeW, 0.38),
+		new THREE.MeshBasicMaterial({ map: createPoweredByPhpTexture() })
+	);
+	art.position.z = 0.03;
+	badge.add(art);
+	badge.position.set(0, 1.4, 0.26);
+	badge.rotation.y = Math.PI; // face local −z (the plinth front, toward the room)
+	station.add(badge);
+
+	// Tuck against the left wall in the gap behind the lz≈+1 release exhibit,
+	// front turned to the interior so the badge and elephant face the runner.
+	const spot = sideWallFloorSpot('left', 2.6, 0.95, '-z');
+	addLocal(group, station, spot.x, spot.z, spot.rotation);
+}
+
+function createPoweredByPhpTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 588;
+	canvas.height = 300;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#777bb3';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#eef0fb';
+	ctx.fillRect(14, 14, canvas.width - 28, canvas.height - 28);
+
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillStyle = '#4f5285';
+	ctx.font = '900 52px Arial Black, Impact, sans-serif';
+	ctx.fillText('POWERED BY', canvas.width / 2, 70);
+	ctx.fillStyle = '#777bb3';
+	ctx.font = 'italic 900 128px Georgia, serif';
+	ctx.fillText('php', canvas.width / 2, 152);
+	ctx.fillStyle = '#33365a';
+	ctx.font = '700 24px system-ui, sans-serif';
+	ctx.fillText('WordPress runs on PHP since 2003', canvas.width / 2, 250);
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
 }
 
 // A tasteful 2011 "good riddance, IE6" wall card for the CMS Toolkit room,
