@@ -6811,6 +6811,7 @@ function addEraVignette(group, room, roomIndex) {
 			addLocal(group, createUnderConstructionPlaque(), 3.95, frontWallZ);
 			addLocal(group, createWebSafePalettePanel(), -3.95, frontWallZ);
 			addWebOf2004Display(group);
+			addGuestbookLectern(group);
 		} else if (room.era === 'CMS Toolkit') {
 			addLocal(group, createSkeuomorphicPanel(), 3.95, frontWallZ);
 			addLocal(group, createFauxMaterialsPanel(), -3.95, frontWallZ);
@@ -7315,6 +7316,185 @@ function createPoweredByPhpTexture() {
 	ctx.fillStyle = '#33365a';
 	ctx.font = '700 24px system-ui, sans-serif';
 	ctx.fillText('WordPress runs on PHP since 2003', canvas.width / 2, 250);
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+// (D) A "Please sign our guestbook!" lectern just inside the entrance, offset to
+// the left of the central runner so an arriving visitor passes it naturally. It
+// sits clear of the door opening, the front-wall props and the side-wall radio.
+function addGuestbookLectern(group) {
+	const lectern = createGuestbookLectern();
+	// Angled to face a visitor coming in through the centre doorway.
+	addLocal(group, lectern, -3.2, -6.3, 0.5);
+}
+
+// A slim oak lectern: a square post on a stepped base carrying a slanted desk
+// top with an open guestbook, a quill in an inkpot, and a small upright placard.
+function createGuestbookLectern() {
+	const group = new THREE.Group();
+	const oak = new THREE.MeshStandardMaterial({ color: 0x8a5a2b, roughness: 0.62, metalness: 0.05 });
+	const oakDark = new THREE.MeshStandardMaterial({ color: 0x6f4420, roughness: 0.64 });
+
+	const base = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.07, 0.5), oakDark);
+	base.position.y = 0.035;
+	group.add(base);
+	const step = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.05, 0.36), oak);
+	step.position.y = 0.095;
+	group.add(step);
+
+	const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.78, 0.16), oak);
+	post.position.y = 0.51;
+	group.add(post);
+
+	// Slanted desk top, tilted toward the approaching visitor (local −z front).
+	const top = new THREE.Group();
+	top.position.set(0, 0.96, 0);
+	top.rotation.x = 0.42;
+	group.add(top);
+	const slab = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.05, 0.44), oak);
+	top.add(slab);
+	const lip = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.035, 0.04), oakDark);
+	lip.position.set(0, 0.03, 0.2);
+	top.add(lip);
+
+	// Open guestbook: two canvas pages on a thin board, lying on the slab.
+	const book = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.56, 0.38),
+		new THREE.MeshBasicMaterial({ map: createGuestbookPagesTexture(), side: THREE.DoubleSide })
+	);
+	book.rotation.x = -Math.PI / 2;
+	book.position.set(0, 0.028, -0.01);
+	top.add(book);
+	const spine = new THREE.Mesh(
+		new THREE.BoxGeometry(0.025, 0.04, 0.4),
+		new THREE.MeshStandardMaterial({ color: 0x7a1f2b, roughness: 0.5 })
+	);
+	spine.position.set(0, 0.03, -0.01);
+	top.add(spine);
+
+	// Quill resting across the right-hand page, with a small inkpot.
+	const quill = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.004, 0.012, 0.3, 8),
+		new THREE.MeshStandardMaterial({ color: 0xf3ead2, roughness: 0.6 })
+	);
+	quill.position.set(0.16, 0.05, 0.02);
+	quill.rotation.set(Math.PI / 2, 0, -0.5);
+	top.add(quill);
+	const inkpot = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.035, 0.045, 0.06, 14),
+		new THREE.MeshStandardMaterial({ color: 0x14213a, roughness: 0.3, metalness: 0.2 })
+	);
+	inkpot.position.set(0.22, 0.05, 0.16);
+	top.add(inkpot);
+
+	// Upright brass-framed placard on the post, facing the visitor.
+	const placard = new THREE.Group();
+	const placardFrame = new THREE.Mesh(
+		new THREE.BoxGeometry(0.56, 0.2, 0.04),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	placard.add(placardFrame);
+	const placardArt = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.5, 0.15),
+		new THREE.MeshBasicMaterial({ map: createGuestbookPlacardTexture() })
+	);
+	placardArt.position.z = 0.024;
+	placard.add(placardArt);
+	placard.position.set(0, 0.66, -0.11);
+	placard.rotation.x = 0.18;
+	group.add(placard);
+
+	return group;
+}
+
+function createGuestbookPagesTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 768;
+	canvas.height = 520;
+	const ctx = canvas.getContext('2d');
+
+	// Two cream pages with a centre gutter shadow and faint ruled lines.
+	ctx.fillStyle = '#efe4c6';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#fbf3df';
+	ctx.fillRect(10, 10, canvas.width - 20, canvas.height - 20);
+	const gutter = ctx.createLinearGradient(canvas.width / 2 - 26, 0, canvas.width / 2 + 26, 0);
+	gutter.addColorStop(0, 'rgba(120,90,40,0)');
+	gutter.addColorStop(0.5, 'rgba(120,90,40,0.28)');
+	gutter.addColorStop(1, 'rgba(120,90,40,0)');
+	ctx.fillStyle = gutter;
+	ctx.fillRect(canvas.width / 2 - 26, 10, 52, canvas.height - 20);
+
+	ctx.strokeStyle = 'rgba(90,120,160,0.28)';
+	ctx.lineWidth = 1;
+	for (let y = 150; y < canvas.height - 30; y += 46) {
+		ctx.beginPath();
+		ctx.moveTo(34, y);
+		ctx.lineTo(canvas.width / 2 - 34, y);
+		ctx.moveTo(canvas.width / 2 + 34, y);
+		ctx.lineTo(canvas.width - 34, y);
+		ctx.stroke();
+	}
+
+	ctx.textBaseline = 'alphabetic';
+	ctx.textAlign = 'center';
+	ctx.fillStyle = '#5a3a1a';
+	ctx.font = '900 46px Georgia, serif';
+	ctx.fillText('Guestbook', canvas.width / 4, 70);
+	ctx.font = 'italic 24px Georgia, serif';
+	ctx.fillStyle = '#8a6a3a';
+	ctx.fillText('Sign in — say hi!', canvas.width / 4, 104);
+
+	// Handwritten-style entries in cursive across both pages.
+	const ink = '#274472';
+	const cursive = '"Comic Sans MS", "Segoe Script", "Bradley Hand", cursive';
+	ctx.textAlign = 'left';
+	const entries = [
+		{ name: 'webmaster_jen', msg: 'cool site!! :-)', date: '03/14/2004' },
+		{ name: '~mike_z~', msg: 'kept it real, A+ blog', date: '04/02/2004' },
+		{ name: 'SK8erBoi98', msg: 'sign mine 2! ^_^', date: '05/19/2004' },
+		{ name: 'Aunt Carol', msg: 'love the new homepage dear', date: '06/07/2004' },
+	];
+	entries.forEach((e, i) => {
+		const col = i < 2 ? 0 : 1;
+		const row = i % 2;
+		const x = col === 0 ? 40 : canvas.width / 2 + 40;
+		const y = 168 + row * 168;
+		ctx.fillStyle = ink;
+		ctx.font = `28px ${cursive}`;
+		ctx.fillText(e.name, x, y);
+		ctx.font = `italic 30px ${cursive}`;
+		ctx.fillText(e.msg, x + 6, y + 42);
+		ctx.fillStyle = '#9a7a4a';
+		ctx.font = `20px ${cursive}`;
+		ctx.fillText(e.date, x + 6, y + 78);
+	});
+
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+function createGuestbookPlacardTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 154;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#1a1208';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#fbf3df';
+	ctx.fillRect(10, 10, canvas.width - 20, canvas.height - 20);
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillStyle = '#7a1f2b';
+	fillFittedCanvasText(ctx, 'Please sign our', 256, 58, 440, 50, '900', '"Comic Sans MS", "Segoe Script", cursive');
+	ctx.fillStyle = '#274472';
+	fillFittedCanvasText(ctx, 'guestbook!', 256, 110, 440, 56, '900', '"Comic Sans MS", "Segoe Script", cursive');
 
 	const tex = new THREE.CanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
