@@ -3295,8 +3295,9 @@ function createPortalTransom(side, offset) {
 
 function createMuralWapuuGreeter(side) {
 	// A flat Wapuu cutout on the central pier, greeting visitors between
-	// the entrance and exit doors.
-	const wapuu = createWapuuCutout(2.6, {
+	// the entrance and exit doors. Sized to fit the ~1.9m-wide pier (including
+	// its shadow halo) so it never bleeds into either doorway opening.
+	const wapuu = createWapuuCutout(1.55, {
 		accent: activeVariant.eraColors[0],
 		glow: activeVariant.eraColors[3],
 		shadow: true,
@@ -3304,7 +3305,7 @@ function createMuralWapuuGreeter(side) {
 	wapuu.position
 		.copy(side.midpoint)
 		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.13));
-	wapuu.position.y = 0.55;
+	wapuu.position.y = 0.9;
 	wapuu.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
 	return wapuu;
 }
