@@ -4255,20 +4255,106 @@ function createPortalTransom(side, offset) {
 }
 
 function createMuralWapuuGreeter(side) {
-	// A flat Wapuu cutout on the central pier, greeting visitors between
-	// the entrance and exit doors. Sized to fit the ~1.9m-wide pier (including
-	// its shadow halo) so it never bleeds into either doorway opening.
-	const wapuu = createWapuuCutout(1.55, {
-		accent: activeVariant.eraColors[0],
-		glow: activeVariant.eraColors[3],
-		shadow: true,
+	// A fully 3D Wapuu standing on the central pier between the entrance and
+	// exit doors, cradling a large WordPress logo medallion toward arriving
+	// visitors. Sized to fit the ~1.9m-wide pier without bleeding into either
+	// doorway opening.
+	const group = new THREE.Group();
+
+	const base = createPedestal(0.92, 0.22, activeVariant.eraColors[0]);
+	group.add(base);
+
+	const wapuu = createWapuu3D({ height: 1.9, accent: activeVariant.eraColors[1], emblem: false, hold: true });
+	wapuu.position.y = 0.22;
+	group.add(wapuu);
+
+	// The held logo: a thick disc the Wapuu presents at belly height — large and
+	// crisp so it reads as the focal point, yet low enough that the head, eyes
+	// and ears stay clearly visible above it.
+	const medallion = createWpLogoMedallion(0.37);
+	const medallionY = 0.62;
+	medallion.position.set(0, medallionY, 0.58);
+	medallion.rotation.x = -0.12;
+	registerAnimation(medallion, (object, elapsed) => {
+		object.position.y = medallionY + Math.sin(elapsed * 1.5) * 0.018;
+		object.rotation.z = Math.sin(elapsed * 0.8) * 0.02;
 	});
-	wapuu.position
+	group.add(medallion);
+
+	const facing = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
+	group.position
 		.copy(side.midpoint)
-		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.13));
-	wapuu.position.y = 0.9;
-	wapuu.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
-	return wapuu;
+		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.34));
+	group.position.y = 0;
+	group.rotation.y = facing;
+	return group;
+}
+
+// A thick WordPress logo medallion built in the round: a beveled blue disc
+// with the official asymmetric "W" mark on its face (crisp texture) plus a
+// raised white relief of the same strokes for real dimensionality.
+function createWpLogoMedallion(radius) {
+	const group = new THREE.Group();
+	const depth = radius * 0.22;
+	const wpBlue = 0x21759b;
+
+	const rim = new THREE.Mesh(
+		new THREE.CylinderGeometry(radius, radius, depth, 64),
+		new THREE.MeshStandardMaterial({ color: wpBlue, roughness: 0.42, metalness: 0.18 })
+	);
+	rim.rotation.x = Math.PI / 2;
+	group.add(rim);
+
+	// Subtle outer ring to frame the disc edge.
+	const ring = new THREE.Mesh(
+		new THREE.TorusGeometry(radius - 0.006, 0.018, 10, 72),
+		new THREE.MeshStandardMaterial({ color: 0x1a5d7e, roughness: 0.4, metalness: 0.22 })
+	);
+	ring.position.z = depth / 2 - 0.004;
+	group.add(ring);
+
+	// Crisp official mark on the front face.
+	const face = new THREE.Mesh(
+		new THREE.CircleGeometry(radius - 0.012, 64),
+		new THREE.MeshBasicMaterial({ map: createWpMedallionTexture(wpBlue) })
+	);
+	face.position.z = depth / 2 + 0.002;
+	group.add(face);
+
+	// Raised white "W" relief on top of the texture for genuine 3D depth.
+	const reliefMat = new THREE.MeshStandardMaterial({ color: 0xfdfdf4, roughness: 0.3 });
+	const r = radius - 0.012;
+	const strokes = [
+		[-0.62 * r, -0.42 * r, -0.34 * r, 0.6 * r],
+		[-0.34 * r, 0.6 * r, -0.04 * r, -0.34 * r],
+		[-0.04 * r, -0.34 * r, 0.26 * r, 0.6 * r],
+		[0.26 * r, 0.6 * r, 0.6 * r, -0.5 * r],
+	];
+	for (const [x1, y1, x2, y2] of strokes) {
+		const dx = x2 - x1;
+		const dy = y2 - y1;
+		const length = Math.hypot(dx, dy);
+		const bar = new THREE.Mesh(
+			new THREE.BoxGeometry(r * 0.155, length, depth * 0.4),
+			reliefMat
+		);
+		bar.position.set((x1 + x2) / 2, -(y1 + y2) / 2, depth / 2 + depth * 0.2);
+		bar.rotation.z = Math.atan2(-dx, -dy);
+		group.add(bar);
+	}
+	return group;
+}
+
+function createWpMedallionTexture(color) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 512;
+	const ctx = canvas.getContext('2d');
+	drawWordPressMark(ctx, 256, 256, 248, `#${new THREE.Color(color).getHexString()}`);
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 8;
+	return texture;
 }
 
 function createPortalSign(side, portal) {
@@ -7859,13 +7945,16 @@ function createWapuu3D(options = {}) {
 	belly.position.set(0, 0.4 * unit, 0.0 * unit);
 	bob.add(belly);
 
-	// WordPress logo emblem, prominent on the lower belly.
-	const emblem = new THREE.Mesh(
-		new THREE.CircleGeometry(0.25 * unit, 48),
-		new THREE.MeshBasicMaterial({ map: createWapuuWordmarkTexture(), transparent: true })
-	);
-	emblem.position.set(0, 0.46 * unit, 0.52 * unit);
-	bob.add(emblem);
+	// WordPress logo emblem, prominent on the lower belly. Omitted when the
+	// Wapuu instead holds a separate, larger logo in front of it.
+	if (options.emblem !== false) {
+		const emblem = new THREE.Mesh(
+			new THREE.CircleGeometry(0.25 * unit, 48),
+			new THREE.MeshBasicMaterial({ map: createWapuuWordmarkTexture(), transparent: true })
+		);
+		emblem.position.set(0, 0.46 * unit, 0.52 * unit);
+		bob.add(emblem);
+	}
 
 	// Two broad orange ears at the top corners, pointing up and out.
 	const earGeom = new THREE.ConeGeometry(0.26, 0.5, 22);
@@ -7918,11 +8007,16 @@ function createWapuu3D(options = {}) {
 	tailTip.position.set(0.17 * unit, 0.54 * unit, -0.6 * unit);
 	bob.add(tailTip);
 
-	// Little yellow paws.
+	// Little yellow paws. When holding a logo, they swing forward to cradle it.
+	const handGeom = new THREE.SphereGeometry(0.12, 16, 12);
 	for (const sx of [-1, 1]) {
-		const hand = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 12), yellowShade);
+		const hand = new THREE.Mesh(handGeom, yellowShade);
 		hand.scale.set(unit, 1.05 * unit, unit);
-		hand.position.set(sx * 0.5 * unit, 0.4 * unit, 0.12 * unit);
+		if (options.hold) {
+			hand.position.set(sx * 0.36 * unit, 0.5 * unit, 0.6 * unit);
+		} else {
+			hand.position.set(sx * 0.5 * unit, 0.4 * unit, 0.12 * unit);
+		}
 		bob.add(hand);
 	}
 
