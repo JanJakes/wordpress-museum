@@ -6867,7 +6867,10 @@ function createWebEraPoster(room) {
 	);
 	art.position.z = 0.05;
 	inner.add(art);
-	placeOnSideWall(inner, side, -2.5, 2.35, 0.06);
+	// Inset 0.15 stands the frame proud of the angled wall (the 0.08-deep frame
+	// tucks into the 0.26-thick wall while the picture clears its inner face by
+	// ~0.05); a shallower inset buries the flat art inside the wall.
+	placeOnSideWall(inner, side, -2.5, 2.35, 0.15);
 	group.add(inner);
 	return group;
 }
