@@ -7959,11 +7959,135 @@ function addEraVignette(group, room, roomIndex) {
 			addLocal(group, createMaterialDesignPanel(), 3.95, frontWallZ);
 		} else if (room.era === 'Block Editor') {
 			addLocal(group, createBigTypePanel(), 3.95, frontWallZ);
+			addBlockEditorPrintingPress(group, color);
 		} else if (room.era === 'Blocks Everywhere') {
 			addLocal(group, createDarkModePanel(), 3.95, frontWallZ);
 		}
 	}
 	addRoomVignetteLights(group, color);
+}
+
+// Stands a Gutenberg-pun printing press against the right side wall in the
+// mid-back segment (clear of the central runner, the back-segment wall exhibit,
+// the shared doorway at connectorDoorZ, and the chamfer corner at spokeEndZ).
+// Its front (local +z) is turned to face the room interior.
+function addBlockEditorPrintingPress(group, color) {
+	const spot = sideWallFloorSpot('right', 2.9, 0.78, '+z');
+	addLocal(group, createPrintingPress(color), spot.x, spot.z, spot.rotation);
+}
+
+// A procedural 15th–18th c. screw printing press: oak frame, central iron screw
+// with a turning bar, a flat bed/platen, a printed sheet, and a plaque tying the
+// Gutenberg block-editor pun together. Modelled facing local +z.
+function createPrintingPress(color) {
+	const group = new THREE.Group();
+	const oak = new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: 0.82 });
+	const oakDark = new THREE.MeshStandardMaterial({ color: 0x4a2f18, roughness: 0.85 });
+	const iron = new THREE.MeshStandardMaterial({ color: 0x2b2b30, roughness: 0.5, metalness: 0.6 });
+	const brass = new THREE.MeshStandardMaterial({ color: 0xb08d3a, roughness: 0.42, metalness: 0.55 });
+
+	// Footprint: ~1.4 wide x ~0.9 deep.
+	const beam = (w, h, d, material, x, y, z) => {
+		const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+		mesh.position.set(x, y, z);
+		group.add(mesh);
+		return mesh;
+	};
+
+	// Base sill and two uprights forming the heavy frame.
+	beam(1.34, 0.16, 0.72, oakDark, 0, 0.08, 0);
+	for (const x of [-0.52, 0.52]) {
+		beam(0.18, 1.84, 0.2, oak, x, 0.92, -0.2);
+		beam(0.18, 1.84, 0.2, oak, x, 0.92, 0.22);
+	}
+	// Top head beam and a mid cross beam carrying the screw.
+	beam(1.34, 0.2, 0.7, oak, 0, 1.78, 0);
+	const headY = 1.34;
+	beam(1.34, 0.18, 0.62, oak, 0, headY, 0);
+
+	// Central iron screw descending from the head beam to the platen.
+	const screw = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.6, 12), iron);
+	screw.position.set(0, headY - 0.34, 0);
+	group.add(screw);
+	for (let index = 0; index < 7; index++) {
+		const thread = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.018, 6, 14), brass);
+		thread.rotation.x = Math.PI / 2;
+		thread.position.set(0, headY - 0.1 - index * 0.075, 0);
+		group.add(thread);
+	}
+	// Horizontal turning bar through the screw head, with rounded grips.
+	const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.5, 10), iron);
+	bar.rotation.z = Math.PI / 2;
+	bar.position.set(0, headY + 0.12, 0.12);
+	group.add(bar);
+	for (const x of [-0.72, 0.72]) {
+		const grip = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), oakDark);
+		grip.position.set(x, headY + 0.12, 0.12);
+		group.add(grip);
+	}
+
+	// The platen (pressing plate) hung under the screw, raised to peek below the head.
+	const platen = beam(0.78, 0.1, 0.46, oakDark, 0, headY - 0.5, 0);
+	platen.castShadow = false;
+
+	// Flat bed/coffin on its rails, dressed with a printed sheet, set toward +z.
+	beam(0.9, 0.12, 0.5, oak, 0, 0.84, 0.12);
+	const sheet = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.58, 0.4),
+		new THREE.MeshStandardMaterial({ color: 0xf4ead0, roughness: 0.9, side: THREE.DoubleSide })
+	);
+	sheet.rotation.x = -Math.PI / 2;
+	sheet.position.set(0, 0.905, 0.12);
+	group.add(sheet);
+	const inkRail = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.05, 0.05), iron);
+	inkRail.position.set(0, 0.93, -0.16);
+	group.add(inkRail);
+
+	// Angled museum placard at the front of the bed, tilted up toward a standing
+	// viewer so the Gutenberg pun reads clearly; kept within the press footprint.
+	const plaque = createReadableLabel(createPrintingPressPlaqueTexture(color), 1.1, 0.48);
+	plaque.position.set(0, 0.66, 0.38);
+	plaque.rotation.x = -0.62;
+	group.add(plaque);
+	for (const x of [-0.5, 0.5]) {
+		const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.5, 8), iron);
+		leg.position.set(x, 0.42, 0.34);
+		group.add(leg);
+	}
+
+	return group;
+}
+
+function createPrintingPressPlaqueTexture(color) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 220;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#fff5df';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	const accent = `#${new THREE.Color(color).getHexString()}`;
+	ctx.fillStyle = accent;
+	ctx.fillRect(0, 0, canvas.width, 16);
+	ctx.fillRect(0, canvas.height - 16, canvas.width, 16);
+
+	ctx.fillStyle = '#1a120a';
+	ctx.font = '900 46px Georgia, "Times New Roman", serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('GUTENBERG', canvas.width / 2, 50);
+
+	ctx.fillStyle = '#3a2c14';
+	ctx.font = '400 22px Georgia, serif';
+	wrapText(ctx, 'Johannes Gutenberg, movable type, c. 1440 → the block editor, 2018.', canvas.width / 2, 96, canvas.width - 48, 28, 2);
+
+	ctx.fillStyle = accent;
+	ctx.font = '700 24px Georgia, serif';
+	ctx.fillText('Movable type, meet movable blocks.', canvas.width / 2, 178);
+
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
 }
 
 // A framed "what the web looked like then" poster — a period-styled browser
