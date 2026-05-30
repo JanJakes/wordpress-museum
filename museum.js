@@ -103,6 +103,9 @@ const pointer = new THREE.Vector2();
 const pickables = [];
 const exhibitPositions = [];
 const galleryDoorways = [];
+// Midpoints of the shop<->gallery passage doorways (shop-wall and gallery-wall
+// ends), recorded for the debug overlay / verification.
+const shopPassageDoorways = [];
 let railButtons = [];
 let railItems = [];
 let railMode = '';
@@ -214,6 +217,19 @@ const shopMaxX = shopCenterX + shopWidth / 2;
 // The walk-through doorway joining the exit alcove to the shop spans this gap.
 const shopDoorHalfWidth = portalAlcoveHalfWidth - 0.05;
 const shopDoorHeight = portalDoorHeight - 0.2;
+// Two short side passages make the museum loop-walkable: from the shop's left
+// wall to the Blogging Roots gallery (eras[0]) and from its right wall to the
+// Blocks Everywhere gallery (eras[6]). Each gallery's shop-facing spoke gets a
+// doorway at this local z (matching the connector pattern), and a flat-roofed
+// rectangular passage bridges the world-z band below across the void to a
+// matching doorway in the shop side wall. The shop is offset (+x), so the left
+// passage is long (~7m) and the right one a short vestibule (~2m).
+const shopPassageDoorZ = -2.0; // gallery spoke local z of the passage doorway
+const shopPassageDoorHalfWidth = 0.9; // 1.8m clear opening
+const shopPassageDoorHeight = 2.7;
+const shopPassageHeight = 3.4; // passage interior / ceiling height
+const shopPassageZCenter = 22.5; // world z the passage and both doorways share
+const shopPassageHalfDepth = 1.0; // world-z half-span; covers the tilted opening
 const walkSpeed = 7.2;
 const arrowWalkSpeed = 9.2;
 const mobileWalkSpeed = 8.8;
@@ -457,6 +473,7 @@ function createMuralPortals() {
 		group.add(createPortalAlcove(portal));
 	}
 	group.add(createMercantileShop());
+	group.add(createShopGalleryPassages());
 	return group;
 }
 
@@ -833,13 +850,40 @@ function createMercantileShop() {
 	);
 	backWall.position.set(cx, shopHeight / 2, shopZEnd + shopWallThickness / 2);
 	group.add(backWall);
+	// Side walls. In the current variant each carries a doorway to a flanking
+	// gallery (Blogging Roots on the left, Blocks Everywhere on the right), so the
+	// wall is split into front/back segments plus a header around the opening.
 	for (const xSign of [-1, 1]) {
-		const sideWall = new THREE.Mesh(
-			new THREE.BoxGeometry(shopWallThickness, shopHeight, shopDepth + shopWallThickness * 2),
-			wallMaterial
-		);
-		sideWall.position.set(cx + xSign * (shopWidth / 2 + shopWallThickness / 2), shopHeight / 2, cz);
-		group.add(sideWall);
+		const wallX = cx + xSign * (shopWidth / 2 + shopWallThickness / 2);
+		if (!isCurrentVariant) {
+			const sideWall = new THREE.Mesh(
+				new THREE.BoxGeometry(shopWallThickness, shopHeight, shopDepth + shopWallThickness * 2),
+				wallMaterial
+			);
+			sideWall.position.set(wallX, shopHeight / 2, cz);
+			group.add(sideWall);
+			continue;
+		}
+		const fullMinZ = shopZStart - shopWallThickness;
+		const fullMaxZ = shopZEnd + shopWallThickness;
+		const doorMinZ = shopPassageZCenter - shopPassageDoorHalfWidth;
+		const doorMaxZ = shopPassageZCenter + shopPassageDoorHalfWidth;
+		const addZSeg = (z0, z1, height, yCenter) => {
+			const len = z1 - z0;
+			if (len < 0.02) {
+				return;
+			}
+			const seg = new THREE.Mesh(
+				new THREE.BoxGeometry(shopWallThickness, height, len),
+				wallMaterial
+			);
+			seg.position.set(wallX, yCenter, (z0 + z1) / 2);
+			group.add(seg);
+		};
+		addZSeg(fullMinZ, doorMinZ, shopHeight, shopHeight / 2); // front of door
+		addZSeg(doorMaxZ, fullMaxZ, shopHeight, shopHeight / 2); // behind door
+		const headerH = shopHeight - shopPassageDoorHeight;
+		addZSeg(doorMinZ, doorMaxZ, headerH, shopPassageDoorHeight + headerH / 2); // header
 	}
 
 	// Front wall (toward the hub) with a doorway gap aligned to the exit alcove.
@@ -925,6 +969,194 @@ function createMercantileShop() {
 	return group;
 }
 
+// The two short side passages that make the museum loop-walkable, bridging the
+// shop's side walls to the flanking galleries. The shop side-wall doorways are
+// cut in createMercantileShop and the gallery side-wall doorways in
+// createSpokeWall; this builds the floor, side walls, ceiling and signage of the
+// passage between them, plus a brass frame on the shop doorway.
+function createShopGalleryPassages() {
+	const group = new THREE.Group();
+	shopPassageDoorways.length = 0;
+	// Left wall -> Blogging Roots (eras[0]); right wall -> Blocks Everywhere.
+	group.add(createShopGalleryPassage(-1, roomLayout.get(eras[0]), shopMinX));
+	group.add(createShopGalleryPassage(1, roomLayout.get(eras[eras.length - 1]), shopMaxX));
+	return group;
+}
+
+function createShopGalleryPassage(xSign, room, shopWallInnerX) {
+	const group = new THREE.Group();
+	if (!room) {
+		return group;
+	}
+	const z0 = shopPassageZCenter - shopPassageHalfDepth;
+	const z1 = shopPassageZCenter + shopPassageHalfDepth;
+	// World x of the room's shop-facing spoke wall at the two passage z edges; the
+	// passage side walls embed ~0.2 past it so there is no seam to the void.
+	const gx0 = shopFacingWallWorldX(room, z0);
+	const gx1 = shopFacingWallWorldX(room, z1);
+	const galleryX = (gx0 + gx1) / 2;
+	const embed = 0.2 * xSign;
+
+	const innerX = shopWallInnerX; // shop interior wall face
+	const length = Math.abs(galleryX - innerX);
+	const midX = (innerX + galleryX) / 2;
+	const wt = shopWallThickness;
+	// The gallery wall is tilted, so its world x varies across the z-band. The
+	// flat floor/ceiling must stop at the wall point CLOSEST to the shop, or they
+	// poke through the wall above/below the opening; the small wedge to the deeper
+	// wall point is backed by the solid gallery wall (above) / gallery floor.
+	const galleryNearX = innerX + xSign * Math.min(Math.abs(gx0 - innerX), Math.abs(gx1 - innerX));
+	const nearLength = Math.abs(galleryNearX - innerX);
+	const nearMidX = (innerX + galleryNearX) / 2;
+
+	// Record both doorway midpoints for the debug overlay / verification.
+	shopPassageDoorways.push(
+		{ x: innerX, z: shopPassageZCenter, era: room.era, end: 'shop' },
+		{ x: galleryX, z: shopPassageZCenter, era: room.era, end: 'gallery' }
+	);
+
+	const wallMaterial = createMuseumMaterial('roomWall', {
+		repeatX: length / 4.6,
+		repeatY: shopPassageHeight / 2.4,
+		color: wallWarmTint,
+		roughness: 0.9,
+		metalness: 0.03,
+	});
+
+	// Floor spanning the void, flush with the shop/gallery floors. It runs from a
+	// touch inside the shop to the near gallery-wall edge.
+	const floorShopX = innerX - xSign * (wt + 0.2);
+	const floorLen = Math.abs(galleryNearX - floorShopX);
+	const floor = new THREE.Mesh(
+		new THREE.PlaneGeometry(floorLen, z1 - z0),
+		createMuseumMaterial('roomFloor', {
+			repeatX: floorLen / floorTileSpan,
+			repeatY: (z1 - z0) / floorTileSpan,
+			roughness: 0.28,
+			metalness: 0.28,
+		})
+	);
+	floor.rotation.x = -Math.PI / 2;
+	floor.position.set((floorShopX + galleryNearX) / 2, 0.014, shopPassageZCenter);
+	group.add(floor);
+
+	// Two side walls running along x. Each spans from inside the shop wall to just
+	// past the (tilted) gallery wall at its own z edge, so both ends are sealed.
+	const sideWallSpecs = [
+		{ z: z0, gx: gx0 },
+		{ z: z1, gx: gx1 },
+	];
+	for (const spec of sideWallSpecs) {
+		const startX = innerX - wt * xSign; // bite into the shop wall
+		const endX = spec.gx + embed; // bite into the gallery wall
+		const len = Math.abs(endX - startX);
+		const wall = new THREE.Mesh(
+			new THREE.BoxGeometry(len, shopPassageHeight, wt),
+			wallMaterial
+		);
+		wall.position.set((startX + endX) / 2, shopPassageHeight / 2, spec.z);
+		group.add(wall);
+	}
+
+	// Flat ceiling, from inside the shop to the near gallery-wall edge so it never
+	// pokes through the tilted wall above the opening.
+	const ceilShopX = innerX - xSign * wt;
+	const ceilLen = Math.abs(galleryNearX - ceilShopX);
+	const ceiling = new THREE.Mesh(
+		new THREE.PlaneGeometry(ceilLen, z1 - z0 + wt * 2),
+		new THREE.MeshStandardMaterial({ color: 0x18223a, roughness: 0.6, metalness: 0.16, side: THREE.DoubleSide })
+	);
+	ceiling.rotation.x = Math.PI / 2;
+	ceiling.position.set((ceilShopX + galleryNearX) / 2, shopPassageHeight, shopPassageZCenter);
+	group.add(ceiling);
+
+	// Skirting along both side walls for a finished look.
+	const trimMat = new THREE.MeshStandardMaterial({ color: 0xd9c8a6, roughness: 0.6, metalness: 0.1 });
+	for (const spec of sideWallSpecs) {
+		const trim = new THREE.Mesh(new THREE.BoxGeometry(length, 0.18, 0.05), trimMat);
+		const inset = 0.06 * (spec.z < shopPassageZCenter ? 1 : -1);
+		trim.position.set(midX, 0.09, spec.z + inset);
+		group.add(trim);
+	}
+
+	// Brass frame + lintel on the shop-wall doorway, matching the shop's style.
+	group.add(createShopPassageShopFrame(xSign, innerX));
+
+	// Warm fill light so the passage reads as an inviting threshold.
+	const lamp = new THREE.PointLight(0xffe7b8, 0.9, length + 6);
+	lamp.position.set(midX, shopPassageHeight - 0.5, shopPassageZCenter);
+	registerAnimation(lamp, (object, elapsed) => {
+		object.intensity = 0.82 + Math.sin(elapsed * 1.2) * 0.1;
+	});
+	group.add(lamp);
+
+	// Wayfinding sign over the shop-wall doorway, facing into the shop.
+	const era = room.era;
+	const color = `#${new THREE.Color(eraColors.get(era) ?? 0x2bb7ff).getHexString()}`;
+	const destination = era === eras[0] ? 'TO BLOGGING ROOTS' : 'TO BLOCKS EVERYWHERE';
+	const shopSign = createReadableLabel(createSmallSignTexture(destination, color), 1.9, 0.4);
+	const headerH = shopPassageHeight - shopPassageDoorHeight;
+	shopSign.position.set(innerX - 0.14 * xSign, shopPassageDoorHeight + headerH * 0.42, shopPassageZCenter);
+	shopSign.rotation.y = xSign > 0 ? -Math.PI / 2 : Math.PI / 2;
+	group.add(shopSign);
+
+	// The period "what the web looked like then" poster rehomed from the gallery
+	// side wall onto the passage's back wall, facing into the passage.
+	const poster = createWebEraPosterPanel(era);
+	poster.position.set(midX, 2.0, z1 - 0.02);
+	poster.rotation.y = Math.PI; // art (+z) faces -z, toward the passage
+	group.add(poster);
+
+	return group;
+}
+
+// World x of a gallery's shop-facing spoke wall at a given world z. The wall is
+// the straight tilted line local x = sign * sideHalfWidthAtZ(localZ); since the
+// half-width is linear in localZ this inverts in closed form.
+function shopFacingWallWorldX(room, worldZ) {
+	const sign = room.connectLeft ? 1 : -1; // 'right' wall (+x local) for eras[0]
+	// worldZ(lz) = C.z + T.z*sign*(rcd+lz)*wedgeTan + N.z*lz, linear in lz.
+	const a = room.tangent.z * sign * wedgeTan; // dWorldZ from the hw term
+	const b = room.tangent.z * sign * roomCenterDistance * wedgeTan + room.center.z;
+	// worldZ = a*lz + room.normal.z*lz + b  =>  lz = (worldZ - b) / (a + N.z)
+	const lz = (worldZ - b) / (a + room.normal.z);
+	const hw = sideHalfWidthAtZ(lz);
+	return room.center.x + room.tangent.x * (sign * hw) + room.normal.x * lz;
+}
+
+// Brass post-and-lintel frame around a shop side-wall passage doorway, matching
+// the exit-alcove doorway. Built in world space at the shop wall's inner face.
+function createShopPassageShopFrame(xSign, innerX) {
+	const group = new THREE.Group();
+	const archMaterial = new THREE.MeshStandardMaterial({
+		color: 0xf5d088,
+		emissive: 0x4a2810,
+		emissiveIntensity: 0.3,
+		roughness: 0.32,
+		metalness: 0.46,
+	});
+	const z0 = shopPassageZCenter - shopPassageDoorHalfWidth;
+	const z1 = shopPassageZCenter + shopPassageDoorHalfWidth;
+	const faceX = innerX - 0.03 * xSign; // just proud of the wall's inner face
+	// Lintel across the top of the opening.
+	const lintel = new THREE.Mesh(
+		new THREE.BoxGeometry(0.4, 0.2, shopPassageDoorHalfWidth * 2 + 0.36),
+		archMaterial
+	);
+	lintel.position.set(faceX, shopPassageDoorHeight + 0.06, shopPassageZCenter);
+	group.add(lintel);
+	// Posts on each side of the opening.
+	for (const z of [z0, z1]) {
+		const post = new THREE.Mesh(
+			new THREE.BoxGeometry(0.4, shopPassageDoorHeight + 0.16, 0.18),
+			archMaterial
+		);
+		post.position.set(faceX, (shopPassageDoorHeight + 0.16) / 2, z + (z < shopPassageZCenter ? -0.09 : 0.09));
+		group.add(post);
+	}
+	return group;
+}
+
 // Big "MERCANTILE" wall sign mounted high on the back wall. The brass frame
 // sits flush against the wall and the lit sign board floats just in front of
 // it (toward the viewer, i.e. smaller z) so the text is never occluded.
@@ -1001,11 +1233,13 @@ function createMercantileShelves() {
 	teesTag.rotation.y = Math.PI;
 	group.add(teesTag);
 
-	// Left-wall pegboard with mugs and a poster.
+	// Left-wall pegboard with mugs and a poster, set toward the back half of the
+	// wall so it clears the side-passage doorway to Blogging Roots (front-left).
 	const leftX = shopMinX + 0.12;
-	const mugZs = [shopCenterZ - 1.6, shopCenterZ - 0.8, shopCenterZ];
+	const pegZ = shopCenterZ + 0.6;
+	const mugZs = [pegZ - 1.0, pegZ - 0.2, pegZ + 0.6];
 	const mugShelf = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.06, 3.2), woodMat);
-	mugShelf.position.set(leftX + 0.2, 1.5, shopCenterZ - 0.6);
+	mugShelf.position.set(leftX + 0.2, 1.5, pegZ);
 	group.add(mugShelf);
 	for (const z of mugZs) {
 		const mug = createMug();
@@ -1013,7 +1247,7 @@ function createMercantileShelves() {
 		group.add(mug);
 	}
 	const mugTag = createPriceTag('"CODE IS POETRY"  $15');
-	mugTag.position.set(leftX + 0.21, 1.16, shopCenterZ - 0.6);
+	mugTag.position.set(leftX + 0.21, 1.16, pegZ);
 	mugTag.rotation.y = Math.PI / 2;
 	group.add(mugTag);
 	// Poster on the left wall.
@@ -1021,7 +1255,7 @@ function createMercantileShelves() {
 		new THREE.PlaneGeometry(1.7, 2.3),
 		new THREE.MeshBasicMaterial({ map: createMercantilePosterTexture(), transparent: true })
 	);
-	poster.position.set(leftX + 0.05, 3.0, shopCenterZ - 2.1);
+	poster.position.set(leftX + 0.05, 3.0, pegZ - 1.9);
 	poster.rotation.y = Math.PI / 2;
 	group.add(poster);
 
@@ -1111,7 +1345,9 @@ function createMercantileTables() {
 function createMercantileCounter() {
 	const group = new THREE.Group();
 	const counterX = shopMaxX - 1.5;
-	const counterZ = shopZStart + 1.5;
+	// Sits against the right wall past the side-passage doorway to Blocks
+	// Everywhere (which opens the front-right), so it never blocks that threshold.
+	const counterZ = shopZEnd - 2.6;
 	const counterW = 2.6;
 	const counterD = 1.0;
 	const counterH = 1.05;
@@ -4339,7 +4575,14 @@ function createRadialSpokes() {
 		const doored = Boolean(side.era && neighbor.era);
 		const nearInfo = side.era ? getDoorwaySignInfo(side, 'left') : null;
 		const farInfo = neighbor.era ? getDoorwaySignInfo(neighbor, 'right') : null;
-		group.add(createSpokeWall(side, doored, nearInfo, farInfo));
+		// The two mural-flanking spokes (the galleries' shop-facing walls) carry a
+		// short passage doorway to the gift shop in the current variant; pass the
+		// destination gallery so the spoke can label the opening.
+		const shopPassageEra =
+			isCurrentVariant && (side.kind === 'mural' || neighbor.kind === 'mural')
+				? (side.era || neighbor.era)
+				: null;
+		group.add(createSpokeWall(side, doored, nearInfo, farInfo, shopPassageEra));
 	}
 	return group;
 }
@@ -4358,7 +4601,7 @@ function findHubSideAtAngle(angle) {
 // x = -sideHalfWidthAtZ(z) from the inner (hub) edge to the wide outer corner,
 // tilted 22.5deg. With a doorway it is split into front/back/header segments at
 // connectorDoorZ, framed in brass, with a directional sign on each face.
-function createSpokeWall(side, doored, nearInfo, farInfo) {
+function createSpokeWall(side, doored, nearInfo, farInfo, shopPassageEra = null) {
 	const group = new THREE.Group();
 	group.position.copy(side.center);
 	group.rotation.y = getRotationForNormal(side.normal);
@@ -4386,7 +4629,11 @@ function createSpokeWall(side, doored, nearInfo, farInfo) {
 	};
 
 	if (!doored) {
-		segment(innerZ, outerZ, wallHeight, wallHeight / 2, mat);
+		if (shopPassageEra) {
+			buildShopPassageDoorway(group, segment, xAt, mat, shopPassageEra);
+		} else {
+			segment(innerZ, outerZ, wallHeight, wallHeight / 2, mat);
+		}
 		return group;
 	}
 
@@ -4536,6 +4783,56 @@ function createSpokeWall(side, doored, nearInfo, farInfo) {
 		.add(side.center);
 	galleryDoorways.push({ x: world.x, z: world.z });
 	return group;
+}
+
+// Cuts the short shop-passage doorway into an otherwise solid mural-flanking
+// spoke (a gallery's shop-facing wall). Built in the spoke's local frame via the
+// same `segment`/`xAt` helpers as the connector doorway, but with a plainer
+// brass frame to suit the tight passage. A wayfinding sign faces the gallery.
+function buildShopPassageDoorway(group, segment, xAt, mat, era) {
+	const innerZ = -roomDepth / 2 - 0.15;
+	const outerZ = spokeEndZ + 0.05;
+	const doorStart = shopPassageDoorZ - shopPassageDoorHalfWidth;
+	const doorEnd = shopPassageDoorZ + shopPassageDoorHalfWidth;
+	segment(innerZ, doorStart, wallHeight, wallHeight / 2, mat);
+	segment(doorEnd, outerZ, wallHeight, wallHeight / 2, mat);
+	const headerH = wallHeight - shopPassageDoorHeight;
+	segment(doorStart, doorEnd, headerH, shopPassageDoorHeight + headerH / 2, mat);
+
+	const brass = new THREE.MeshStandardMaterial({
+		color: 0xc79b43,
+		emissive: 0x2a1c06,
+		emissiveIntensity: 0.1,
+		roughness: 0.32,
+		metalness: 0.5,
+	});
+	const frameRot = Math.atan2(xAt(doorEnd) - xAt(doorStart), doorEnd - doorStart);
+	segment(doorStart, doorEnd, 0.14, shopPassageDoorHeight, brass, 0.16); // lintel
+	segment(doorStart, doorEnd, 0.05, 0.025, brass, wallThickness + 0.12); // threshold
+	for (const z of [doorStart, doorEnd]) {
+		const jamb = new THREE.Mesh(
+			new THREE.BoxGeometry(0.18, shopPassageDoorHeight, 0.14),
+			brass
+		);
+		jamb.position.set(xAt(z), shopPassageDoorHeight / 2, z);
+		jamb.rotation.y = frameRot;
+		group.add(jamb);
+	}
+
+	// "TO THE MERCANTILE" wayfinding sign on the header, facing the gallery.
+	const inwardRot = getRotationForNormal(new THREE.Vector3(1, 0, wedgeTan).normalize());
+	const color = `#${new THREE.Color(eraColors.get(era) ?? 0xc24a2c).getHexString()}`;
+	const sign = createReadableLabel(
+		createSmallSignTexture('TO THE MERCANTILE · GIFT SHOP', color),
+		1.9,
+		0.4
+	);
+	const n = new THREE.Vector3(Math.sin(inwardRot), 0, Math.cos(inwardRot));
+	const sx = xAt(shopPassageDoorZ) + n.x * 0.14;
+	const sz = shopPassageDoorZ + n.z * 0.14;
+	sign.position.set(sx, shopPassageDoorHeight + headerH * 0.42, sz);
+	sign.rotation.y = inwardRot;
+	group.add(sign);
 }
 
 // Directional plaque on a doorway face, naming the gallery beyond and whether
@@ -4913,7 +5210,12 @@ function createRoomMuseumArchitecture(room) {
 	group.add(createRoomRopeBarriers(room.color));
 	group.add(createRoomTrackLighting(room.color));
 	for (const side of ['left', 'right']) {
-		for (const z of [-2.8, 2.35]) {
+		// On a gallery's shop-facing wall the front sconce shifts toward the inner
+		// edge so it clears the new shop-passage doorway opening (local z ~ -2 ± 0.9).
+		const isPassageWall =
+			isCurrentVariant && hasShopPassage(room) && side === shopPassageWallSide(room);
+		const sconceZs = isPassageWall ? [-3.5, 2.35] : [-2.8, 2.35];
+		for (const z of sconceZs) {
 			const sconce = createWallSconce(room.color);
 			// Inset 0.18 lifts the brass body proud of the angled wall's inner
 			// face so the fixture reads as a sconce, not a buried glow.
@@ -6851,6 +7153,25 @@ function createWebEraPoster(room) {
 	} else {
 		return group;
 	}
+	// In the current variant the free side wall of the two mural-flanking galleries
+	// now carries the shop-passage doorway, so this period poster is rehomed inside
+	// that passage by createShopGalleryPassages instead of mounting here.
+	if (isCurrentVariant && hasShopPassage(room)) {
+		return group;
+	}
+	const inner = createWebEraPosterPanel(room.era);
+	// Inset 0.15 stands the frame proud of the angled wall (the 0.08-deep frame
+	// tucks into the 0.26-thick wall while the picture clears its inner face by
+	// ~0.05); a shallower inset buries the flat art inside the wall.
+	placeOnSideWall(inner, side, -2.5, 2.35, 0.15);
+	group.add(inner);
+	return group;
+}
+
+// The framed "what the web looked like then" poster as a self-contained panel
+// whose art faces +z; callers place/orient it. Shared by the gallery side-wall
+// mount and the shop passage that replaced it.
+function createWebEraPosterPanel(era) {
 	const posterW = 1.24;
 	const posterH = 1.62;
 	const frameMat = new THREE.MeshStandardMaterial({
@@ -6866,16 +7187,23 @@ function createWebEraPoster(room) {
 	inner.add(frame);
 	const art = new THREE.Mesh(
 		new THREE.PlaneGeometry(posterW, posterH),
-		new THREE.MeshBasicMaterial({ map: createWebEraPosterTexture(room.era), side: THREE.DoubleSide })
+		new THREE.MeshBasicMaterial({ map: createWebEraPosterTexture(era), side: THREE.DoubleSide })
 	);
 	art.position.z = 0.05;
 	inner.add(art);
-	// Inset 0.15 stands the frame proud of the angled wall (the 0.08-deep frame
-	// tucks into the 0.26-thick wall while the picture clears its inner face by
-	// ~0.05); a shallower inset buries the flat art inside the wall.
-	placeOnSideWall(inner, side, -2.5, 2.35, 0.15);
-	group.add(inner);
-	return group;
+	return inner;
+}
+
+// True for the two mural-flanking galleries (eras[0] and eras[6]) whose free
+// shop-facing side wall is bridged to the gift shop by a walkable passage.
+function hasShopPassage(room) {
+	return room.era === eras[0] || room.era === eras[eras.length - 1];
+}
+
+// The local side ('left'/'right') of a passage gallery's shop-facing wall: the
+// one without a shared connector doorway (it borders the mural wedge / shop).
+function shopPassageWallSide(room) {
+	return room.connectLeft ? 'right' : 'left';
 }
 
 function createWebEraPosterTexture(era) {
@@ -11907,7 +12235,10 @@ function getMuseumFootprintPoints() {
 		}
 	}
 	// The Mercantile gift shop extends past the mural wall in the current
-	// variant; include its outer corners so camera bounds reach it.
+	// variant; include its outer corners so camera bounds reach it. The two side
+	// passages to Blogging Roots / Blocks Everywhere lie between the shop and the
+	// galleries (x in [-9.7, 7.7], z in [21.4, 23.6]), well within the gallery and
+	// shop corners already in this set, so the shell already encloses them.
 	if (isCurrentVariant) {
 		const wt = shopWallThickness;
 		points.push(
@@ -12496,6 +12827,7 @@ function initDebugApi() {
 		backFlatHalf,
 		spokeEndZ,
 		doorways: galleryDoorways.map((d) => ({ x: d.x, z: d.z })),
+		shopPassageDoorways: shopPassageDoorways.map((d) => ({ x: d.x, z: d.z, era: d.era, end: d.end })),
 		connections: galleryConnections.map((p) => [p.a.era, p.b.era]),
 		isInside: (x, z) => isPointInsideClosedMuseum(new THREE.Vector3(x, 1.6, z)),
 		setCameraView(position, target) {
@@ -13091,6 +13423,7 @@ function isPointInsideClosedMuseum(position) {
 		isPointInsideHub(position) ||
 		isPointInsideMuralPortals(position) ||
 		isPointInsideShop(position) ||
+		isPointInsideShopPassage(position) ||
 		movementZones.some(
 			(room) =>
 				isPointInsideRoom(position, room) ||
@@ -13098,6 +13431,38 @@ function isPointInsideClosedMuseum(position) {
 				isPointInsideSideDoorway(position, room)
 		)
 	);
+}
+
+// The two short passages bridging the shop's side walls to Blogging Roots
+// (left) and Blocks Everywhere (right). Each is a narrow z-band whose x-extent
+// runs from inside the shop wall to just past the (tilted) gallery wall, so the
+// region overlaps both interiors and there is no leak to the void at either
+// threshold. The z-band is kept within the 1.8m doorway opening so the player
+// cannot push out through the passage's solid side walls.
+function isPointInsideShopPassage(position) {
+	if (!isCurrentVariant) {
+		return false;
+	}
+	if (Math.abs(position.z - shopPassageZCenter) > shopPassageDoorHalfWidth - 0.25) {
+		return false;
+	}
+	const slack = 0.8; // straddle each wall into the shop / gallery interior
+	const passages = [
+		{ room: roomLayout.get(eras[0]), shopX: shopMinX, sign: -1 },
+		{ room: roomLayout.get(eras[eras.length - 1]), shopX: shopMaxX, sign: 1 },
+	];
+	for (const { room, shopX, sign } of passages) {
+		if (!room) {
+			continue;
+		}
+		const galleryX = shopFacingWallWorldX(room, position.z);
+		const lo = Math.min(shopX, galleryX) - slack;
+		const hi = Math.max(shopX, galleryX) + slack;
+		if (position.x >= lo && position.x <= hi) {
+			return true;
+		}
+	}
+	return false;
 }
 
 // A point passing through a shared-wall doorway into the neighbour. The shared
