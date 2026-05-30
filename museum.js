@@ -161,7 +161,6 @@ const exhibitOuterHeight = 2.2;
 const exhibitPlaqueWidth = 2.42;
 const exhibitPlaqueHeight = 1.9;
 const exhibitWallMargin = 0.7;
-const exhibitPreferredSpacing = exhibitOuterWidth + 0.62;
 const entryDistanceFromCenter = 5.2;
 const shellPadding = 1.4;
 const shellHeight = 12.4;
@@ -213,9 +212,13 @@ const roomLayout = new Map(roomSides.map((side) => [side.era, side]));
 const connectorDoorHalfWidth = 1.0;
 const connectorDoorHeight = 3.0;
 const connectorDoorZ = -2.5;
-// Side-wall exhibits sit between the mid doorway and the beveled corner.
+// Side-wall exhibits flank the mid doorway: the BACK segment runs from the
+// doorway to the beveled corner, the small FRONT segment from the hub-facing
+// inner edge to the doorway (the door sits near the hub, so it's tight).
 const sideExhibitMinZ = connectorDoorZ + connectorDoorHalfWidth + exhibitOuterWidth / 2 + 0.3;
 const sideExhibitMaxZ = spokeEndZ - exhibitOuterWidth / 2 - 0.3;
+const sideExhibitFrontMinZ = -roomDepth / 2 + exhibitOuterWidth / 2 + 1.0;
+const sideExhibitFrontMaxZ = connectorDoorZ - connectorDoorHalfWidth - exhibitOuterWidth / 2 - 0.3;
 const galleryConnections = computeGalleryConnections();
 const atriumCenterPosition = new THREE.Vector3(0, 1.65, 0);
 const atriumStartPosition = atriumCenterPosition
@@ -8629,28 +8632,25 @@ function getLocalSlotPosition(side, slotIndex, slotCount) {
 		const bx = s * backFlatHalf;
 		return new THREE.Vector3(ax + (bx - ax) * u, 0, spokeEndZ + (roomDepth / 2 - spokeEndZ) * u);
 	}
-	// Side walls are angled radial spokes: x follows the wall at this z.
-	const value = getSlotAxisValue(
-		slotIndex,
-		slotCount,
-		sideExhibitMinZ,
-		sideExhibitMaxZ
-	);
+	// Side walls are angled radial spokes carrying up to two exhibits that flank
+	// the shared doorway: slot 0 in the small FRONT segment (inner edge -> door),
+	// slot 1 in the BACK segment (door -> beveled corner). A lone exhibit takes
+	// the roomier back segment. x follows the tilted wall at this z.
+	let value;
+	if (slotCount === 2 && slotIndex === 0) {
+		value = getSlotAxisValue(0, 1, sideExhibitFrontMinZ, sideExhibitFrontMaxZ);
+	} else {
+		value = getSlotAxisValue(0, 1, sideExhibitMinZ, sideExhibitMaxZ);
+	}
 	const halfW = sideHalfWidthAtZ(value);
 	return new THREE.Vector3(side === 'left' ? -halfW : halfW, 0, value);
 }
 
 function getSlotAxisValue(slotIndex, slotCount, min, max) {
-	const center = (min + max) / 2;
-	if (slotCount === 1) {
-		return center;
-	}
-
-	const spacing = Math.min(
-		exhibitPreferredSpacing,
-		(max - min) / (slotCount - 1)
-	);
-	return center - (spacing * (slotCount - 1)) / 2 + spacing * slotIndex;
+	// Even distribution: each slot sits at the centre of its equal segment, so
+	// two items spread across a wide wall instead of bunching in the middle.
+	// For slotCount === 1 this yields the midpoint.
+	return min + (max - min) * (slotIndex + 0.5) / slotCount;
 }
 
 function roomLocalToWorld(room, localPosition) {
@@ -8712,14 +8712,19 @@ function getSlotTangent(room, side) {
 
 function distributeWallCounts(count) {
 	// [right, rightChamfer, back, leftChamfer, left]. The flat back carries the
-	// bulk; each beveled corner and each side wall holds at most one.
+	// bulk; each beveled corner holds at most one. Busy rooms put two on each
+	// side wall so exhibits flank the shared doorway front and back.
 	const table = {
 		1: [0, 0, 1, 0, 0],
 		2: [0, 0, 2, 0, 0],
 		3: [0, 1, 1, 1, 0],
 		4: [0, 1, 2, 1, 0],
+		5: [1, 1, 1, 1, 1],
+		6: [1, 1, 2, 1, 1],
+		7: [2, 1, 1, 1, 2],
+		8: [2, 1, 2, 1, 2],
 	};
-	return table[count] || [1, 1, count - 4, 1, 1];
+	return table[count] || [2, 1, count - 6, 1, 2];
 }
 
 function getEraReleaseGroups() {
