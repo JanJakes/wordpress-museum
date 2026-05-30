@@ -8194,7 +8194,7 @@ function createMuseumInfoDesk(color, secondary) {
 	laptop.position.set(0.47, 0.52, -0.14);
 	laptop.rotation.y = -0.24;
 	group.add(laptop);
-	const sign = createReadableLabel(createSmallSignTexture('PLAYGROUND', secondary), 1.3, 0.25);
+	const sign = createReadableLabel(createSmallSignTexture('INFORMATION', secondary), 1.3, 0.25);
 	sign.position.set(0, 0.66, -0.39);
 	group.add(sign);
 
