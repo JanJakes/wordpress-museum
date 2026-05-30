@@ -254,6 +254,39 @@ const sideExhibitMaxZ = spokeEndZ - exhibitOuterWidth / 2 - 0.3;
 const sideExhibitFrontMinZ = -roomDepth / 2 + exhibitOuterWidth / 2 + 1.0;
 const sideExhibitFrontMaxZ = connectorDoorZ - connectorDoorHalfWidth - exhibitOuterWidth / 2 - 0.3;
 const galleryConnections = computeGalleryConnections();
+// The Playground annex: a small enclosed room reached through a doorway cut into
+// the BACK-CORNER (right-hand) chamfer of Blocks Everywhere (eras[6], the newest
+// era). A double pun on WordPress Playground (run WP in the browser, ~2022) and a
+// literal children's playground. It sits in the open area east/south-east of the
+// gallery; the gallery is rotated 135deg, so this chamfer is the axis-aligned plane
+// at world x=playgroundDoorWallX facing +x, and the annex is axis-aligned beyond it.
+const playgroundRoom = roomLayout.get(eras[6]);
+const playgroundChamferA = playgroundRoom
+	? roomLocalToWorld(playgroundRoom, new THREE.Vector3(sideEndHalfWidth, 0, spokeEndZ))
+	: new THREE.Vector3();
+const playgroundChamferB = playgroundRoom
+	? roomLocalToWorld(playgroundRoom, new THREE.Vector3(backFlatHalf, 0, roomDepth / 2))
+	: new THREE.Vector3();
+const playgroundDoorWallX = playgroundChamferA.x; // shared west wall / chamfer plane
+const playgroundChamferZMin = Math.min(playgroundChamferA.z, playgroundChamferB.z);
+const playgroundChamferZMax = Math.max(playgroundChamferA.z, playgroundChamferB.z);
+const playgroundDoorZCenter = (playgroundChamferZMin + playgroundChamferZMax) / 2;
+const playgroundDoorHalfWidth = 1.0; // 2m clear opening
+const playgroundDoorHeight = 3.0;
+const playgroundWallThickness = 0.3;
+const playgroundWidth = 11; // z-extent (south from the gallery corner)
+const playgroundDepth = 10; // x-extent, east from the chamfer wall
+const playgroundHeight = 5.4;
+// The Block Editor gallery (eras[5]) fills the area just NW of the chamfer top
+// (its left corner reaches world x=28, z~11.6), so the annex starts a little south
+// of that corner and runs +z; the doorway sits at the chamfer midpoint near the
+// annex's north wall.
+const playgroundMinZ = playgroundChamferZMin + 0.5;
+const playgroundMaxZ = playgroundMinZ + playgroundWidth;
+const playgroundMinX = playgroundDoorWallX; // west wall, flush with the chamfer
+const playgroundMaxX = playgroundDoorWallX + playgroundDepth;
+const playgroundCenterX = (playgroundMinX + playgroundMaxX) / 2;
+const playgroundCenterZ = (playgroundMinZ + playgroundMaxZ) / 2;
 const atriumCenterPosition = new THREE.Vector3(0, 1.65, 0);
 const atriumStartPosition = atriumCenterPosition
 	.clone()
@@ -474,6 +507,7 @@ function createMuralPortals() {
 	}
 	group.add(createMercantileShop());
 	group.add(createShopGalleryPassages());
+	group.add(createPlaygroundAnnex());
 	return group;
 }
 
@@ -1155,6 +1189,509 @@ function createShopPassageShopFrame(xSign, innerX) {
 		group.add(post);
 	}
 	return group;
+}
+
+// THE PLAYGROUND: a small enclosed annex east of Blocks Everywhere, reached
+// through a doorway cut into that gallery's right back-corner chamfer. A double
+// pun on WordPress Playground (run WordPress in the browser, ~2022) and a literal
+// children's playground: it holds a slide, swings, a sandbox, a see-saw and a
+// spring rider around a walkable centre, plus a Playground exhibit panel. The
+// gallery is rotated 135deg so this chamfer is the axis-aligned plane at world x =
+// playgroundDoorWallX; the whole annex is built axis-aligned in world space.
+function createPlaygroundAnnex() {
+	const group = new THREE.Group();
+	if (!isCurrentVariant || !playgroundRoom) {
+		return group;
+	}
+	const cx = playgroundCenterX;
+	const cz = playgroundCenterZ;
+	const wt = playgroundWallThickness;
+
+	// Cheerful but marble-consistent floor.
+	const floor = new THREE.Mesh(
+		new THREE.PlaneGeometry(playgroundDepth, playgroundWidth),
+		createMuseumMaterial('roomFloor', {
+			repeatX: playgroundDepth / floorTileSpan,
+			repeatY: playgroundWidth / floorTileSpan,
+			roughness: 0.3,
+			metalness: 0.24,
+		})
+	);
+	floor.rotation.x = -Math.PI / 2;
+	floor.position.set(cx, 0.012, cz);
+	group.add(floor);
+
+	// A soft grassy play mat anchors the centre and reads as a real playground.
+	const mat = new THREE.Mesh(
+		new THREE.PlaneGeometry(playgroundDepth * 0.62, playgroundWidth * 0.6),
+		new THREE.MeshStandardMaterial({ color: 0x6fc46a, roughness: 0.95, metalness: 0.01 })
+	);
+	mat.rotation.x = -Math.PI / 2;
+	mat.position.set(cx + 0.6, 0.05, cz);
+	group.add(mat);
+
+	const wallMaterial = createMuseumMaterial('roomWall', {
+		repeatX: playgroundDepth / 4.6,
+		repeatY: playgroundHeight / 2.4,
+		color: wallWarmTint,
+		roughness: 0.9,
+		metalness: 0.03,
+	});
+
+	// West wall = the doored chamfer, rebuilt in world space with jambs/lintel.
+	group.add(createPlaygroundDoorWall(wallMaterial));
+
+	// East wall (far +x).
+	const eastWall = new THREE.Mesh(
+		new THREE.BoxGeometry(wt, playgroundHeight, playgroundWidth + wt * 2),
+		wallMaterial
+	);
+	eastWall.position.set(playgroundMaxX + wt / 2, playgroundHeight / 2, cz);
+	group.add(eastWall);
+	// North (-z) and south (+z) walls.
+	for (const zSign of [-1, 1]) {
+		const wallZ = cz + zSign * (playgroundWidth / 2 + wt / 2);
+		const wall = new THREE.Mesh(
+			new THREE.BoxGeometry(playgroundDepth, playgroundHeight, wt),
+			wallMaterial
+		);
+		wall.position.set(cx, playgroundHeight / 2, wallZ);
+		group.add(wall);
+	}
+
+	// Skirting around the room.
+	const trimMat = new THREE.MeshStandardMaterial({ color: 0xd9c8a6, roughness: 0.6, metalness: 0.1 });
+	const trimEast = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.22, playgroundWidth), trimMat);
+	trimEast.position.set(playgroundMaxX - 0.04, 0.11, cz);
+	group.add(trimEast);
+	for (const zSign of [-1, 1]) {
+		const trim = new THREE.Mesh(new THREE.BoxGeometry(playgroundDepth, 0.22, 0.06), trimMat);
+		trim.position.set(cx, 0.11, cz + zSign * (playgroundWidth / 2 - 0.04));
+		group.add(trim);
+	}
+
+	// Ceiling, painted a friendly sky tone.
+	const ceiling = new THREE.Mesh(
+		new THREE.PlaneGeometry(playgroundDepth + wt * 2, playgroundWidth + wt * 2),
+		new THREE.MeshStandardMaterial({ color: 0x9fd2ef, roughness: 0.7, metalness: 0.08, side: THREE.DoubleSide })
+	);
+	ceiling.rotation.x = Math.PI / 2;
+	ceiling.position.set(cx, playgroundHeight, cz);
+	group.add(ceiling);
+
+	// Ceiling light fixture + lamp so the room is bright, plus a back fill light.
+	const fixture = new THREE.Mesh(
+		new THREE.BoxGeometry(2.6, 0.12, 2.6),
+		new THREE.MeshStandardMaterial({ color: 0xf2cf86, emissive: 0x3a2710, emissiveIntensity: 0.18, roughness: 0.3, metalness: 0.5 })
+	);
+	fixture.position.set(cx, playgroundHeight - 0.08, cz);
+	group.add(fixture);
+	const panel = new THREE.Mesh(
+		new THREE.PlaneGeometry(2.3, 2.3),
+		new THREE.MeshBasicMaterial({ color: 0xfff2cf })
+	);
+	panel.rotation.x = Math.PI / 2;
+	panel.position.set(cx, playgroundHeight - 0.16, cz);
+	group.add(panel);
+	const lamp = new THREE.PointLight(0xffeccb, 1.6, 26);
+	lamp.position.set(cx, playgroundHeight - 0.7, cz);
+	registerAnimation(lamp, (object, elapsed) => {
+		object.intensity = 1.5 + Math.sin(elapsed * 1.3) * 0.12;
+	});
+	group.add(lamp);
+	const fill = new THREE.PointLight(0xeaf4ff, 0.6, 18);
+	fill.position.set(playgroundMaxX - 2.0, playgroundHeight - 1.4, cz);
+	group.add(fill);
+
+	// Equipment, kept around the edges so the centre and the door->exhibit sightline
+	// stay walkable. The exhibit sits on the east wall directly across from the door
+	// (z = playgroundDoorZCenter), so that lane and the room middle are left clear.
+	// A sandbox / swing set / slide line the south wall in non-overlapping slots; a
+	// see-saw and spring rider sit along the west wall, clear of the entry lane.
+	const southZ = playgroundMaxZ - 2.4;
+	group.add(createPlaygroundSandbox(playgroundMinX + 2.4, southZ)); // SW
+	group.add(createPlaygroundSwingSet(playgroundMinX + 5.4, southZ + 0.1)); // S middle
+	group.add(createPlaygroundSlide(playgroundMaxX - 1.6, southZ, Math.PI)); // SE, chute -> -z
+	group.add(createPlaygroundSeesaw(playgroundMinX + 2.6, playgroundCenterZ + 0.4)); // W
+	group.add(createPlaygroundSpringRider(playgroundMinX + 2.2, playgroundMinZ + 1.6)); // NW
+
+	// WordPress Playground exhibit panel on the east wall, facing the doorway.
+	group.add(createPlaygroundExhibitSign());
+	return group;
+}
+
+// The annex's west wall is Blocks Everywhere's right chamfer (the plane at world x
+// = playgroundDoorWallX). It carries the doorway: solid chamfer above/either side,
+// a brass post-and-lintel frame, "THE PLAYGROUND" over the opening and a return
+// "<- GALLERY" sign on the gallery face. North/south stubs extend the chamfer to
+// the annex's full width where it overhangs the void beyond the gallery corner.
+function createPlaygroundDoorWall(wallMaterial) {
+	const group = new THREE.Group();
+	const wallX = playgroundDoorWallX;
+	const wt = playgroundWallThickness;
+	const doorMinZ = playgroundDoorZCenter - playgroundDoorHalfWidth;
+	const doorMaxZ = playgroundDoorZCenter + playgroundDoorHalfWidth;
+	// Run the wall a touch past the gallery chamfer corner (z = playgroundChamferZMin)
+	// so the seam to the gallery's side wall is closed with no sliver to the void.
+	const fullMinZ = Math.min(playgroundMinZ - wt, playgroundChamferZMin - 0.1);
+	const fullMaxZ = playgroundMaxZ + wt;
+	const addZSeg = (z0, z1, height, yCenter) => {
+		const len = z1 - z0;
+		if (len < 0.02) {
+			return;
+		}
+		const seg = new THREE.Mesh(new THREE.BoxGeometry(wt, height, len), wallMaterial);
+		seg.position.set(wallX, yCenter, (z0 + z1) / 2);
+		group.add(seg);
+	};
+	addZSeg(fullMinZ, doorMinZ, playgroundHeight, playgroundHeight / 2); // -z of door
+	addZSeg(doorMaxZ, fullMaxZ, playgroundHeight, playgroundHeight / 2); // +z of door
+	const headerH = playgroundHeight - playgroundDoorHeight;
+	addZSeg(doorMinZ, doorMaxZ, headerH, playgroundDoorHeight + headerH / 2); // header
+
+	// Brass post-and-lintel frame, on the annex (interior) face.
+	const brass = new THREE.MeshStandardMaterial({
+		color: 0xc79b43,
+		emissive: 0x2a1c06,
+		emissiveIntensity: 0.1,
+		roughness: 0.32,
+		metalness: 0.5,
+	});
+	const faceX = wallX + 0.03; // just proud of the interior face (annex is +x)
+	const lintel = new THREE.Mesh(
+		new THREE.BoxGeometry(0.2, 0.2, playgroundDoorHalfWidth * 2 + 0.36),
+		brass
+	);
+	lintel.position.set(faceX, playgroundDoorHeight + 0.06, playgroundDoorZCenter);
+	group.add(lintel);
+	for (const z of [doorMinZ, doorMaxZ]) {
+		const post = new THREE.Mesh(
+			new THREE.BoxGeometry(0.2, playgroundDoorHeight + 0.16, 0.18),
+			brass
+		);
+		post.position.set(faceX, (playgroundDoorHeight + 0.16) / 2, z + (z < playgroundDoorZCenter ? -0.09 : 0.09));
+		group.add(post);
+	}
+	// Threshold strip flush with the floor.
+	const threshold = new THREE.Mesh(
+		new THREE.BoxGeometry(wt + 0.24, 0.05, playgroundDoorHalfWidth * 2),
+		brass
+	);
+	threshold.position.set(wallX, 0.025, playgroundDoorZCenter);
+	group.add(threshold);
+
+	// "THE PLAYGROUND" sign on the header, facing into the annex (+x).
+	const annexSign = createReadableLabel(
+		createSmallSignTexture('THE PLAYGROUND', '#78e0dc'),
+		1.9,
+		0.42
+	);
+	annexSign.position.set(faceX + 0.05, playgroundDoorHeight + headerH * 0.42, playgroundDoorZCenter);
+	annexSign.rotation.y = Math.PI / 2; // face +x
+	group.add(annexSign);
+
+	// Return "<- GALLERY" sign on the gallery (chamfer outer) face, facing -x.
+	const returnSign = createReadableLabel(
+		createSmallSignTexture('← GALLERY', '#78e0dc'),
+		1.7,
+		0.4
+	);
+	returnSign.position.set(wallX - 0.08, playgroundDoorHeight + headerH * 0.42, playgroundDoorZCenter);
+	returnSign.rotation.y = -Math.PI / 2; // face -x, toward the gallery
+	group.add(returnSign);
+
+	// Warm glow so the portal reads as an inviting threshold from the gallery.
+	const glow = new THREE.PointLight(0xffd8a0, 3, 6, 2);
+	glow.position.set(wallX, playgroundDoorHeight - 0.6, playgroundDoorZCenter);
+	group.add(glow);
+	return group;
+}
+
+// A bright low-poly slide: a stepped ladder up to a platform, then a sloped chute
+// down to the floor. `facing` rotates the whole rig about its base.
+function createPlaygroundSlide(x, z, facing) {
+	const group = new THREE.Group();
+	group.position.set(x, 0, z);
+	group.rotation.y = facing;
+	const frameMat = new THREE.MeshStandardMaterial({ color: 0xff6b6b, roughness: 0.55, metalness: 0.12 });
+	const chuteMat = new THREE.MeshStandardMaterial({ color: 0xffd23f, roughness: 0.4, metalness: 0.2 });
+	const stepMat = new THREE.MeshStandardMaterial({ color: 0x4fb0ff, roughness: 0.5, metalness: 0.12 });
+
+	const platformY = 1.9;
+	// Platform deck.
+	const deck = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.12, 1.1), frameMat);
+	deck.position.set(0, platformY, 0);
+	group.add(deck);
+	// Four legs under the platform.
+	for (const lx of [-0.45, 0.45]) {
+		for (const lz of [-0.45, 0.45]) {
+			const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, platformY, 10), frameMat);
+			leg.position.set(lx, platformY / 2, lz);
+			group.add(leg);
+		}
+	}
+	// Safety rails framing the platform top.
+	for (const lz of [-0.5, 0.5]) {
+		const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.8, 8), frameMat);
+		rail.position.set(0, platformY + 0.45, lz);
+		group.add(rail);
+	}
+	// Ladder: side rails + rungs on the -z side.
+	for (const lx of [-0.4, 0.4]) {
+		const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, platformY + 0.5, 8), stepMat);
+		rail.position.set(lx, (platformY + 0.5) / 2, -0.6);
+		rail.rotation.x = -0.32;
+		group.add(rail);
+	}
+	for (let i = 0; i < 4; i++) {
+		const rung = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.8, 8), stepMat);
+		rung.rotation.z = Math.PI / 2;
+		rung.position.set(0, 0.4 + i * 0.42, -0.6 + i * 0.07);
+		group.add(rung);
+	}
+	// Sloped chute toward +z, with low side rails.
+	const chuteLen = 2.7;
+	const chute = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.08, chuteLen), chuteMat);
+	chute.position.set(0, platformY / 2 + 0.1, 0.55 + chuteLen / 2 * Math.cos(0.62));
+	chute.rotation.x = 0.62;
+	group.add(chute);
+	for (const lx of [-0.45, 0.45]) {
+		const side = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.22, chuteLen), chuteMat);
+		side.position.set(lx, platformY / 2 + 0.2, 0.55 + chuteLen / 2 * Math.cos(0.62));
+		side.rotation.x = 0.62;
+		group.add(side);
+	}
+	return group;
+}
+
+// A two-seat swing set: an A-frame on each end carrying a top beam, with two
+// swings on chains. The seats sway gently.
+function createPlaygroundSwingSet(x, z) {
+	const group = new THREE.Group();
+	group.position.set(x, 0, z);
+	const frameMat = new THREE.MeshStandardMaterial({ color: 0x4fb0ff, roughness: 0.5, metalness: 0.2 });
+	const seatMat = new THREE.MeshStandardMaterial({ color: 0xff9b3c, roughness: 0.5, metalness: 0.1 });
+	const chainMat = new THREE.MeshStandardMaterial({ color: 0xb8c2cf, roughness: 0.4, metalness: 0.7 });
+	const beamY = 2.5;
+	const halfSpan = 1.7;
+	// A-frame legs at each end.
+	for (const ex of [-halfSpan, halfSpan]) {
+		for (const dz of [-0.7, 0.7]) {
+			const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, beamY + 0.1, 10), frameMat);
+			leg.position.set(ex + (dz > 0 ? 0.35 : -0.35), (beamY + 0.1) / 2, dz);
+			leg.rotation.x = dz > 0 ? -0.26 : 0.26;
+			leg.rotation.z = dz > 0 ? 0 : 0;
+			group.add(leg);
+		}
+	}
+	// Top beam.
+	const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, halfSpan * 2 + 0.4, 12), frameMat);
+	beam.rotation.z = Math.PI / 2;
+	beam.position.set(0, beamY, 0);
+	group.add(beam);
+	// Two swings.
+	for (const sx of [-0.7, 0.7]) {
+		const swing = new THREE.Group();
+		swing.position.set(sx, beamY, 0);
+		const seatY = -1.55;
+		for (const cz of [-0.22, 0.22]) {
+			const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.55, 6), chainMat);
+			chain.position.set(0, seatY / 2, cz);
+			swing.add(chain);
+		}
+		const seat = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.07, 0.26), seatMat);
+		seat.position.set(0, seatY, 0);
+		swing.add(seat);
+		registerAnimation(swing, (object, elapsed) => {
+			object.rotation.x = Math.sin(elapsed * 1.6 + sx) * 0.22;
+		});
+		group.add(swing);
+	}
+	return group;
+}
+
+// A square sandbox: low timber sides around a sand fill, with a toy bucket and
+// spade. Doubles as the "sandbox" gag tied to a code sandbox in the exhibit text.
+function createPlaygroundSandbox(x, z) {
+	const group = new THREE.Group();
+	group.position.set(x, 0, z);
+	const size = 2.4;
+	const sideMat = new THREE.MeshStandardMaterial({ color: 0xb5763c, roughness: 0.85, metalness: 0.04 });
+	const sandMat = new THREE.MeshStandardMaterial({ color: 0xf2dca0, roughness: 0.95, metalness: 0.0 });
+	// Sand fill.
+	const sand = new THREE.Mesh(new THREE.BoxGeometry(size - 0.2, 0.14, size - 0.2), sandMat);
+	sand.position.set(0, 0.1, 0);
+	group.add(sand);
+	// Four timber sides.
+	for (const [dx, dz, rot] of [[0, -size / 2, 0], [0, size / 2, 0], [-size / 2, 0, Math.PI / 2], [size / 2, 0, Math.PI / 2]]) {
+		const rail = new THREE.Mesh(new THREE.BoxGeometry(size + 0.2, 0.26, 0.18), sideMat);
+		rail.rotation.y = rot;
+		rail.position.set(dx, 0.13, dz);
+		group.add(rail);
+	}
+	// Corner posts.
+	for (const cx of [-1, 1]) {
+		for (const cz of [-1, 1]) {
+			const post = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.32, 0.22), sideMat);
+			post.position.set((cx * size) / 2, 0.16, (cz * size) / 2);
+			group.add(post);
+		}
+	}
+	// Toy bucket and spade.
+	const bucket = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.2, 0.15, 0.28, 14),
+		new THREE.MeshStandardMaterial({ color: 0xff4f64, roughness: 0.5 })
+	);
+	bucket.position.set(0.5, 0.31, 0.4);
+	group.add(bucket);
+	const spade = new THREE.Mesh(
+		new THREE.BoxGeometry(0.05, 0.5, 0.05),
+		new THREE.MeshStandardMaterial({ color: 0x2bb7ff, roughness: 0.5 })
+	);
+	spade.position.set(-0.4, 0.34, -0.3);
+	spade.rotation.z = 0.5;
+	group.add(spade);
+	return group;
+}
+
+// A classic see-saw: a fulcrum block with a plank that gently rocks, a seat and
+// grip handle at each end.
+function createPlaygroundSeesaw(x, z) {
+	const group = new THREE.Group();
+	group.position.set(x, 0, z);
+	const baseMat = new THREE.MeshStandardMaterial({ color: 0x9670d8, roughness: 0.55, metalness: 0.15 });
+	const plankMat = new THREE.MeshStandardMaterial({ color: 0x44d17f, roughness: 0.55, metalness: 0.1 });
+	const seatMat = new THREE.MeshStandardMaterial({ color: 0xff4f64, roughness: 0.5 });
+	// Fulcrum.
+	const fulcrum = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.3, 0.7, 12), baseMat);
+	fulcrum.position.set(0, 0.35, 0);
+	group.add(fulcrum);
+	// Rocking plank.
+	const beam = new THREE.Group();
+	beam.position.set(0, 0.72, 0);
+	const plank = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.12, 0.34), plankMat);
+	beam.add(plank);
+	for (const ex of [-1.45, 1.45]) {
+		const seat = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.08, 0.34), seatMat);
+		seat.position.set(ex, 0.1, 0);
+		beam.add(seat);
+		const handle = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.03, 8, 14), baseMat);
+		handle.position.set(ex - Math.sign(ex) * 0.1, 0.32, 0);
+		handle.rotation.y = Math.PI / 2;
+		beam.add(handle);
+	}
+	registerAnimation(beam, (object, elapsed) => {
+		object.rotation.z = Math.sin(elapsed * 1.1) * 0.13;
+	});
+	group.add(beam);
+	return group;
+}
+
+// A springy ride-on toy: a coil spring on a base with a simple animal seat that
+// bobs and tilts.
+function createPlaygroundSpringRider(x, z) {
+	const group = new THREE.Group();
+	group.position.set(x, 0, z);
+	const springMat = new THREE.MeshStandardMaterial({ color: 0xb8c2cf, roughness: 0.4, metalness: 0.6 });
+	const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffd23f, roughness: 0.5, metalness: 0.1 });
+	const accentMat = new THREE.MeshStandardMaterial({ color: 0xff6b6b, roughness: 0.5 });
+	// Ground anchor.
+	const anchor = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.12, 14), springMat);
+	anchor.position.set(0, 0.06, 0);
+	group.add(anchor);
+	const rider = new THREE.Group();
+	rider.position.set(0, 0.12, 0);
+	// Coil spring (a stout cylinder reads as a spring at this scale).
+	const spring = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.55, 12), springMat);
+	spring.position.set(0, 0.27, 0);
+	rider.add(spring);
+	// Body.
+	const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.36, 1.0), bodyMat);
+	body.position.set(0, 0.72, 0);
+	rider.add(body);
+	const head = new THREE.Mesh(new THREE.SphereGeometry(0.27, 14, 12), bodyMat);
+	head.position.set(0, 0.95, 0.5);
+	rider.add(head);
+	for (const ex of [-0.16, 0.16]) {
+		const ear = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.2, 10), accentMat);
+		ear.position.set(ex, 1.16, 0.5);
+		rider.add(ear);
+	}
+	const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.4, 8), accentMat);
+	grip.rotation.z = Math.PI / 2;
+	grip.position.set(0, 0.92, 0.0);
+	rider.add(grip);
+	registerAnimation(rider, (object, elapsed) => {
+		object.rotation.x = Math.sin(elapsed * 2.2) * 0.16;
+	});
+	group.add(rider);
+	return group;
+}
+
+// The WordPress Playground exhibit: a lit panel on the annex's east wall facing
+// the doorway, explaining the product and winking at the literal playground.
+function createPlaygroundExhibitSign() {
+	const group = new THREE.Group();
+	const wallFace = playgroundMaxX - playgroundWallThickness / 2;
+	const brass = new THREE.MeshStandardMaterial({
+		color: 0xc79b43,
+		emissive: 0x2a1c06,
+		emissiveIntensity: 0.1,
+		roughness: 0.34,
+		metalness: 0.5,
+	});
+	// Brass frame flush against the wall, board floating just in front of it.
+	const frame = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.5, 3.6), brass);
+	frame.position.set(wallFace - 0.04, 2.7, playgroundDoorZCenter);
+	group.add(frame);
+	const board = new THREE.Mesh(
+		new THREE.PlaneGeometry(3.4, 2.3),
+		new THREE.MeshBasicMaterial({ map: createPlaygroundSignTexture() })
+	);
+	board.position.set(wallFace - 0.12, 2.7, playgroundDoorZCenter);
+	board.rotation.y = -Math.PI / 2; // face -x, toward the doorway
+	group.add(board);
+	const accent = new THREE.PointLight(0x78e0dc, 0.9, 9);
+	accent.position.set(wallFace - 1.6, 2.7, playgroundDoorZCenter);
+	group.add(accent);
+	return group;
+}
+
+function createPlaygroundSignTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 1024;
+	canvas.height = 700;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#fff5df';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#111827';
+	ctx.fillRect(28, 28, canvas.width - 56, canvas.height - 56);
+	ctx.fillStyle = '#78e0dc';
+	ctx.fillRect(28, 28, canvas.width - 56, 26);
+	ctx.fillRect(28, canvas.height - 54, canvas.width - 56, 26);
+	ctx.fillStyle = '#78e0dc';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	fillFittedCanvasText(ctx, 'WORDPRESS PLAYGROUND', 512, 130, 880, 76, '900', 'Arial Black, Impact, sans-serif');
+	ctx.fillStyle = '#fff5df';
+	ctx.font = '600 38px system-ui, sans-serif';
+	const lines = [
+		'Run WordPress instantly in your browser.',
+		'No server, no install — powered by',
+		'WebAssembly. A safe place to experiment.',
+		'Since 2022.',
+	];
+	lines.forEach((line, i) => ctx.fillText(line, 512, 250 + i * 56));
+	ctx.fillStyle = '#ffd23f';
+	ctx.font = '900 34px Arial Black, Impact, sans-serif';
+	ctx.fillText('YES — AN ACTUAL PLAYGROUND.', 512, 520);
+	ctx.fillStyle = '#9fb8c9';
+	ctx.font = 'italic 28px system-ui, sans-serif';
+	ctx.fillText('(the sandbox is over there → a real code sandbox too)', 512, 600);
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
 }
 
 // Big "MERCANTILE" wall sign mounted high on the back wall. The brass frame
@@ -4144,7 +4681,7 @@ function createRoom(room) {
 	// shared radial spokes built once by createRadialSpokes. Rooms build only the
 	// wide flat back/outer wall and the two beveled back-corner chamfers here.
 	group.add(createRoomWall('back'));
-	group.add(createRoomBackChamfers());
+	group.add(createRoomBackChamfers(room));
 	if (isCurrentVariant) {
 		group.add(createRoomMuseumArchitecture(room));
 		group.add(createRoomStoryWall(room));
@@ -4520,10 +5057,16 @@ function createRoomWall(side) {
 
 // The two 45deg chamfer walls that bevel the outer corners into a hexagon,
 // joining each side wall's end to the narrower flat back wall.
-function createRoomBackChamfers() {
+function createRoomBackChamfers(room) {
 	const group = new THREE.Group();
 	const mat = createRoomWallMaterial(cornerBevel * 1.6);
+	// The Playground annex opens through Blocks Everywhere's right (+x) chamfer; that
+	// chamfer is rebuilt with a doorway in world space by createPlaygroundAnnex.
+	const skipRight = isCurrentVariant && room && room.era === eras[6];
 	for (const s of [-1, 1]) {
+		if (s === 1 && skipRight) {
+			continue;
+		}
 		const ax = s * sideEndHalfWidth;
 		const bx = s * backFlatHalf;
 		const az = spokeEndZ;
@@ -12015,6 +12558,12 @@ function createExhibitSlots(room, releaseCount) {
 		{ side: 'left', reverse: true },
 	];
 	const wallCounts = distributeWallCounts(releaseCount);
+	// The Playground annex doorway is cut into this room's right chamfer, so that
+	// chamfer can no longer carry an exhibit; move its slot onto the flat back wall.
+	if (isCurrentVariant && room.era === eras[6] && wallCounts[1] > 0) {
+		wallCounts[2] += wallCounts[1];
+		wallCounts[1] = 0;
+	}
 	return walls.flatMap(({ side, reverse }, wallIndex) => {
 		const slotCount = wallCounts[wallIndex];
 		return Array.from({ length: slotCount }, (_, slotIndex) => {
@@ -12246,6 +12795,15 @@ function getMuseumFootprintPoints() {
 			new THREE.Vector3(shopMaxX + wt, 0, shopZStart - wt),
 			new THREE.Vector3(shopMaxX + wt, 0, shopZEnd + wt),
 			new THREE.Vector3(shopMinX - wt, 0, shopZEnd + wt)
+		);
+		// The Playground annex extends east beyond Blocks Everywhere's back corner;
+		// include its outer corners so the building shell encloses it.
+		const pwt = playgroundWallThickness;
+		points.push(
+			new THREE.Vector3(playgroundMaxX + pwt, 0, playgroundMinZ - pwt),
+			new THREE.Vector3(playgroundMaxX + pwt, 0, playgroundMaxZ + pwt),
+			new THREE.Vector3(playgroundMinX, 0, playgroundMaxZ + pwt),
+			new THREE.Vector3(playgroundMinX, 0, playgroundMinZ - pwt)
 		);
 	}
 	return points;
@@ -12813,20 +13371,43 @@ function initDebugApi() {
 	}
 
 	window.wpMuseumDebug = {
-		rooms: roomSides.map((side) => ({
-			era: side.era,
-			center: vectorToPlainObject(side.center),
-			normal: vectorToPlainObject(side.normal),
-			tangent: vectorToPlainObject(side.tangent),
-			connectLeft: !!side.connectLeft,
-			connectRight: !!side.connectRight,
-		})),
+		rooms: [
+			...roomSides.map((side) => ({
+				era: side.era,
+				center: vectorToPlainObject(side.center),
+				normal: vectorToPlainObject(side.normal),
+				tangent: vectorToPlainObject(side.tangent),
+				connectLeft: !!side.connectLeft,
+				connectRight: !!side.connectRight,
+			})),
+			...(isCurrentVariant && playgroundRoom
+				? [
+					{
+						era: 'The Playground',
+						center: { x: playgroundCenterX, y: 0, z: playgroundDoorZCenter },
+						normal: { x: 1, y: 0, z: 0 },
+						tangent: { x: 0, y: 0, z: 1 },
+						bounds: {
+							minX: playgroundMinX,
+							maxX: playgroundMaxX,
+							minZ: playgroundMinZ,
+							maxZ: playgroundMaxZ,
+						},
+					},
+				]
+				: []),
+		],
 		roomDepth,
 		innerHalfWidth,
 		sideEndHalfWidth,
 		backFlatHalf,
 		spokeEndZ,
-		doorways: galleryDoorways.map((d) => ({ x: d.x, z: d.z })),
+		doorways: [
+			...galleryDoorways.map((d) => ({ x: d.x, z: d.z })),
+			...(isCurrentVariant && playgroundRoom
+				? [{ x: playgroundDoorWallX, z: playgroundDoorZCenter, era: 'The Playground' }]
+				: []),
+		],
 		shopPassageDoorways: shopPassageDoorways.map((d) => ({ x: d.x, z: d.z, era: d.era, end: d.end })),
 		connections: galleryConnections.map((p) => [p.a.era, p.b.era]),
 		isInside: (x, z) => isPointInsideClosedMuseum(new THREE.Vector3(x, 1.6, z)),
@@ -13424,6 +14005,7 @@ function isPointInsideClosedMuseum(position) {
 		isPointInsideMuralPortals(position) ||
 		isPointInsideShop(position) ||
 		isPointInsideShopPassage(position) ||
+		isPointInsidePlayground(position) ||
 		movementZones.some(
 			(room) =>
 				isPointInsideRoom(position, room) ||
@@ -13463,6 +14045,33 @@ function isPointInsideShopPassage(position) {
 		}
 	}
 	return false;
+}
+
+// The Playground annex (east of Blocks Everywhere) plus the doorway through the
+// shared chamfer wall at x = playgroundDoorWallX. The doorway band straddles that
+// wall into the gallery interior so there is no leak to the void at the threshold;
+// its z-span is kept inside the clear opening so the player cannot slip past the
+// solid wall on either side of the door.
+function isPointInsidePlayground(position) {
+	if (!isCurrentVariant || !playgroundRoom) {
+		return false;
+	}
+	const padding = 0.5;
+	// Doorway band: straddle the chamfer wall into the gallery (-x) and annex (+x).
+	if (
+		Math.abs(position.z - playgroundDoorZCenter) <= playgroundDoorHalfWidth - 0.2 &&
+		position.x >= playgroundDoorWallX - 1.2 &&
+		position.x <= playgroundDoorWallX + padding + 0.3
+	) {
+		return true;
+	}
+	// Annex interior rectangle.
+	return (
+		position.x >= playgroundMinX + padding &&
+		position.x <= playgroundMaxX - padding &&
+		position.z >= playgroundMinZ + padding &&
+		position.z <= playgroundMaxZ - padding
+	);
 }
 
 // A point passing through a shared-wall doorway into the neighbour. The shared
