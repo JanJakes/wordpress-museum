@@ -4081,16 +4081,71 @@ function createRoomAccentWashes(room) {
 
 function createRoomRopeBarriers(color) {
 	const group = new THREE.Group();
-	// A single rope line guarding the wide back wall; side walls are left open
-	// (they carry the shared doorways).
-	const ropeZ = roomDepth / 2 - 2.35;
+	// Low rope-and-post railings guard every picture wall: the flat back wall,
+	// both 45deg chamfers, and both angled side walls. Each rope sits a short
+	// distance in front of its wall, inside the room; the side rails break at
+	// the shared doorway so the opening stays clear.
+	const ropeOptions = { postHeight: 0.78, ropeY: 0.8, capRadius: 0.07 };
+
+	// Back wall: parallel to z=roomDepth/2, set ~1.2 in front, spanning the flat.
+	const backRopeZ = roomDepth / 2 - 1.2;
+	const backHalf = backFlatHalf - 1.0;
 	group.add(createMuseumRopeLine([
-		{ x: -backFlatHalf + 1.6, z: ropeZ },
-		{ x: -backFlatHalf / 2, z: ropeZ },
-		{ x: 0, z: ropeZ },
-		{ x: backFlatHalf / 2, z: ropeZ },
-		{ x: backFlatHalf - 1.6, z: ropeZ },
-	], color));
+		{ x: -backHalf, z: backRopeZ },
+		{ x: -backHalf / 2, z: backRopeZ },
+		{ x: 0, z: backRopeZ },
+		{ x: backHalf / 2, z: backRopeZ },
+		{ x: backHalf, z: backRopeZ },
+	], color, ropeOptions));
+
+	// Chamfer + side rails on each side. The chamfer rail parallels the bevel,
+	// the side rails run the front and back wall segments either side of the
+	// door, leaving a gap across the opening.
+	const chamferOffset = 0.9;
+	const sideOffset = 0.95;
+	const cos = Math.cos(wedgeHalfAngle);
+	const sin = Math.sin(wedgeHalfAngle);
+	// Door-clearance band along the side wall: keep the rope well clear of it.
+	const doorClear = connectorDoorHalfWidth + 0.7;
+	const doorMinZ = connectorDoorZ - doorClear;
+	const doorMaxZ = connectorDoorZ + doorClear;
+
+	for (const sign of [-1, 1]) {
+		// Chamfer rope: along the 45deg line, offset inward (normal ~(-sign*c,-c)).
+		const cax = sign * sideEndHalfWidth;
+		const cbx = sign * backFlatHalf;
+		const caz = spokeEndZ;
+		const cbz = roomDepth / 2;
+		const cn = Math.SQRT1_2;
+		const chamferPoint = (u) => ({
+			x: cax + (cbx - cax) * u - sign * cn * chamferOffset,
+			z: caz + (cbz - caz) * u - cn * chamferOffset,
+		});
+		group.add(createMuseumRopeLine(
+			[chamferPoint(0.08), chamferPoint(0.5), chamferPoint(0.92)],
+			color,
+			ropeOptions
+		));
+
+		// Side rope: wall at x=sign*sideHalfWidthAtZ(z); offset inward along the
+		// tilted wall normal (-sign*cos, +sin).
+		const sidePoint = (z) => ({
+			x: sign * sideHalfWidthAtZ(z) - sign * cos * sideOffset,
+			z: z + sin * sideOffset,
+		});
+		// Back segment: from just past the door clearance to the beveled corner.
+		group.add(createMuseumRopeLine(
+			[sidePoint(doorMaxZ + 0.4), sidePoint(1), sidePoint(spokeEndZ - 0.3)],
+			color,
+			ropeOptions
+		));
+		// Front segment: from the hub-facing inner edge to the door clearance.
+		group.add(createMuseumRopeLine(
+			[sidePoint(-roomDepth / 2 + 0.9), sidePoint(doorMinZ - 0.4)],
+			color,
+			ropeOptions
+		));
+	}
 	return group;
 }
 
