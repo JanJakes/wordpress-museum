@@ -178,8 +178,8 @@ const muralPortals = [
 	{
 		offset: -portalCenterOffset,
 		kind: 'entrance',
-		title: 'ENTRANCE',
-		sub: 'wordpress.org',
+		title: 'WELCOME',
+		sub: 'Powered by wordpress.org',
 		url: wordpressOrgUrl,
 		runner: 0x2c6fae,
 		door: 0x1f6fb0,
@@ -592,13 +592,21 @@ function createPortalEndWall(portal, cx, zEnd, height) {
 	});
 	group.add(doorLight);
 
-	const cta = portal.kind === 'exit' ? 'CLICK TO EXIT  →' : 'CLICK TO ENTER  →';
-	const ctaSign = createReadableLabel(createSimpleTextTexture(cta, '#fff5df', '#10182a'), 2.0, 0.42);
-	ctaSign.position.set(cx, archHeight / 2 - archHeight * 0.42, zEnd - 0.32);
-	registerAnimation(ctaSign, (object, elapsed) => {
-		object.position.y = archHeight / 2 - archHeight * 0.42 + Math.sin(elapsed * 1.5) * 0.04;
-	});
-	group.add(ctaSign);
+	// The exit leads outside, so it keeps a prominent forward call-to-action. The
+	// entrance is where the visitor arrived, so it shows a subtle credit badge
+	// ("↩ visit wordpress.org") instead of an outward "ENTER" prompt.
+	if (portal.kind === 'exit') {
+		const ctaSign = createReadableLabel(createSimpleTextTexture('CLICK TO EXIT  →', '#fff5df', '#10182a'), 2.0, 0.42);
+		ctaSign.position.set(cx, archHeight / 2 - archHeight * 0.42, zEnd - 0.32);
+		registerAnimation(ctaSign, (object, elapsed) => {
+			object.position.y = archHeight / 2 - archHeight * 0.42 + Math.sin(elapsed * 1.5) * 0.04;
+		});
+		group.add(ctaSign);
+	} else {
+		const ctaSign = createReadableLabel(createSimpleTextTexture('↩  visit wordpress.org', '#cfe4ff', '#10182a'), 1.5, 0.28);
+		ctaSign.position.set(cx, archHeight / 2 - archHeight * 0.42, zEnd - 0.32);
+		group.add(ctaSign);
+	}
 	return group;
 }
 
@@ -710,18 +718,33 @@ function createPortalDoorTexture(portal) {
 	}
 	ctx.globalAlpha = 1;
 	const accent = '#' + new THREE.Color(portal.accent).getHexString();
-	ctx.fillStyle = '#fff5df';
-	ctx.font = '900 110px Arial Black, Impact, sans-serif';
 	ctx.textAlign = 'center';
-	ctx.fillText(portal.kind === 'exit' ? 'EXIT' : 'ENTER', canvas.width / 2, 230);
-	ctx.fillStyle = accent;
-	ctx.font = '900 220px Arial Black, Impact, sans-serif';
-	ctx.fillText('→', canvas.width / 2, 600);
-	ctx.fillStyle = '#fff5df';
-	ctx.font = '900 52px Arial Black, Impact, sans-serif';
-	ctx.fillText(portal.kind === 'exit' ? 'MERCANTILE' : 'WORDPRESS.ORG', canvas.width / 2, 800);
-	ctx.font = '500 28px ui-monospace, Menlo, monospace';
-	ctx.fillText(portal.url.replace('https://', '').replace(/\/$/, ''), canvas.width / 2, 870);
+	if (portal.kind === 'exit') {
+		ctx.fillStyle = '#fff5df';
+		ctx.font = '900 110px Arial Black, Impact, sans-serif';
+		ctx.fillText('EXIT', canvas.width / 2, 230);
+		ctx.fillStyle = accent;
+		ctx.font = '900 220px Arial Black, Impact, sans-serif';
+		ctx.fillText('→', canvas.width / 2, 600);
+		ctx.fillStyle = '#fff5df';
+		ctx.font = '900 52px Arial Black, Impact, sans-serif';
+		ctx.fillText('MERCANTILE', canvas.width / 2, 800);
+		ctx.font = '500 28px ui-monospace, Menlo, monospace';
+		ctx.fillText(portal.url.replace('https://', '').replace(/\/$/, ''), canvas.width / 2, 870);
+	} else {
+		// The visitor arrived through here, so the door reads as a welcome and a
+		// credit to wordpress.org rather than an outward "ENTER" prompt.
+		ctx.fillStyle = '#fff5df';
+		ctx.font = '900 104px Arial Black, Impact, sans-serif';
+		ctx.fillText('WELCOME', canvas.width / 2, 300);
+		ctx.fillStyle = accent;
+		ctx.font = '900 76px Arial Black, Impact, sans-serif';
+		ctx.fillText('Powered by', canvas.width / 2, 470);
+		ctx.fillText('WordPress', canvas.width / 2, 560);
+		ctx.fillStyle = '#fff5df';
+		ctx.font = '600 34px ui-monospace, Menlo, monospace';
+		ctx.fillText('↩  ' + portal.url.replace('https://', '').replace(/\/$/, ''), canvas.width / 2, 760);
+	}
 	const tex = new THREE.CanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
@@ -2655,25 +2678,44 @@ function createPortalSign(side, portal) {
 	sign.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
 	group.add(sign);
 
-	const arrowMaterial = new THREE.MeshBasicMaterial({
-		color: portal.accent,
-		transparent: true,
-		opacity: 0.9,
-	});
-	const arrowDir = portal.kind === 'entrance' ? -1 : 1;
-	for (let index = 0; index < 3; index++) {
-		const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.3, 4), arrowMaterial.clone());
-		arrow.position
-			.copy(side.midpoint)
-			.add(side.tangent.clone().multiplyScalar(portal.offset + (-1.0 + index * 1.0) * arrowDir))
-			.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.34));
-		arrow.position.y = 0.5;
-		arrow.rotation.x = Math.PI / 2;
-		arrow.rotation.y = getRotationForNormal(side.normal) + (arrowDir < 0 ? Math.PI : 0);
-		registerAnimation(arrow, (object, elapsed) => {
-			object.material.opacity = 0.5 + (Math.sin(elapsed * 2.2 + index * 0.9) * 0.5 + 0.5) * 0.5;
+	if (portal.kind === 'exit') {
+		// Animated arrows guide visitors out toward the gift shop.
+		const arrowMaterial = new THREE.MeshBasicMaterial({
+			color: portal.accent,
+			transparent: true,
+			opacity: 0.9,
 		});
-		group.add(arrow);
+		for (let index = 0; index < 3; index++) {
+			const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.3, 4), arrowMaterial.clone());
+			arrow.position
+				.copy(side.midpoint)
+				.add(side.tangent.clone().multiplyScalar(portal.offset + (-1.0 + index * 1.0)))
+				.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.34));
+			arrow.position.y = 0.5;
+			arrow.rotation.x = Math.PI / 2;
+			arrow.rotation.y = getRotationForNormal(side.normal);
+			registerAnimation(arrow, (object, elapsed) => {
+				object.material.opacity = 0.5 + (Math.sin(elapsed * 2.2 + index * 0.9) * 0.5 + 0.5) * 0.5;
+			});
+			group.add(arrow);
+		}
+	} else {
+		// No directional CTA: the visitor arrived here. A row of static marquee
+		// bulbs frames the welcome sign instead of beckoning arrows.
+		const bulbMaterial = new THREE.MeshBasicMaterial({ color: portal.accent });
+		for (let index = 0; index < 3; index++) {
+			const dot = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 10), bulbMaterial.clone());
+			dot.position
+				.copy(side.midpoint)
+				.add(side.tangent.clone().multiplyScalar(portal.offset + (-1.0 + index * 1.0)))
+				.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.34));
+			dot.position.y = 0.5;
+			registerAnimation(dot, (object, elapsed) => {
+				object.material.opacity = 0.6 + (Math.sin(elapsed * 1.8 + index * 1.2) * 0.5 + 0.5) * 0.4;
+			});
+			dot.material.transparent = true;
+			group.add(dot);
+		}
 	}
 	return group;
 }
