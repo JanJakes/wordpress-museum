@@ -196,6 +196,24 @@ const muralPortals = [
 		accent: 0xffd166,
 	},
 ];
+// The exit portal opens (through its back archway) into a small physical
+// Mercantile gift shop the visitor can walk into. The shop is centered on the
+// exit alcove's x so the connecting passage lines up, and sits entirely beyond
+// the alcove's end wall (further +z) so it never overlaps the entrance alcove
+// or the rotunda.
+const shopCenterX = portalCenterOffset;
+const shopWidth = 10;
+const shopDepth = 8;
+const shopHeight = 5.4;
+const shopWallThickness = 0.3;
+const shopZStart = hubApothem + portalAlcoveDepth + 0.1; // just past the alcove end wall
+const shopZEnd = shopZStart + shopDepth;
+const shopCenterZ = (shopZStart + shopZEnd) / 2;
+const shopMinX = shopCenterX - shopWidth / 2;
+const shopMaxX = shopCenterX + shopWidth / 2;
+// The walk-through doorway joining the exit alcove to the shop spans this gap.
+const shopDoorHalfWidth = portalAlcoveHalfWidth - 0.05;
+const shopDoorHeight = portalDoorHeight - 0.2;
 const walkSpeed = 7.2;
 const arrowWalkSpeed = 9.2;
 const mobileWalkSpeed = 8.8;
@@ -438,6 +456,7 @@ function createMuralPortals() {
 	for (const portal of muralPortals) {
 		group.add(createPortalAlcove(portal));
 	}
+	group.add(createMercantileShop());
 	return group;
 }
 
@@ -520,6 +539,11 @@ function createPortalAlcove(portal) {
 }
 
 function createPortalEndWall(portal, cx, zEnd, height) {
+	// The exit alcove opens through its back wall into the walkable gift shop,
+	// so it gets an open doorway instead of the entrance's closed clickable door.
+	if (portal.kind === 'exit') {
+		return createShopDoorway(cx, zEnd, height);
+	}
 	const group = new THREE.Group();
 	const wallMaterial = createMuseumMaterial('roomWall', {
 		repeatX: portalAlcoveHalfWidth,
@@ -592,21 +616,83 @@ function createPortalEndWall(portal, cx, zEnd, height) {
 	});
 	group.add(doorLight);
 
-	// The exit leads outside, so it keeps a prominent forward call-to-action. The
-	// entrance is where the visitor arrived, so it shows a subtle credit badge
-	// ("↩ visit wordpress.org") instead of an outward "ENTER" prompt.
-	if (portal.kind === 'exit') {
-		const ctaSign = createReadableLabel(createSimpleTextTexture('CLICK TO EXIT  →', '#fff5df', '#10182a'), 2.0, 0.42);
-		ctaSign.position.set(cx, archHeight / 2 - archHeight * 0.42, zEnd - 0.32);
-		registerAnimation(ctaSign, (object, elapsed) => {
-			object.position.y = archHeight / 2 - archHeight * 0.42 + Math.sin(elapsed * 1.5) * 0.04;
-		});
-		group.add(ctaSign);
-	} else {
-		const ctaSign = createReadableLabel(createSimpleTextTexture('↩  visit wordpress.org', '#cfe4ff', '#10182a'), 1.5, 0.28);
-		ctaSign.position.set(cx, archHeight / 2 - archHeight * 0.42, zEnd - 0.32);
-		group.add(ctaSign);
+	// The entrance is where the visitor arrived, so it shows a subtle credit badge
+	// ("↩ visit wordpress.org") instead of an outward prompt.
+	const ctaSign = createReadableLabel(createSimpleTextTexture('↩  visit wordpress.org', '#cfe4ff', '#10182a'), 1.5, 0.28);
+	ctaSign.position.set(cx, archHeight / 2 - archHeight * 0.42, zEnd - 0.32);
+	group.add(ctaSign);
+	return group;
+}
+
+// The back of the exit alcove: a brass-framed open doorway (lintel + posts, no
+// door slab) leading into the gift shop. The flanking wall segments fill the
+// rest of the alcove's back so the shop stays enclosed.
+function createShopDoorway(cx, zEnd, height) {
+	const group = new THREE.Group();
+	const wallMaterial = createMuseumMaterial('roomWall', {
+		repeatX: portalAlcoveHalfWidth,
+		repeatY: height / 2.4,
+		color: wallWarmTint,
+	});
+	const totalWidth = portalAlcoveHalfWidth * 2 + wallThickness * 2;
+	const openW = shopDoorHalfWidth * 2;
+
+	// Lintel above the opening.
+	const lintelH = height - shopDoorHeight;
+	const lintel = new THREE.Mesh(
+		new THREE.BoxGeometry(totalWidth, lintelH, wallThickness),
+		wallMaterial
+	);
+	lintel.position.set(cx, shopDoorHeight + lintelH / 2, zEnd + wallThickness / 2);
+	group.add(lintel);
+
+	// Narrow jambs flanking the opening (the opening nearly spans the alcove,
+	// so these are slim).
+	const jambW = (totalWidth - openW) / 2;
+	if (jambW > 0.02) {
+		for (const xSign of [-1, 1]) {
+			const jamb = new THREE.Mesh(
+				new THREE.BoxGeometry(jambW, shopDoorHeight, wallThickness),
+				wallMaterial
+			);
+			jamb.position.set(
+				cx + xSign * (openW / 2 + jambW / 2),
+				shopDoorHeight / 2,
+				zEnd + wallThickness / 2
+			);
+			group.add(jamb);
+		}
 	}
+
+	// Brass archway around the opening.
+	const archMaterial = new THREE.MeshStandardMaterial({
+		color: 0xf5d088,
+		emissive: 0x4a2810,
+		emissiveIntensity: 0.32,
+		roughness: 0.32,
+		metalness: 0.46,
+	});
+	const archFrame = new THREE.Mesh(new THREE.BoxGeometry(openW + 0.36, 0.2, 0.46), archMaterial);
+	archFrame.position.set(cx, shopDoorHeight + 0.06, zEnd - 0.06);
+	group.add(archFrame);
+	for (const xSign of [-1, 1]) {
+		const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, shopDoorHeight + 0.16, 0.4), archMaterial);
+		post.position.set(cx + xSign * (openW / 2 + 0.09), (shopDoorHeight + 0.16) / 2, zEnd - 0.06);
+		group.add(post);
+	}
+
+	// Header sign above the doorway, visible from the alcove.
+	const sign = createReadableLabel(createMercantileSignTexture('MERCANTILE', 'GIFT SHOP — THIS WAY'), 2.1, 0.7);
+	sign.position.set(cx, shopDoorHeight + lintelH * 0.55, zEnd - 0.16);
+	group.add(sign);
+
+	// Warm spill light at the threshold so the shop reads as inviting.
+	const glow = new THREE.PointLight(0xffd98a, 0.8, 7);
+	glow.position.set(cx, shopDoorHeight * 0.6, zEnd + 0.4);
+	registerAnimation(glow, (object, elapsed) => {
+		object.intensity = 0.7 + Math.sin(elapsed * 1.1) * 0.12;
+	});
+	group.add(glow);
 	return group;
 }
 
@@ -698,6 +784,564 @@ function createDownloadPlinth(cx, z) {
 	tag.position.set(cx, 0.58, z - 0.46);
 	group.add(tag);
 	return group;
+}
+
+// The walkable Mercantile gift shop beyond the exit alcove: an enclosed marble
+// room with a warm floor, its own ceiling light, WordPress merch on shelves and
+// tables, a checkout counter, and signage. Reached on foot through the exit
+// alcove's open back doorway.
+function createMercantileShop() {
+	const group = new THREE.Group();
+	const cx = shopCenterX;
+	const cz = shopCenterZ;
+
+	// Warm marble floor.
+	const floor = new THREE.Mesh(
+		new THREE.PlaneGeometry(shopWidth, shopDepth),
+		createMuseumMaterial('roomFloor', {
+			repeatX: shopWidth / floorTileSpan,
+			repeatY: shopDepth / floorTileSpan,
+			roughness: 0.28,
+			metalness: 0.28,
+		})
+	);
+	floor.rotation.x = -Math.PI / 2;
+	floor.position.set(cx, 0.012, cz);
+	group.add(floor);
+
+	// A warm rug to anchor the room center.
+	const rug = new THREE.Mesh(
+		new THREE.PlaneGeometry(shopWidth * 0.5, shopDepth * 0.46),
+		new THREE.MeshStandardMaterial({ color: 0xb6442b, roughness: 0.92, metalness: 0.02 })
+	);
+	rug.rotation.x = -Math.PI / 2;
+	rug.position.set(cx, 0.05, cz + 0.4);
+	group.add(rug);
+
+	const wallMaterial = createMuseumMaterial('roomWall', {
+		repeatX: shopWidth / 4.6,
+		repeatY: shopHeight / 2.4,
+		color: wallWarmTint,
+		roughness: 0.9,
+		metalness: 0.03,
+	});
+
+	// Back wall (far +z) and the two side walls.
+	const backWall = new THREE.Mesh(
+		new THREE.BoxGeometry(shopWidth + shopWallThickness * 2, shopHeight, shopWallThickness),
+		wallMaterial
+	);
+	backWall.position.set(cx, shopHeight / 2, shopZEnd + shopWallThickness / 2);
+	group.add(backWall);
+	for (const xSign of [-1, 1]) {
+		const sideWall = new THREE.Mesh(
+			new THREE.BoxGeometry(shopWallThickness, shopHeight, shopDepth + shopWallThickness * 2),
+			wallMaterial
+		);
+		sideWall.position.set(cx + xSign * (shopWidth / 2 + shopWallThickness / 2), shopHeight / 2, cz);
+		group.add(sideWall);
+	}
+
+	// Front wall (toward the hub) with a doorway gap aligned to the exit alcove.
+	const frontZ = shopZStart - shopWallThickness / 2;
+	const openMinX = cx - shopDoorHalfWidth;
+	const openMaxX = cx + shopDoorHalfWidth;
+	const leftSegWidth = openMinX - shopMinX;
+	const rightSegWidth = shopMaxX - openMaxX;
+	if (leftSegWidth > 0.02) {
+		const seg = new THREE.Mesh(
+			new THREE.BoxGeometry(leftSegWidth, shopHeight, shopWallThickness),
+			wallMaterial
+		);
+		seg.position.set(shopMinX + leftSegWidth / 2, shopHeight / 2, frontZ);
+		group.add(seg);
+	}
+	if (rightSegWidth > 0.02) {
+		const seg = new THREE.Mesh(
+			new THREE.BoxGeometry(rightSegWidth, shopHeight, shopWallThickness),
+			wallMaterial
+		);
+		seg.position.set(openMaxX + rightSegWidth / 2, shopHeight / 2, frontZ);
+		group.add(seg);
+	}
+	// Lintel over the doorway gap.
+	const lintelH = shopHeight - shopDoorHeight;
+	const lintel = new THREE.Mesh(
+		new THREE.BoxGeometry(shopDoorHalfWidth * 2, lintelH, shopWallThickness),
+		wallMaterial
+	);
+	lintel.position.set(cx, shopDoorHeight + lintelH / 2, frontZ);
+	group.add(lintel);
+
+	// Skirting/baseboard trim around the room for a finished look.
+	const trimMat = new THREE.MeshStandardMaterial({ color: 0xd9c8a6, roughness: 0.6, metalness: 0.1 });
+	const trimBack = new THREE.Mesh(new THREE.BoxGeometry(shopWidth, 0.22, 0.06), trimMat);
+	trimBack.position.set(cx, 0.11, shopZEnd - 0.04);
+	group.add(trimBack);
+	for (const xSign of [-1, 1]) {
+		const trimSide = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.22, shopDepth), trimMat);
+		trimSide.position.set(cx + xSign * (shopWidth / 2 - 0.04), 0.11, cz);
+		group.add(trimSide);
+	}
+
+	// Ceiling.
+	const ceiling = new THREE.Mesh(
+		new THREE.PlaneGeometry(shopWidth + shopWallThickness * 2, shopDepth + shopWallThickness * 2),
+		new THREE.MeshStandardMaterial({ color: 0x1a2640, roughness: 0.6, metalness: 0.16, side: THREE.DoubleSide })
+	);
+	ceiling.rotation.x = Math.PI / 2;
+	ceiling.position.set(cx, shopHeight, cz);
+	group.add(ceiling);
+
+	// Ceiling light fixture + lamp so the room is bright.
+	const fixture = new THREE.Mesh(
+		new THREE.BoxGeometry(2.6, 0.12, 1.4),
+		new THREE.MeshStandardMaterial({ color: 0xf2cf86, emissive: 0x3a2710, emissiveIntensity: 0.18, roughness: 0.3, metalness: 0.5 })
+	);
+	fixture.position.set(cx, shopHeight - 0.08, cz);
+	group.add(fixture);
+	const panel = new THREE.Mesh(
+		new THREE.PlaneGeometry(2.3, 1.1),
+		new THREE.MeshBasicMaterial({ color: 0xfff2cf })
+	);
+	panel.rotation.x = Math.PI / 2;
+	panel.position.set(cx, shopHeight - 0.16, cz);
+	group.add(panel);
+	const lamp = new THREE.PointLight(0xffe7b8, 1.5, 22);
+	lamp.position.set(cx, shopHeight - 0.6, cz);
+	registerAnimation(lamp, (object, elapsed) => {
+		object.intensity = 1.4 + Math.sin(elapsed * 1.3) * 0.12;
+	});
+	group.add(lamp);
+	// A second softer fill light toward the back so corners aren't dark.
+	const fill = new THREE.PointLight(0xfff0d6, 0.6, 16);
+	fill.position.set(cx, shopHeight - 1.4, shopZEnd - 1.6);
+	group.add(fill);
+
+	group.add(createMercantileWallSign(cx, shopZEnd));
+	group.add(createMercantileShelves());
+	group.add(createMercantileTables());
+	group.add(createMercantileCounter());
+	return group;
+}
+
+// Big "MERCANTILE" wall sign mounted high on the back wall. The brass frame
+// sits flush against the wall and the lit sign board floats just in front of
+// it (toward the viewer, i.e. smaller z) so the text is never occluded.
+function createMercantileWallSign(cx, backZ) {
+	const group = new THREE.Group();
+	const wallFace = backZ - shopWallThickness / 2;
+	// Brass frame flush against the wall, slightly larger than the board.
+	const frame = new THREE.Mesh(
+		new THREE.BoxGeometry(5.5, 1.8, 0.08),
+		new THREE.MeshStandardMaterial({ color: 0xe8b765, roughness: 0.4, metalness: 0.5, emissive: 0x3a2710, emissiveIntensity: 0.18 })
+	);
+	frame.position.set(cx, shopHeight - 1.5, wallFace - 0.04);
+	group.add(frame);
+	// Sign board in front of the frame.
+	const board = createReadableLabel(
+		createMercantileSignTexture('THE MERCANTILE', 'WORDPRESS · GIFT SHOP'),
+		5.2,
+		1.5
+	);
+	board.position.set(cx, shopHeight - 1.5, wallFace - 0.12);
+	board.rotation.y = Math.PI;
+	group.add(board);
+	return group;
+}
+
+// Wall shelving with apparel and small goods along the back and left walls.
+function createMercantileShelves() {
+	const group = new THREE.Group();
+	const woodMat = new THREE.MeshStandardMaterial({ color: 0xc9a16a, roughness: 0.62, metalness: 0.08 });
+
+	// Back-wall shelf unit with folded tees/hoodies and books.
+	const backShelfZ = shopZEnd - 0.42;
+	const backShelfW = 5.6;
+	const backShelfX = shopCenterX - 1.4;
+	for (const y of [1.0, 1.7, 2.4]) {
+		const board = new THREE.Mesh(new THREE.BoxGeometry(backShelfW, 0.07, 0.5), woodMat);
+		board.position.set(backShelfX, y, backShelfZ);
+		group.add(board);
+	}
+	// Side supports.
+	for (const xSign of [-1, 1]) {
+		const post = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.7, 0.5), woodMat);
+		post.position.set(backShelfX + xSign * backShelfW / 2, 1.7, backShelfZ);
+		group.add(post);
+	}
+	// Folded apparel stacks on the lower two shelves.
+	const apparelColors = [0x2bb7ff, 0x1f6feb, 0x21a366, 0xffd166, 0xc24a2c, 0x8062ff];
+	let ci = 0;
+	for (const y of [1.07, 1.77]) {
+		for (let i = 0; i < 5; i++) {
+			const stackX = backShelfX - backShelfW / 2 + 0.7 + i * (backShelfW - 1.4) / 4;
+			const tee = createFoldedApparel(apparelColors[ci % apparelColors.length]);
+			tee.position.set(stackX, y, backShelfZ);
+			group.add(tee);
+			ci++;
+		}
+	}
+	// Books standing on the top shelf.
+	const bookColors = [0x2c3e63, 0x8a2f2f, 0x2f6b3f, 0xb58a2a, 0x4a3b6b];
+	for (let i = 0; i < 8; i++) {
+		const book = new THREE.Mesh(
+			new THREE.BoxGeometry(0.06 + Math.random() * 0.03, 0.34, 0.24),
+			new THREE.MeshStandardMaterial({ color: bookColors[i % bookColors.length], roughness: 0.7 })
+		);
+		book.position.set(backShelfX - backShelfW / 2 + 0.5 + i * 0.16, 2.6, backShelfZ);
+		group.add(book);
+	}
+	const booksTag = createPriceTag('BOOKS  $24');
+	booksTag.position.set(backShelfX, 2.32, backShelfZ - 0.02);
+	booksTag.rotation.y = Math.PI;
+	group.add(booksTag);
+	const teesTag = createPriceTag('TEES  $25');
+	teesTag.position.set(backShelfX, 0.92, backShelfZ - 0.02);
+	teesTag.rotation.y = Math.PI;
+	group.add(teesTag);
+
+	// Left-wall pegboard with mugs and a poster.
+	const leftX = shopMinX + 0.12;
+	const mugZs = [shopCenterZ - 1.6, shopCenterZ - 0.8, shopCenterZ];
+	const mugShelf = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.06, 3.2), woodMat);
+	mugShelf.position.set(leftX + 0.2, 1.5, shopCenterZ - 0.6);
+	group.add(mugShelf);
+	for (const z of mugZs) {
+		const mug = createMug();
+		mug.position.set(leftX + 0.25, 1.62, z);
+		group.add(mug);
+	}
+	const mugTag = createPriceTag('"CODE IS POETRY"  $15');
+	mugTag.position.set(leftX + 0.21, 1.16, shopCenterZ - 0.6);
+	mugTag.rotation.y = Math.PI / 2;
+	group.add(mugTag);
+	// Poster on the left wall.
+	const poster = new THREE.Mesh(
+		new THREE.PlaneGeometry(1.7, 2.3),
+		new THREE.MeshBasicMaterial({ map: createMercantilePosterTexture(), transparent: true })
+	);
+	poster.position.set(leftX + 0.05, 3.0, shopCenterZ - 2.1);
+	poster.rotation.y = Math.PI / 2;
+	group.add(poster);
+
+	return group;
+}
+
+// Free-standing display tables in the middle of the shop: plushies, stickers,
+// pin badges.
+function createMercantileTables() {
+	const group = new THREE.Group();
+	const tableMat = new THREE.MeshStandardMaterial({ color: 0xe7d6b2, roughness: 0.6, metalness: 0.08 });
+
+	const makeTable = (x, z, w, d, h) => {
+		const t = new THREE.Group();
+		const top = new THREE.Mesh(new THREE.BoxGeometry(w, 0.1, d), tableMat);
+		top.position.set(0, h, 0);
+		t.add(top);
+		for (const sx of [-1, 1]) {
+			for (const sz of [-1, 1]) {
+				const leg = new THREE.Mesh(
+					new THREE.CylinderGeometry(0.05, 0.05, h, 10),
+					new THREE.MeshStandardMaterial({ color: 0x8a6a3c, roughness: 0.5, metalness: 0.3 })
+				);
+				leg.position.set(sx * (w / 2 - 0.12), h / 2, sz * (d / 2 - 0.12));
+				t.add(leg);
+			}
+		}
+		t.position.set(x, 0, z);
+		return t;
+	};
+
+	// Plush table: Wapuu + ElePHPant.
+	const plushTable = makeTable(shopCenterX + 1.3, shopCenterZ - 0.3, 2.2, 1.3, 0.92);
+	group.add(plushTable);
+	const wapuu = createWapuu3D({ height: 0.7, accent: 0xffd166 });
+	wapuu.position.set(shopCenterX + 0.7, 0.97 + 0.02, shopCenterZ - 0.3);
+	wapuu.rotation.y = Math.PI + 0.3;
+	group.add(wapuu);
+	const elephant = createElephpantPlush();
+	elephant.position.set(shopCenterX + 1.9, 0.97 + 0.02, shopCenterZ - 0.3);
+	group.add(elephant);
+	const plushTag = createPriceTag('PLUSHIES  $30');
+	plushTag.position.set(shopCenterX + 1.3, 1.0, shopCenterZ - 0.95);
+	plushTag.rotation.y = Math.PI;
+	group.add(plushTag);
+
+	// Sticker + pin badge table near the front-left.
+	const smallTable = makeTable(shopCenterX - 2.6, shopCenterZ + 1.4, 1.8, 1.1, 0.86);
+	group.add(smallTable);
+	// Sticker sheets (flat colorful cards).
+	const stickerColors = [0x2bb7ff, 0xffd166, 0x21a366, 0xc24a2c, 0x8062ff];
+	for (let i = 0; i < 4; i++) {
+		const sheet = new THREE.Mesh(
+			new THREE.BoxGeometry(0.34, 0.012, 0.46),
+			new THREE.MeshStandardMaterial({ color: stickerColors[i], roughness: 0.5, emissive: stickerColors[i], emissiveIntensity: 0.06 })
+		);
+		sheet.position.set(shopCenterX - 3.1 + (i % 2) * 0.45, 0.93, shopCenterZ + 1.15 + Math.floor(i / 2) * 0.5);
+		sheet.rotation.y = (Math.random() - 0.5) * 0.3;
+		group.add(sheet);
+	}
+	// Pin badges (tiny cylinders) in a small tray.
+	const tray = new THREE.Mesh(
+		new THREE.BoxGeometry(0.7, 0.06, 0.5),
+		new THREE.MeshStandardMaterial({ color: 0x3a2c1c, roughness: 0.6 })
+	);
+	tray.position.set(shopCenterX - 2.1, 0.92, shopCenterZ + 1.4);
+	group.add(tray);
+	const pinColors = [0xffd166, 0x2bb7ff, 0xc24a2c, 0x21a366, 0x8062ff, 0xffffff];
+	for (let i = 0; i < 6; i++) {
+		const pin = new THREE.Mesh(
+			new THREE.CylinderGeometry(0.05, 0.05, 0.03, 16),
+			new THREE.MeshStandardMaterial({ color: pinColors[i], roughness: 0.35, metalness: 0.3, emissive: pinColors[i], emissiveIntensity: 0.08 })
+		);
+		pin.position.set(shopCenterX - 2.35 + (i % 3) * 0.24, 0.96, shopCenterZ + 1.28 + Math.floor(i / 3) * 0.24);
+		group.add(pin);
+	}
+	const pinTag = createPriceTag('STICKERS & PINS  $5');
+	pinTag.position.set(shopCenterX - 2.6, 0.94, shopCenterZ + 0.85);
+	pinTag.rotation.y = Math.PI;
+	group.add(pinTag);
+
+	return group;
+}
+
+// Checkout counter with a cash register and the "shop online" link, near the
+// front-right corner of the shop so visitors pass it on the way in/out.
+function createMercantileCounter() {
+	const group = new THREE.Group();
+	const counterX = shopMaxX - 1.5;
+	const counterZ = shopZStart + 1.5;
+	const counterW = 2.6;
+	const counterD = 1.0;
+	const counterH = 1.05;
+
+	const body = new THREE.Mesh(
+		new THREE.BoxGeometry(counterW, counterH, counterD),
+		new THREE.MeshStandardMaterial({ color: 0x6f4a2c, roughness: 0.55, metalness: 0.1 })
+	);
+	body.position.set(counterX, counterH / 2, counterZ);
+	group.add(body);
+	// Marble countertop.
+	const top = new THREE.Mesh(
+		new THREE.BoxGeometry(counterW + 0.16, 0.1, counterD + 0.16),
+		new THREE.MeshStandardMaterial({ color: 0xf3ecdc, roughness: 0.3, metalness: 0.2 })
+	);
+	top.position.set(counterX, counterH + 0.05, counterZ);
+	group.add(top);
+	// Brass kick rail.
+	const rail = new THREE.Mesh(
+		new THREE.BoxGeometry(counterW, 0.06, 0.06),
+		new THREE.MeshStandardMaterial({ color: 0xe8b765, roughness: 0.4, metalness: 0.5 })
+	);
+	rail.position.set(counterX, 0.18, counterZ - counterD / 2 - 0.04);
+	group.add(rail);
+
+	// Cash register.
+	const reg = new THREE.Group();
+	const regBase = new THREE.Mesh(
+		new THREE.BoxGeometry(0.5, 0.3, 0.42),
+		new THREE.MeshStandardMaterial({ color: 0x2b3550, roughness: 0.5, metalness: 0.2 })
+	);
+	regBase.position.y = 0.15;
+	reg.add(regBase);
+	const regScreen = new THREE.Mesh(
+		new THREE.BoxGeometry(0.34, 0.22, 0.04),
+		new THREE.MeshStandardMaterial({ color: 0x2bb7ff, emissive: 0x123a52, emissiveIntensity: 0.5, roughness: 0.3 })
+	);
+	regScreen.position.set(0, 0.36, -0.12);
+	regScreen.rotation.x = -0.3;
+	reg.add(regScreen);
+	const regDrawer = new THREE.Mesh(
+		new THREE.BoxGeometry(0.46, 0.1, 0.4),
+		new THREE.MeshStandardMaterial({ color: 0x4a5570, roughness: 0.5 })
+	);
+	regDrawer.position.set(0, 0.05, 0.02);
+	reg.add(regDrawer);
+	reg.position.set(counterX - 0.6, counterH + 0.1, counterZ);
+	group.add(reg);
+
+	// A small Wapuu mascot at the till.
+	const tillWapuu = createWapuu3D({ height: 0.4, accent: 0x2bb7ff });
+	tillWapuu.position.set(counterX + 0.7, counterH + 0.1, counterZ);
+	tillWapuu.rotation.y = -0.5;
+	group.add(tillWapuu);
+
+	// "Shop online" sign on the counter front — keeps the external Mercantile
+	// link accessible (clickable) inside the physical shop.
+	const onlineSign = new THREE.Mesh(
+		new THREE.PlaneGeometry(1.9, 0.6),
+		new THREE.MeshBasicMaterial({ map: createShopOnlineTexture(), transparent: true })
+	);
+	onlineSign.position.set(counterX, 0.62, counterZ - counterD / 2 - 0.02);
+	onlineSign.userData.portalUrl = mercantileUrl;
+	group.add(onlineSign);
+	pickables.push(onlineSign);
+
+	// Hanging "CHECKOUT" sign above the counter.
+	const checkoutSign = createReadableLabel(createSmallSignTexture('CHECKOUT', '#c24a2c'), 1.4, 0.4);
+	checkoutSign.position.set(counterX, shopHeight - 1.0, counterZ);
+	group.add(checkoutSign);
+
+	return group;
+}
+
+function createFoldedApparel(color) {
+	const group = new THREE.Group();
+	const c = new THREE.Color(color);
+	for (let i = 0; i < 3; i++) {
+		const fold = new THREE.Mesh(
+			new THREE.BoxGeometry(0.42, 0.08, 0.36),
+			new THREE.MeshStandardMaterial({ color: c.clone().multiplyScalar(1 - i * 0.08), roughness: 0.78 })
+		);
+		fold.position.y = 0.05 + i * 0.085;
+		group.add(fold);
+	}
+	return group;
+}
+
+function createMug() {
+	const group = new THREE.Group();
+	const body = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.1, 0.09, 0.22, 18),
+		new THREE.MeshStandardMaterial({ color: 0xf4f1ea, roughness: 0.4, metalness: 0.05 })
+	);
+	body.position.y = 0.11;
+	group.add(body);
+	const band = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.101, 0.101, 0.07, 18),
+		new THREE.MeshStandardMaterial({ color: 0x2bb7ff, roughness: 0.4 })
+	);
+	band.position.y = 0.1;
+	group.add(band);
+	const handle = new THREE.Mesh(
+		new THREE.TorusGeometry(0.06, 0.018, 8, 16, Math.PI),
+		new THREE.MeshStandardMaterial({ color: 0xf4f1ea, roughness: 0.4 })
+	);
+	handle.position.set(0.1, 0.11, 0);
+	handle.rotation.z = -Math.PI / 2;
+	group.add(handle);
+	return group;
+}
+
+// Simple PHP elephant ("ElePHPant") plush in its classic purple-blue.
+function createElephpantPlush() {
+	const group = new THREE.Group();
+	const mat = new THREE.MeshStandardMaterial({ color: 0x8893bf, roughness: 0.82, metalness: 0.02 });
+	const body = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.34, 0.5), mat);
+	body.position.y = 0.3;
+	group.add(body);
+	const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.26), mat);
+	head.position.set(0, 0.46, 0.28);
+	group.add(head);
+	// Trunk.
+	const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.34, 10), mat);
+	trunk.position.set(0, 0.34, 0.42);
+	trunk.rotation.x = 0.5;
+	group.add(trunk);
+	// Ears.
+	for (const sx of [-1, 1]) {
+		const ear = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.22, 0.2), mat);
+		ear.position.set(sx * 0.17, 0.5, 0.26);
+		group.add(ear);
+	}
+	// Legs.
+	for (const sx of [-1, 1]) {
+		for (const sz of [-1, 1]) {
+			const leg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 0.12), mat);
+			leg.position.set(sx * 0.12, 0.08, sz * 0.16);
+			group.add(leg);
+		}
+	}
+	// Eyes.
+	for (const sx of [-1, 1]) {
+		const eye = new THREE.Mesh(
+			new THREE.SphereGeometry(0.025, 10, 8),
+			new THREE.MeshBasicMaterial({ color: 0x101820 })
+		);
+		eye.position.set(sx * 0.08, 0.52, 0.4);
+		group.add(eye);
+	}
+	group.rotation.y = -0.4;
+	return group;
+}
+
+function createPriceTag(text) {
+	return createReadableLabel(createSmallSignTexture(text, '#21a366'), Math.max(0.6, text.length * 0.072), 0.2);
+}
+
+function createMercantileSignTexture(title, sub) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 1024;
+	canvas.height = 320;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#1b2740';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#e8b765';
+	ctx.fillRect(0, 0, canvas.width, 14);
+	ctx.fillRect(0, canvas.height - 14, canvas.width, 14);
+	ctx.fillStyle = '#ffd98a';
+	ctx.font = '900 116px Arial Black, Impact, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	fillFittedCanvasText(ctx, title, canvas.width / 2, 130, 940, 116, '900', 'Arial Black, Impact, sans-serif');
+	ctx.fillStyle = '#cfe4ff';
+	ctx.font = '700 46px system-ui, sans-serif';
+	fillFittedCanvasText(ctx, sub, canvas.width / 2, 232, 900, 46, '700', 'system-ui, sans-serif');
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
+}
+
+function createShopOnlineTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 768;
+	canvas.height = 240;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#fff5df';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.strokeStyle = '#c24a2c';
+	ctx.lineWidth = 12;
+	ctx.strokeRect(14, 14, canvas.width - 28, canvas.height - 28);
+	ctx.fillStyle = '#c24a2c';
+	ctx.font = '900 64px Arial Black, Impact, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('SHOP ONLINE', canvas.width / 2, 90);
+	ctx.fillStyle = '#1b2740';
+	ctx.font = '700 40px system-ui, sans-serif';
+	ctx.fillText('mercantile.wordpress.org', canvas.width / 2, 162);
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
+}
+
+function createMercantilePosterTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 700;
+	const ctx = canvas.getContext('2d');
+	const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+	grad.addColorStop(0, '#21759b');
+	grad.addColorStop(1, '#0f3a52');
+	ctx.fillStyle = grad;
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#ffd166';
+	ctx.font = '900 90px Arial Black, Impact, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('CODE', canvas.width / 2, 180);
+	ctx.fillText('IS', canvas.width / 2, 300);
+	ctx.fillText('POETRY', canvas.width / 2, 420);
+	ctx.fillStyle = '#fff5df';
+	ctx.font = '700 36px system-ui, sans-serif';
+	ctx.fillText('— WordPress —', canvas.width / 2, 560);
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
 }
 
 function createPortalDoorTexture(portal) {
@@ -9731,6 +10375,17 @@ function getMuseumFootprintPoints() {
 			points.push(roomLocalToWorld(room, new THREE.Vector3(x, 0, z)));
 		}
 	}
+	// The Mercantile gift shop extends past the mural wall in the current
+	// variant; include its outer corners so camera bounds reach it.
+	if (isCurrentVariant) {
+		const wt = shopWallThickness;
+		points.push(
+			new THREE.Vector3(shopMinX - wt, 0, shopZStart - wt),
+			new THREE.Vector3(shopMaxX + wt, 0, shopZStart - wt),
+			new THREE.Vector3(shopMaxX + wt, 0, shopZEnd + wt),
+			new THREE.Vector3(shopMinX - wt, 0, shopZEnd + wt)
+		);
+	}
 	return points;
 }
 
@@ -10820,6 +11475,7 @@ function isPointInsideClosedMuseum(position) {
 	return (
 		isPointInsideHub(position) ||
 		isPointInsideMuralPortals(position) ||
+		isPointInsideShop(position) ||
 		movementZones.some(
 			(room) =>
 				isPointInsideRoom(position, room) ||
@@ -10858,6 +11514,33 @@ function isPointInsideMuralPortals(position) {
 	}
 	return muralPortals.some(
 		(portal) => Math.abs(position.x - portal.offset) <= portalAlcoveHalfWidth - padding
+	);
+}
+
+// The walkable Mercantile gift shop plus the short connector through the exit
+// alcove's open back doorway. The connector band bridges the gap between where
+// isPointInsideMuralPortals stops (z = hubApothem + portalAlcoveDepth - 0.4)
+// and the shop's interior, so there is no dead zone at the threshold.
+function isPointInsideShop(position) {
+	if (!isCurrentVariant) {
+		return false;
+	}
+	const padding = 0.5;
+	// Connector doorway: aligned to the exit alcove, spanning the alcove end
+	// wall and the shop's front wall.
+	if (
+		position.z >= hubApothem + portalAlcoveDepth - 0.6 &&
+		position.z <= shopZStart + padding + 0.3 &&
+		Math.abs(position.x - shopCenterX) <= shopDoorHalfWidth - 0.15
+	) {
+		return true;
+	}
+	// Shop interior rectangle.
+	return (
+		position.z >= shopZStart + padding &&
+		position.z <= shopZEnd - padding &&
+		position.x >= shopMinX + padding &&
+		position.x <= shopMaxX - padding
 	);
 }
 
