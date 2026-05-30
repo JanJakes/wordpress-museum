@@ -6191,10 +6191,199 @@ function createAtriumDecor() {
 		group.add(createAtriumTimelineRing());
 		group.add(createAtriumVersionOrbit());
 		group.add(createAtriumRopeArcs(color, secondary));
+		group.add(createLogoEvolutionDisplay());
 	}
 	addAtriumFeature(group, activeVariant.atriumFeature, color, secondary);
 	addAtriumBenches(group);
 	return group;
+}
+
+// "The WordPress logo through the years": a brass-framed museum panel hung on the
+// clean grey-marble wall segment to the right of the Modern Admin doorway — the
+// wall a visitor faces on entering from the welcome portal. It charts the mark's
+// evolution left-to-right, oldest to newest, ending on the modern circular-W mark.
+// World-space; sits at picture height clear of the floor beacons/lamp below.
+function createLogoEvolutionDisplay() {
+	const group = new THREE.Group();
+	const side = hubSides.find((s) => s.era === eras[3]); // Modern Admin (north)
+	const segmentLength = (roomWidth - roomDoorHalfWidth * 2) / 2;
+	const segmentOffset = roomDoorHalfWidth + segmentLength / 2;
+	// The right-hand segment relative to the inward-facing visitor.
+	const center = side.midpoint
+		.clone()
+		.add(side.tangent.clone().multiplyScalar(-segmentOffset))
+		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.04));
+
+	const panel = createLogoEvolutionPanel();
+	panel.position.set(center.x, 2.3, center.z);
+	panel.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
+	group.add(panel);
+	return group;
+}
+
+function createLogoEvolutionPanel() {
+	const group = new THREE.Group();
+	const width = 2.7;
+	const height = 1.36;
+	const frame = new THREE.Mesh(
+		new THREE.BoxGeometry(width + 0.16, height + 0.16, 0.08),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	group.add(frame);
+	const panel = new THREE.Mesh(
+		new THREE.PlaneGeometry(width, height),
+		new THREE.MeshBasicMaterial({ map: createLogoEvolutionTexture() })
+	);
+	panel.position.z = 0.05;
+	group.add(panel);
+	return group;
+}
+
+function createLogoEvolutionTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 2048;
+	canvas.height = 1030;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#fbf7ee';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#21759b';
+	ctx.fillRect(0, 0, canvas.width, 14);
+	ctx.fillRect(0, canvas.height - 14, canvas.width, 14);
+
+	ctx.fillStyle = '#23282d';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	fillFittedCanvasText(
+		ctx,
+		'THE WORDPRESS LOGO THROUGH THE YEARS',
+		canvas.width / 2,
+		88,
+		1900,
+		72,
+		'900',
+		'Arial Black, Impact, sans-serif'
+	);
+	ctx.fillStyle = '#6b7280';
+	ctx.font = '700 30px system-ui, sans-serif';
+	ctx.fillText('an evolving mark, recreated by hand', canvas.width / 2, 150);
+
+	const stages = [
+		{ draw: drawLogoEarlyWordmark, title: 'early wordmark', year: '2003' },
+		{ draw: drawLogoTransitionalW, title: 'the mark formalizes', year: '~2005' },
+		{ draw: drawLogoCircularMark, title: 'the circular mark arrives', year: '~2008' },
+		{ draw: drawLogoModernLockup, title: 'the logo we know', year: 'today' },
+	];
+	const cellW = canvas.width / stages.length;
+	const markCY = 460;
+	stages.forEach((stage, index) => {
+		const cx = cellW * index + cellW / 2;
+		if (index > 0) {
+			ctx.strokeStyle = 'rgba(35, 40, 45, 0.14)';
+			ctx.lineWidth = 3;
+			ctx.beginPath();
+			ctx.moveTo(cellW * index, 210);
+			ctx.lineTo(cellW * index, canvas.height - 70);
+			ctx.stroke();
+		}
+		stage.draw(ctx, cx, markCY, cellW - 130);
+
+		ctx.fillStyle = '#21759b';
+		roundRectPath(ctx, cx - 34, canvas.height - 224, 68, 8, 4);
+		ctx.fill();
+		ctx.fillStyle = '#23282d';
+		fillFittedCanvasText(ctx, stage.title, cx, canvas.height - 168, cellW - 70, 36, '700', 'system-ui, sans-serif');
+		ctx.fillStyle = '#6b7280';
+		ctx.font = '900 34px system-ui, sans-serif';
+		ctx.fillText(stage.year, cx, canvas.height - 118);
+	});
+
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
+}
+
+// 2003: the first releases shipped a plain lowercase "wordpress" wordmark — no
+// circle, no W mark yet — set in a simple serif.
+function drawLogoEarlyWordmark(ctx, cx, cy, maxWidth) {
+	ctx.fillStyle = '#23282d';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	fillFittedCanvasText(ctx, 'wordpress', cx, cy, maxWidth, 96, '400', 'Georgia, "Times New Roman", serif');
+	ctx.strokeStyle = 'rgba(35, 40, 45, 0.35)';
+	ctx.lineWidth = 3;
+	ctx.beginPath();
+	ctx.moveTo(cx - maxWidth / 2 + 40, cy + 78);
+	ctx.lineTo(cx + maxWidth / 2 - 40, cy + 78);
+	ctx.stroke();
+}
+
+// ~2005: branding formalizes around a standalone "W" mark and bolder wordmark.
+function drawLogoTransitionalW(ctx, cx, cy, maxWidth) {
+	const r = Math.min(maxWidth * 0.32, 130);
+	ctx.fillStyle = '#21759b';
+	ctx.beginPath();
+	roundRectPath(ctx, cx - r, cy - r, r * 2, r * 2, r * 0.22);
+	ctx.fill();
+	ctx.fillStyle = '#ffffff';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.font = `900 ${Math.round(r * 1.35)}px Georgia, "Times New Roman", serif`;
+	ctx.fillText('W', cx, cy + r * 0.06);
+	ctx.fillStyle = '#23282d';
+	fillFittedCanvasText(ctx, 'WordPress', cx, cy + r + 56, maxWidth, 44, '700', 'Georgia, serif');
+}
+
+// ~2008: the circular W mark is standardized — a ring with the stylized W
+// inside, drawn in dark charcoal.
+function drawLogoCircularMark(ctx, cx, cy, maxWidth) {
+	const r = Math.min(maxWidth * 0.36, 150);
+	drawWordPressMark(ctx, cx, cy, r, '#23282d');
+}
+
+// Today: the official lockup — the circular charcoal mark above the "WordPress"
+// wordmark in its clean style.
+function drawLogoModernLockup(ctx, cx, cy, maxWidth) {
+	const r = Math.min(maxWidth * 0.3, 124);
+	drawWordPressMark(ctx, cx, cy - 24, r, '#23282d');
+	ctx.fillStyle = '#23282d';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	fillFittedCanvasText(ctx, 'WordPress', cx, cy + r + 56, maxWidth, 56, '600', 'Georgia, "Times New Roman", serif');
+}
+
+// The modern WordPress mark: a solid disc with the iconic W carved out of it as
+// white negative space — two zigzag strokes whose four points step up to the
+// right, giving the asymmetric, taller right arm of the official logo.
+function drawWordPressMark(ctx, cx, cy, r, color) {
+	ctx.save();
+	ctx.translate(cx, cy);
+	ctx.fillStyle = color;
+	ctx.beginPath();
+	ctx.arc(0, 0, r, 0, Math.PI * 2);
+	ctx.fill();
+
+	// The W is cut as white strokes. Coordinates are in units of r. The official
+	// mark's W is asymmetric: the right arm rises higher and runs out longer than
+	// the left, so the four points step gently upward to the right.
+	ctx.strokeStyle = '#ffffff';
+	ctx.lineWidth = r * 0.155;
+	ctx.lineCap = 'square';
+	ctx.lineJoin = 'round';
+	const v = 0.6 * r; // valley depth
+	// Left zig: top-left peak, down to valley, up to centre peak.
+	ctx.beginPath();
+	ctx.moveTo(-0.62 * r, -0.42 * r);
+	ctx.lineTo(-0.34 * r, v);
+	ctx.lineTo(-0.04 * r, -0.34 * r);
+	ctx.stroke();
+	// Right zig: centre peak, down to valley, up to the taller right arm.
+	ctx.beginPath();
+	ctx.moveTo(-0.04 * r, -0.34 * r);
+	ctx.lineTo(0.26 * r, v);
+	ctx.lineTo(0.6 * r, -0.5 * r);
+	ctx.stroke();
+	ctx.restore();
 }
 
 function createAtriumFloorMedallion(color, secondary) {
