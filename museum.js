@@ -3714,21 +3714,124 @@ function createSpokeWall(side, doored, nearInfo, farInfo) {
 		roughness: 0.32,
 		metalness: 0.5,
 	});
+	// Pale marble accent for the cornice and pediment infill.
+	const marble = new THREE.MeshStandardMaterial({
+		color: 0xe9e0cf,
+		roughness: 0.6,
+		metalness: 0.06,
+	});
+	// Tangent rotation of the spoke across the opening; every framing block that
+	// straddles the door (lintel, cornice, pediment, keystone) shares it.
+	const frameRot = Math.atan2(xAt(doorEnd) - xAt(doorStart), doorEnd - doorStart);
+
 	segment(doorStart, doorEnd, 0.14, connectorDoorHeight, brass, 0.16); // lintel
 	segment(doorStart, doorEnd, 0.05, 0.025, brass, wallThickness + 0.12); // threshold
+
+	// Molded pilaster-style jambs: a footed plinth, a stepped shaft and a capital
+	// at each side of the opening. Each tier centers on the opening edge and
+	// keeps the original 0.14 footprint along z so the clear passage is untouched;
+	// the plinth/capital widen only in x (depth) and y, never into the opening.
+	const jambShaftTop = connectorDoorHeight - 0.22;
 	for (const z of [doorStart, doorEnd]) {
-		const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.16, connectorDoorHeight, 0.14), brass);
-		jamb.position.set(xAt(z), connectorDoorHeight / 2, z);
-		jamb.rotation.y = Math.atan2(xAt(doorEnd) - xAt(doorStart), doorEnd - doorStart);
-		group.add(jamb);
+		const jx = xAt(z);
+		const shaft = new THREE.Mesh(
+			new THREE.BoxGeometry(0.18, jambShaftTop, 0.14),
+			brass
+		);
+		shaft.position.set(jx, jambShaftTop / 2, z);
+		shaft.rotation.y = frameRot;
+		group.add(shaft);
+		// Recessed flute line on the shaft for a molded look.
+		const flute = new THREE.Mesh(
+			new THREE.BoxGeometry(0.04, jambShaftTop - 0.4, 0.06),
+			marble
+		);
+		flute.position.set(jx, jambShaftTop / 2, z);
+		flute.rotation.y = frameRot;
+		group.add(flute);
+		// Stepped plinth at the foot and capital at the head.
+		for (const tier of [
+			{ y: 0.09, h: 0.18, w: 0.3, t: 0.22 },
+			{ y: jambShaftTop + 0.06, h: 0.12, w: 0.28, t: 0.2 },
+			{ y: jambShaftTop + 0.17, h: 0.1, w: 0.34, t: 0.24 },
+		]) {
+			const block = new THREE.Mesh(
+				new THREE.BoxGeometry(tier.t, tier.h, tier.w),
+				brass
+			);
+			block.position.set(jx, tier.y, z);
+			block.rotation.y = frameRot;
+			group.add(block);
+		}
 	}
+
+	// Keystone wedge at the top center of the lintel.
+	const keyTop = new THREE.Mesh(
+		new THREE.BoxGeometry(0.22, 0.32, 0.46),
+		brass
+	);
+	keyTop.position.set(xAt(connectorDoorZ), connectorDoorHeight + 0.2, connectorDoorZ);
+	keyTop.rotation.y = frameRot;
+	group.add(keyTop);
+	const keyBot = new THREE.Mesh(
+		new THREE.BoxGeometry(0.2, 0.18, 0.3),
+		brass
+	);
+	keyBot.position.set(xAt(connectorDoorZ), connectorDoorHeight - 0.05, connectorDoorZ);
+	keyBot.rotation.y = frameRot;
+	group.add(keyBot);
+
+	// Crown above the opening: a marble cornice band and a low stepped brass
+	// pediment, centered on the doorway and kept under the header so it never
+	// pierces the ceiling.
+	const corniceY = connectorDoorHeight + 0.5;
+	const crownStart = doorStart - 0.12;
+	const crownEnd = doorEnd + 0.12;
+	segment(crownStart, crownEnd, 0.18, corniceY, marble, 0.3); // cornice band
+	segment(crownStart, crownEnd, 0.08, corniceY + 0.12, brass, 0.34); // cornice lip
+	// Three receding pediment steps form a stepped triangular cap.
+	const pedSteps = [
+		{ half: connectorDoorHalfWidth + 0.05, h: 0.16, t: 0.24 },
+		{ half: connectorDoorHalfWidth * 0.62, h: 0.16, t: 0.26 },
+		{ half: connectorDoorHalfWidth * 0.28, h: 0.18, t: 0.28 },
+	];
+	let pedY = corniceY + 0.25;
+	for (const step of pedSteps) {
+		segment(connectorDoorZ - step.half, connectorDoorZ + step.half, step.h, pedY, brass, step.t);
+		pedY += step.h;
+	}
+	// Crowning finial at the apex.
+	const finial = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), brass);
+	finial.position.set(xAt(connectorDoorZ), pedY + 0.02, connectorDoorZ);
+	group.add(finial);
+
+	// Subtle warm glow so the portal reads as an inviting passage. A low cost
+	// emissive marble panel sits flush above the lintel (behind the keystone, so
+	// no z-fight with the header), backed by a faint point light in the opening.
+	const glowPanel = new THREE.Mesh(
+		new THREE.PlaneGeometry(2 * connectorDoorHalfWidth - 0.1, 0.34),
+		new THREE.MeshBasicMaterial({ color: 0xffdca6, transparent: true, opacity: 0.5 })
+	);
+	const glowN = new THREE.Vector3(1, 0, wedgeTan).normalize();
+	glowPanel.position.set(
+		xAt(connectorDoorZ) + glowN.x * 0.085,
+		connectorDoorHeight - 0.12,
+		connectorDoorZ + glowN.z * 0.085
+	);
+	glowPanel.rotation.y = getRotationForNormal(glowN);
+	group.add(glowPanel);
+	const glowLight = new THREE.PointLight(0xffd8a0, 6, 6, 2);
+	glowLight.position.set(xAt(connectorDoorZ), connectorDoorHeight - 0.5, connectorDoorZ);
+	group.add(glowLight);
 
 	// Inward normal of this (left) wall points toward the room interior (+x),
 	// tilted 22.5deg; the far face points the opposite way into the neighbour.
 	const inwardRot = getRotationForNormal(
 		new THREE.Vector3(1, 0, wedgeTan).normalize()
 	);
-	const signY = connectorDoorHeight + 0.62;
+	// Mounted on the upper header, clear of the crown below (apex ~4.4) and the
+	// ceiling above (wallHeight 7.35), so it reads as an unobstructed wayfinder.
+	const signY = connectorDoorHeight + 2.35;
 	const cx = xAt(connectorDoorZ);
 	if (nearInfo) {
 		group.add(createSpokeDoorSign(nearInfo, cx, connectorDoorZ, signY, inwardRot));
@@ -3746,58 +3849,116 @@ function createSpokeWall(side, doored, nearInfo, farInfo) {
 }
 
 // Directional plaque on a doorway face, naming the gallery beyond and whether
-// it lies earlier/later in time. Mounted flush on the tilted spoke.
+// it lies earlier/later in time. It mounts on the header above the opening and
+// must stand PROUD of the solid header wall (half-thickness ~0.13), so every
+// layer is offset along the inward face normal beyond that.
 function createSpokeDoorSign(info, x, z, y, facingRotation) {
 	const group = new THREE.Group();
 	const n = new THREE.Vector3(Math.sin(facingRotation), 0, Math.cos(facingRotation));
-	const frame = new THREE.Mesh(
-		new THREE.BoxGeometry(1.58, 0.74, 0.05),
-		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
-	);
-	frame.position.set(x + n.x * 0.03, y, z + n.z * 0.03);
+	const at = (off) => [x + n.x * off, z + n.z * off];
+	// Brass back-plate, flush against the wall face, with a recessed frame.
+	const brass = new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 });
+	const backplate = new THREE.Mesh(new THREE.BoxGeometry(1.78, 0.92, 0.05), brass);
+	const [bx, bz] = at(0.155);
+	backplate.position.set(bx, y, bz);
+	backplate.rotation.y = facingRotation;
+	group.add(backplate);
+	const frame = new THREE.Mesh(new THREE.BoxGeometry(1.62, 0.78, 0.05), brass);
+	const [fx, fz] = at(0.2);
+	frame.position.set(fx, y, fz);
 	frame.rotation.y = facingRotation;
 	group.add(frame);
+	// Mounting bosses at the corners read as fasteners.
+	for (const [dz, dy] of [[-0.78, 0.38], [0.78, 0.38], [-0.78, -0.38], [0.78, -0.38]]) {
+		const boss = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.05, 10), brass);
+		boss.rotation.z = Math.PI / 2;
+		boss.rotation.y = facingRotation;
+		const [px, pz] = at(0.2);
+		boss.position.set(px - n.z * dz, y + dy, pz + n.x * dz);
+		group.add(boss);
+	}
 
 	const board = new THREE.Mesh(
-		new THREE.PlaneGeometry(1.46, 0.62),
+		new THREE.PlaneGeometry(1.5, 0.66),
 		new THREE.MeshBasicMaterial({ map: createDoorwaySignTexture(info), transparent: true })
 	);
-	board.position.set(x + n.x * 0.07, y, z + n.z * 0.07);
+	const [px, pz] = at(0.235);
+	board.position.set(px, y, pz);
 	board.rotation.y = facingRotation;
 	group.add(board);
 	return group;
 }
 
+// Wayfinding plaque texture: a header bar reading "THIS WAY TO", a bold
+// destination gallery name in the era's colour, its year range, and a large
+// directional chevron pointing the way (left = earlier, right = later).
 function createDoorwaySignTexture(info) {
 	const canvas = document.createElement('canvas');
-	canvas.width = 512;
-	canvas.height = 218;
+	canvas.width = 560;
+	canvas.height = 246;
 	const ctx = canvas.getContext('2d');
-	ctx.fillStyle = '#141b27';
-	roundRectPath(ctx, 0, 0, canvas.width, canvas.height, 22);
-	ctx.fill();
-	ctx.fillStyle = info.color;
-	ctx.fillRect(0, 0, canvas.width, 12);
-	ctx.fillRect(0, canvas.height - 12, canvas.width, 12);
+	const W = canvas.width;
+	const H = canvas.height;
 
-	const arrow = info.later ? 'LATER ▶' : '◀ EARLIER';
+	// Dark board with a thin double border in the era colour.
+	ctx.fillStyle = '#10161f';
+	roundRectPath(ctx, 0, 0, W, H, 24);
+	ctx.fill();
+	ctx.lineWidth = 6;
+	ctx.strokeStyle = info.color;
+	roundRectPath(ctx, 10, 10, W - 20, H - 20, 16);
+	ctx.stroke();
+	ctx.lineWidth = 2;
+	ctx.strokeStyle = 'rgba(245,232,199,0.35)';
+	roundRectPath(ctx, 18, 18, W - 36, H - 36, 11);
+	ctx.stroke();
+
+	// Header bar in the era colour.
 	ctx.fillStyle = info.color;
-	ctx.font = '900 38px system-ui, sans-serif';
+	roundRectPath(ctx, 26, 26, W - 52, 50, 9);
+	ctx.fill();
+	ctx.fillStyle = '#10161f';
+	ctx.font = '900 30px system-ui, sans-serif';
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-	ctx.fillText(arrow, 256, 56);
+	ctx.fillText('T H I S   W A Y   T O', W / 2, 53);
+
+	// Directional chevron on the leading side, era name centered in remaining space.
+	const later = info.later;
+	const arrowCX = later ? W - 70 : 70;
+	drawChevron(ctx, arrowCX, 158, 30, 52, later, info.color);
+	const nameCX = later ? (26 + (W - 96)) / 2 : (96 + (W - 26)) / 2;
+	const nameMax = W - 26 - 96 - 12;
 
 	ctx.fillStyle = '#f5e8c7';
-	fillFittedCanvasText(ctx, info.era.toUpperCase(), 256, 116, 452, 46, '900', 'Arial Black, Impact, sans-serif');
+	fillFittedCanvasText(ctx, info.era.toUpperCase(), nameCX, 138, nameMax, 50, '900', 'Arial Black, Impact, sans-serif');
 
-	ctx.fillStyle = '#aeb8c6';
-	ctx.font = '800 34px system-ui, sans-serif';
-	ctx.fillText(info.yearRange, 256, 170);
+	ctx.fillStyle = info.color;
+	ctx.font = '800 30px system-ui, sans-serif';
+	ctx.fillText(info.yearRange, nameCX, 188);
 
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
+}
+
+// Draws a bold filled chevron arrow. `pointRight` flips it; otherwise points left.
+function drawChevron(ctx, cx, cy, halfW, halfH, pointRight, color) {
+	const dir = pointRight ? 1 : -1;
+	const tail = -dir * halfW;
+	const tip = dir * halfW;
+	const thick = halfW * 0.62;
+	ctx.fillStyle = color;
+	ctx.beginPath();
+	ctx.moveTo(cx + tip, cy);
+	ctx.lineTo(cx + tail, cy - halfH);
+	ctx.lineTo(cx + tail + dir * thick, cy - halfH);
+	ctx.lineTo(cx + tip - dir * (halfW - thick), cy);
+	ctx.lineTo(cx + tail + dir * thick, cy + halfH);
+	ctx.lineTo(cx + tail, cy + halfH);
+	ctx.closePath();
+	ctx.fill();
 }
 
 function createRoomWallSegment(side, length, tangentOffset) {
