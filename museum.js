@@ -4329,24 +4329,24 @@ function createPortalTransom(side, offset) {
 
 function createMuralWapuuGreeter(side) {
 	// A fully 3D Wapuu standing on the central pier between the entrance and
-	// exit doors, cradling a large WordPress logo medallion toward arriving
-	// visitors. Sized to fit the ~1.9m-wide pier without bleeding into either
-	// doorway opening.
+	// exit doors, cradling a WordPress logo medallion toward arriving visitors.
+	// Sized to stand chest-high to the visitor and fit the ~1.9m-wide pier
+	// without bleeding into either doorway opening.
 	const group = new THREE.Group();
 
-	const base = createPedestal(0.92, 0.22, activeVariant.eraColors[0]);
+	const base = createPedestal(1.04, 0.28, activeVariant.eraColors[0]);
 	group.add(base);
 
-	const wapuu = createWapuu3D({ height: 1.9, accent: activeVariant.eraColors[1], emblem: false, hold: true });
-	wapuu.position.y = 0.22;
+	const wapuu = createWapuu3D({ height: 2.3, accent: activeVariant.eraColors[1], emblem: false, hold: true });
+	wapuu.position.y = 0.28;
 	group.add(wapuu);
 
-	// The held logo: a thick disc the Wapuu presents at belly height — large and
-	// crisp so it reads as the focal point, yet low enough that the head, eyes
-	// and ears stay clearly visible above it.
-	const medallion = createWpLogoMedallion(0.37);
-	const medallionY = 0.62;
-	medallion.position.set(0, medallionY, 0.58);
+	// The held logo: a thick disc the Wapuu cradles in its paws at belly height —
+	// crisp and presented toward arrivals, sized so it reads as the focal point
+	// while the round body, face, eyes and ears stay clearly visible around it.
+	const medallion = createWpLogoMedallion(0.31);
+	const medallionY = 0.74;
+	medallion.position.set(0, medallionY, 0.66);
 	medallion.rotation.x = -0.12;
 	registerAnimation(medallion, (object, elapsed) => {
 		object.position.y = medallionY + Math.sin(elapsed * 1.5) * 0.018;
