@@ -4342,22 +4342,9 @@ function createMuralWapuuGreeter(side) {
 	const base = createPedestal(1.04, 0.28, activeVariant.eraColors[0]);
 	group.add(base);
 
-	const wapuu = createWapuu3D({ height: 2.3, accent: activeVariant.eraColors[1], emblem: false, hold: true });
-	wapuu.position.y = 0.28;
-	group.add(wapuu);
-
-	// The held logo: a thick disc the Wapuu cradles in its paws at belly height —
-	// crisp and presented toward arrivals, sized so it reads as the focal point
-	// while the round body, face, eyes and ears stay clearly visible around it.
-	const medallion = createWpLogoMedallion(0.31);
-	const medallionY = 0.74;
-	medallion.position.set(0, medallionY, 0.66);
-	medallion.rotation.x = -0.12;
-	registerAnimation(medallion, (object, elapsed) => {
-		object.position.y = medallionY + Math.sin(elapsed * 1.5) * 0.018;
-		object.rotation.z = Math.sin(elapsed * 0.8) * 0.02;
-	});
-	group.add(medallion);
+	const figure = createGreeterWapuu(2.3, activeVariant.eraColors[1]);
+	figure.position.y = 0.28;
+	group.add(figure);
 
 	const facing = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
 	group.position
@@ -4365,6 +4352,29 @@ function createMuralWapuuGreeter(side) {
 		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.34));
 	group.position.y = 0;
 	group.rotation.y = facing;
+	return group;
+}
+
+// A held-logo Wapuu: an emblem-free figure cradling a big WordPress medallion
+// in front of its belly. Shared by the static pier greeter and the
+// follow-the-viewer rotunda docent. The medallion is parented to the returned
+// group, so rotating the group turns the logo to face whoever is looking.
+// Sizes are proportional to height to match the height-2.3 pier greeter.
+function createGreeterWapuu(height, accent) {
+	const group = new THREE.Group();
+
+	const wapuu = createWapuu3D({ height, accent, emblem: false, hold: true });
+	group.add(wapuu);
+
+	const medallion = createWpLogoMedallion(0.135 * height);
+	const medallionY = 0.2 * height;
+	medallion.position.set(0, medallionY, 0.287 * height);
+	medallion.rotation.x = -0.12;
+	registerAnimation(medallion, (object, elapsed) => {
+		object.position.y = medallionY + Math.sin(elapsed * 1.5) * 0.018;
+		object.rotation.z = Math.sin(elapsed * 0.8) * 0.02;
+	});
+	group.add(medallion);
 	return group;
 }
 
@@ -7978,9 +7988,12 @@ function createWapuuDocent(color, secondary) {
 	const pedestal = createPedestal(1.36, 0.32, color);
 	group.add(pedestal);
 
-	const wapuu = createWapuu3D({ height: 2.1, accent: secondary });
-	wapuu.position.y = 0.3;
-	registerAnimation(wapuu, (object, elapsed) => {
+	// The same held-logo Wapuu as the entrance greeter, but rotated to follow
+	// the viewer: the cradled medallion turns with the figure to face whoever
+	// is looking, on top of the gentle bob.
+	const figure = createGreeterWapuu(2.1, secondary);
+	figure.position.y = 0.3;
+	registerAnimation(figure, (object, elapsed) => {
 		object.position.y = 0.3 + Math.sin(elapsed * 1.15) * 0.05;
 		const parent = object.parent;
 		if (parent) {
@@ -7998,7 +8011,7 @@ function createWapuuDocent(color, secondary) {
 		}
 		object.rotation.z = Math.sin(elapsed * 0.75) * 0.018;
 	});
-	group.add(wapuu);
+	group.add(figure);
 
 	const label = createReadableLabel(createSmallSignTexture('WAPUU', color), 1.12, 0.26);
 	label.position.set(0, 0.48, -0.58);
