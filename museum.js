@@ -1488,9 +1488,9 @@ function createPlaygroundSkyTexture() {
 
 // The annex's west wall is Blocks Everywhere's right chamfer (the plane at world x
 // = playgroundDoorWallX). It carries the doorway: solid chamfer above/either side,
-// a brass post-and-lintel frame, "THE PLAYGROUND" over the opening and a return
-// "<- GALLERY" sign on the gallery face. North/south stubs extend the chamfer to
-// the annex's full width where it overhangs the void beyond the gallery corner.
+// a brass post-and-lintel frame, a "THE PLAYGROUND" destination sign on the
+// gallery face and a "<- GALLERY" return sign on the annex face. North/south stubs
+// extend the chamfer to the annex's full width where it overhangs the gallery corner.
 function createPlaygroundDoorWall(wallMaterial) {
 	const group = new THREE.Group();
 	const wallX = playgroundDoorWallX;
@@ -1546,24 +1546,26 @@ function createPlaygroundDoorWall(wallMaterial) {
 	threshold.position.set(wallX, 0.025, playgroundDoorZCenter);
 	group.add(threshold);
 
-	// "THE PLAYGROUND" sign on the header, facing into the annex (+x).
-	const annexSign = createReadableLabel(
+	// Destination "THE PLAYGROUND" sign on the gallery (chamfer outer, -x) face,
+	// facing -x toward the gallery so approaching visitors read where the door leads.
+	const destSign = createReadableLabel(
 		createSmallSignTexture('THE PLAYGROUND', '#78e0dc'),
 		1.9,
 		0.42
 	);
-	annexSign.position.set(faceX + 0.05, playgroundDoorHeight + headerH * 0.42, playgroundDoorZCenter);
-	annexSign.rotation.y = Math.PI / 2; // face +x
-	group.add(annexSign);
+	destSign.position.set(wallX - wt / 2 - 0.05, playgroundDoorHeight + headerH * 0.42, playgroundDoorZCenter);
+	destSign.rotation.y = -Math.PI / 2; // face -x, toward the gallery
+	group.add(destSign);
 
-	// Return "<- GALLERY" sign on the gallery (chamfer outer) face, facing -x.
+	// Return "<- GALLERY" sign on the annex (interior, +x) face, facing +x so a
+	// visitor inside the annex reads the way back.
 	const returnSign = createReadableLabel(
 		createSmallSignTexture('← GALLERY', '#78e0dc'),
 		1.7,
 		0.4
 	);
-	returnSign.position.set(wallX - wt / 2 - 0.05, playgroundDoorHeight + headerH * 0.42, playgroundDoorZCenter);
-	returnSign.rotation.y = -Math.PI / 2; // face -x, toward the gallery
+	returnSign.position.set(faceX + 0.05, playgroundDoorHeight + headerH * 0.42, playgroundDoorZCenter);
+	returnSign.rotation.y = Math.PI / 2; // face +x, toward the annex interior
 	group.add(returnSign);
 
 	// Warm glow so the portal reads as an inviting threshold from the gallery.
