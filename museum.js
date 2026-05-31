@@ -4214,6 +4214,7 @@ function createMuralWall(side) {
 
 	if (isCurrentVariant) {
 		group.add(createMuralWapuuGreeter(side));
+		group.add(createPierWapuuPicture(side));
 		group.add(createMissionTablet(side));
 		for (const portal of muralPortals) {
 			group.add(createPortalSign(side, portal));
@@ -4364,6 +4365,41 @@ function createMuralWapuuGreeter(side) {
 		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.34));
 	group.position.y = 0;
 	group.rotation.y = facing;
+	return group;
+}
+
+// A brass-framed Wapuu portrait mounted on the central pier above the 3D
+// greeter. It holds the flat Wapuu cutout art and preserves Alex's easter egg:
+// clicking the picture cycles through the Wapuu image variations.
+function createPierWapuuPicture(side) {
+	const group = new THREE.Group();
+	const art = 0.96;
+	const frame = new THREE.Mesh(
+		new THREE.BoxGeometry(art + 0.14, art + 0.14, 0.08),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	group.add(frame);
+
+	const textures = getWapuuTextures();
+	const picture = new THREE.Mesh(
+		new THREE.PlaneGeometry(art, art),
+		new THREE.MeshBasicMaterial({
+			map: textures[0],
+			transparent: true,
+			alphaTest: 0.04,
+			side: THREE.DoubleSide,
+			depthWrite: false,
+		})
+	);
+	picture.position.z = 0.05;
+	registerWapuuVariationClick(picture, textures);
+	group.add(picture);
+
+	group.position
+		.copy(side.midpoint)
+		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.06));
+	group.position.y = 2.86; // above the 3D greeter, below the doorway lintels
+	group.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
 	return group;
 }
 
