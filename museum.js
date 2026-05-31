@@ -12888,13 +12888,61 @@ function createPluginCrates(color) {
 // admin lyrics lifted from the Louis Armstrong standard.
 function createHelloDollyExhibit(color) {
 	const group = new THREE.Group();
-	group.add(createRecordStack(color, { showLabel: false }));
+
+	// One "hero" record stood upright on a slim easel at the back of the plinth,
+	// its labelled face turned to the viewer (local −z) so the exhibit reads as a
+	// vinyl record at a glance rather than a dark edge-on lump.
+	const hero = createVinylRecord(color);
+	hero.rotation.x = Math.PI / 2; // lay the flat disc up onto its edge, face toward −z
+	hero.rotation.z = -0.12; // a casual lean
+	hero.position.set(-0.16, 0.34, -0.05);
+	group.add(hero);
+	const easel = new THREE.Mesh(
+		new THREE.BoxGeometry(0.05, 0.34, 0.05),
+		new THREE.MeshStandardMaterial({ color: 0x3a3d46, roughness: 0.5, metalness: 0.3 })
+	);
+	easel.position.set(-0.16, 0.17, 0.04);
+	easel.rotation.x = 0.22;
+	group.add(easel);
+
+	// A tidy short stack of records lying flat beside the hero, labels up.
+	for (let index = 0; index < 4; index++) {
+		const disc = createVinylRecord(color);
+		disc.scale.setScalar(0.92);
+		disc.position.set(0.3, 0.045 + index * 0.022, 0.12);
+		disc.rotation.y = index * 0.5;
+		group.add(disc);
+	}
+
 	const card = createReadableLabel(createHelloDollyCardTexture(color), 0.62, 0.4);
-	// Stand it upright at the back of the plinth, peeking above the records.
-	card.position.set(0.34, 0.62, -0.16);
-	card.rotation.y = -0.32;
+	// Stand the first-plugin card to the side, angled to the viewer.
+	card.position.set(0.34, 0.52, -0.18);
+	card.rotation.y = -0.34;
 	group.add(card);
 	return group;
+}
+
+// A single 7" vinyl record: a glossy black disc with a coloured centre label and
+// a pale spindle hole, modelled flat (faces along ±y) so callers can stack it or
+// stand it on edge. Sized to sit on a vignette plinth.
+function createVinylRecord(color) {
+	const record = new THREE.Group();
+	const vinyl = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.21, 0.21, 0.012, 36),
+		new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.32, metalness: 0.08 })
+	);
+	record.add(vinyl);
+	const label = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.075, 0.075, 0.014, 24),
+		new THREE.MeshStandardMaterial({ color, roughness: 0.55 })
+	);
+	record.add(label);
+	const hole = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.012, 0.012, 0.016, 12),
+		new THREE.MeshBasicMaterial({ color: 0xf4ead0 })
+	);
+	record.add(hole);
+	return record;
 }
 
 function createHelloDollyCardTexture(color) {
