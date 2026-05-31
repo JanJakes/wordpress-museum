@@ -1384,13 +1384,15 @@ function createPlaygroundAnnex() {
 	// stay walkable. The exhibit sits on the east wall directly across from the door
 	// (z = playgroundDoorZCenter), so that lane and the room middle are left clear.
 	// A sandbox / swing set / slide line the south wall in non-overlapping slots; a
-	// see-saw and spring rider sit along the west wall, clear of the entry lane.
+	// see-saw sits along the west wall and the spring rider against the north wall,
+	// both well clear of the door (which is offset to the north end of the west wall)
+	// so the entry lane stays open.
 	const southZ = playgroundMaxZ - 2.4;
 	group.add(createPlaygroundSandbox(playgroundMinX + 2.4, southZ)); // SW
 	group.add(createPlaygroundSwingSet(playgroundMinX + 5.4, southZ + 0.1)); // S middle
 	group.add(createPlaygroundSlide(playgroundMaxX - 1.6, southZ, Math.PI)); // SE, chute -> -z
 	group.add(createPlaygroundSeesaw(playgroundMinX + 2.6, playgroundCenterZ + 0.4)); // W
-	group.add(createPlaygroundSpringRider(playgroundMinX + 2.2, playgroundMinZ + 1.6)); // NW
+	group.add(createPlaygroundSpringRider(playgroundMinX + 6.5, playgroundMinZ + 1.2)); // N, east of door
 
 	// WordPress Playground exhibit panel on the east wall, facing the doorway.
 	group.add(createPlaygroundExhibitSign());
