@@ -4215,36 +4215,10 @@ function createMuralWall(side) {
 	if (isCurrentVariant) {
 		group.add(createMuralWapuuGreeter(side));
 		group.add(createPierWapuuPicture(side));
-		group.add(createMissionTablet(side));
 		for (const portal of muralPortals) {
 			group.add(createPortalSign(side, portal));
 		}
 	}
-	return group;
-}
-
-// An engraved "Code is Poetry" tablet on the central pier above the Wapuu
-// greeter — the project tagline as a prominent welcome inscription, with the
-// accurate mission ("democratize publishing") rather than a coined slogan.
-function createMissionTablet(side) {
-	const group = new THREE.Group();
-	const width = 1.66;
-	const height = 0.82;
-	const frame = new THREE.Mesh(
-		new THREE.BoxGeometry(width + 0.12, height + 0.12, 0.06),
-		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
-	);
-	const art = new THREE.Mesh(
-		new THREE.PlaneGeometry(width, height),
-		new THREE.MeshBasicMaterial({ map: createMissionTabletTexture() })
-	);
-	art.position.z = 0.035;
-	group.add(frame, art);
-	group.position
-		.copy(side.midpoint)
-		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.06));
-	group.position.y = 2.78; // clear above the Wapuu cutout, below the doorway lintels
-	group.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
 	return group;
 }
 
@@ -6592,6 +6566,7 @@ function createAtriumDecor() {
 		group.add(createAtriumVersionOrbit());
 		group.add(createAtriumRopeArcs(color, secondary));
 		group.add(createLogoEvolutionDisplay());
+		group.add(createMissionTablet());
 	}
 	addAtriumFeature(group, activeVariant.atriumFeature, color, secondary);
 	addAtriumBenches(group);
@@ -6618,6 +6593,38 @@ function createLogoEvolutionDisplay() {
 	panel.position.set(center.x, 2.3, center.z);
 	panel.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
 	group.add(panel);
+	return group;
+}
+
+// An engraved "Code is Poetry" tablet — the project tagline rendered with the
+// accurate mission ("democratize publishing"). Mounted on the hub-wall segment
+// to the right of the Blogging Roots doorway (the chronological start of the
+// galleries), facing the rotunda interior at eye-to-upper height.
+function createMissionTablet() {
+	const group = new THREE.Group();
+	const side = hubSides.find((s) => s.era === eras[0]); // Blogging Roots
+	const segmentLength = (roomWidth - roomDoorHalfWidth * 2) / 2;
+	const segmentOffset = roomDoorHalfWidth + segmentLength / 2;
+	// The right-hand segment relative to the inward-facing visitor.
+	const center = side.midpoint
+		.clone()
+		.add(side.tangent.clone().multiplyScalar(-segmentOffset))
+		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.06));
+
+	const width = 1.66;
+	const height = 0.82;
+	const frame = new THREE.Mesh(
+		new THREE.BoxGeometry(width + 0.12, height + 0.12, 0.06),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	const art = new THREE.Mesh(
+		new THREE.PlaneGeometry(width, height),
+		new THREE.MeshBasicMaterial({ map: createMissionTabletTexture() })
+	);
+	art.position.z = 0.035;
+	group.add(frame, art);
+	group.position.set(center.x, 2.1, center.z);
+	group.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
 	return group;
 }
 
