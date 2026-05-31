@@ -11764,7 +11764,7 @@ function addEraModelProps(group, room, roomIndex, color, secondary) {
 		],
 		'CMS Toolkit': [
 			{ obj: createIPadEaselExhibit(color), side: 'left', z: -5.7, inset: 0.5 },
-			{ obj: model('bookcaseOpenLow', 0.86, 'bookcase'), side: 'right', z: -5.5, inset: 0.55 },
+			{ obj: createThemeLibraryShelf(color, secondary), side: 'right', z: -5.5, inset: 0.55 },
 		],
 		'Modern Admin': [
 			{ obj: createFlatPhoneExhibit(color), side: 'left', z: -5.7, inset: 0.45 },
@@ -12599,6 +12599,64 @@ function createIPhoneExhibit(color) {
 	homeButton.position.set(0, -0.16, 0.021);
 	phone.add(homeButton);
 
+	return group;
+}
+
+// The CMS Toolkit "becomes a CMS" prop: the low open bookcase dressed as a small
+// theme/handbook library so it reads as an intentional exhibit rather than empty
+// furniture. The loaded model normalises to 0.86 m tall, grounded and x/z-centred,
+// with its one shelf slab topping out at y≈0.28 and its flat top at y≈0.86, so the
+// lower compartment opens 0–0.22 and the upper 0.28–0.73. Books rest on each shelf
+// and on the top. Modelled facing local +z (the open shelf side) like other exhibits.
+function createThemeLibraryShelf(color, secondary) {
+	const group = new THREE.Group();
+	group.add(createLoadedModel('bookcaseOpenLow', { targetHeight: 0.86, fallback: 'bookcase' }));
+
+	const accents = [color, secondary, 0xf4ead0, 0x2b2f3a, 0xb07a3c, 0x9aa3b2];
+	const spineMaterial = (index) =>
+		new THREE.MeshStandardMaterial({ color: accents[index % accents.length], roughness: 0.62 });
+
+	// A row of upright books resting on a shelf, spanning the ≈0.68 m open width and
+	// fitting under the next slab (maxHeight). The seed varies colour/lean/size.
+	const shelfBooks = (baseY, maxHeight, seed) => {
+		const row = new THREE.Group();
+		row.position.set(0, baseY, 0.02);
+		let x = -0.32;
+		let index = 0;
+		while (x < 0.3) {
+			const w = 0.04 + pseudoRandom(index * 1.7 + seed) * 0.028;
+			const h = maxHeight - 0.04 - pseudoRandom(index * 2.3 + seed) * (maxHeight * 0.28);
+			const book = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.17), spineMaterial(index + seed));
+			book.position.set(x + w / 2, h / 2, 0);
+			book.rotation.z = (pseudoRandom(index * 3.1 + seed) - 0.5) * 0.12;
+			row.add(book);
+			x += w + 0.005;
+			index += 1;
+		}
+		group.add(row);
+	};
+	shelfBooks(0, 0.21, 0); // lower compartment, on the base
+	shelfBooks(0.28, 0.42, 4); // upper compartment, on the shelf slab
+
+	// A small flat stack and a leaning pair resting on the flat top (y≈0.86).
+	const stack = new THREE.Group();
+	stack.position.set(-0.13, 0.86, 0);
+	for (let index = 0; index < 3; index++) {
+		const book = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.034, 0.23), spineMaterial(index + 1));
+		book.position.set(0, 0.017 + index * 0.036, 0);
+		book.rotation.y = (pseudoRandom(index * 4.2) - 0.5) * 0.18;
+		stack.add(book);
+	}
+	group.add(stack);
+	for (let index = 0; index < 2; index++) {
+		const h = 0.2;
+		const upright = new THREE.Mesh(new THREE.BoxGeometry(0.045, h, 0.16), spineMaterial(index + 3));
+		upright.position.set(0.16 + index * 0.055, 0.86 + h / 2, 0);
+		upright.rotation.z = index ? 0.1 : -0.04;
+		group.add(upright);
+	}
+
+	group.add(createPropLabel('THEMES', color, 1.16));
 	return group;
 }
 
