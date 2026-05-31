@@ -10432,12 +10432,13 @@ function addBloggingRootsScreenshots(group) {
 // corner just below the cove cornice, well above the walkway and clear of the
 // release plaques and ceiling mobiles, with a tiny spider resting on it.
 function addCornerCobweb(group) {
-	const web = createCobweb(0xfff4d8);
+	// Dusty grey-brown threads (not pale cream) so the web reads against the light
+	// marble, dropped to ~3.4m — a height a visitor actually sees in the corner
+	// rather than hiding it up in the ceiling shadow.
+	const web = createCobweb(0x6f685c);
 	// The corner vertical edge sits at (−backFlatHalf, +roomDepth/2); pull the web
-	// centre off both walls so its spokes can anchor onto each surface, and drop it
-	// below the cove cornice so the larger web reads at a glance rather than hiding
-	// up in the ceiling shadow.
-	web.position.set(-backFlatHalf + 0.62, wallHeight - 1.7, roomDepth / 2 - 0.62);
+	// centre off both walls so its spokes can anchor onto each surface.
+	web.position.set(-backFlatHalf + 0.62, 3.4, roomDepth / 2 - 0.62);
 	// Face diagonally down-and-in toward the room interior (the −x/−z runner side).
 	web.rotation.y = -Math.PI / 4 - Math.PI;
 	web.rotation.x = 0.32;
@@ -10453,7 +10454,7 @@ function createCobweb(threadColor) {
 	const threadMaterial = new THREE.MeshBasicMaterial({
 		color: threadColor,
 		transparent: true,
-		opacity: 0.72,
+		opacity: 0.85,
 		depthWrite: false,
 	});
 	const radius = 1.55;
@@ -10524,44 +10525,48 @@ function createTinySpider() {
 // in the front-left quadrant, clear of the central release mobiles, the side
 // vignette plinth below, and the back-wall plaques. A small label names the joke.
 function addWpHooksRail(group) {
-	const rail = createWpHooksRail(0x9aa3ad);
-	// The left longitudinal coffer rib sits at x=−5.4, y=wallHeight−0.16; hang the
-	// rail well beneath it on tall drop-rods in the open front-third band, low
-	// enough that the hooks and their label read at a glance from the runner.
-	rail.position.set(-5.4, wallHeight - 0.7, -2.6);
-	group.add(rail);
+	const rack = createWpHooksRail(0x9aa3ad);
+	// A free-standing hook rack in the open left band at eye level, so the hooks and
+	// their do_action()/apply_filters() label are easy to spot from the runner.
+	// Clear of the central runner (x=0), the ring chord (z≈−2.5) and the front
+	// vignette stations (z≈−3.8).
+	rack.position.set(-6.0, 0, -0.9);
+	group.add(rack);
 }
 
+// A free-standing "WP HOOKS" rack: a weighted base + upright post carrying a
+// horizontal rail near eye level, three J-hooks hanging off it (bends opening
+// toward the interior +x), and a label. Built standing on the floor (y=0).
 function createWpHooksRail(metalColor) {
 	const group = new THREE.Group();
 	const metal = new THREE.MeshStandardMaterial({ color: metalColor, roughness: 0.4, metalness: 0.7 });
-	const railLength = 2.2;
-	const rail = new THREE.Mesh(
-		new THREE.CylinderGeometry(0.032, 0.032, railLength, 12),
-		metal
-	);
-	rail.rotation.x = Math.PI / 2; // run the rail along local z
+	const postTop = 2.3;
+	const railY = postTop - 0.12;
+	const railLength = 1.7;
+	const base = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.36, 0.09, 20), metal);
+	base.position.y = 0.045;
+	group.add(base);
+	const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.055, postTop, 14), metal);
+	post.position.y = postTop / 2;
+	group.add(post);
+	const cap = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 10), metal);
+	cap.position.y = postTop + 0.02;
+	group.add(cap);
+	// Horizontal hook rail near the top, running along local z.
+	const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, railLength, 12), metal);
+	rail.rotation.x = Math.PI / 2;
+	rail.position.set(0, railY, 0);
 	group.add(rail);
-	// A pair of tall drop-rods fixing the rail up to the coffer rib above it
-	// (the rail now hangs ~0.5m lower than the rib, so the rods are longer).
-	const rodLength = 0.62;
-	for (const z of [-0.92, 0.92]) {
-		const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, rodLength, 8), metal);
-		rod.position.set(0, rodLength / 2, z);
-		group.add(rod);
-	}
-	// Three big J-hooks dangling at staggered drops; their bends open toward the
-	// interior (+x) so the hook profile reads clearly from the runner.
-	const drops = [-0.74, 0.0, 0.78];
+	// Three J-hooks hanging from the rail; bends open toward the interior (+x).
+	const drops = [-0.6, 0.0, 0.6];
 	drops.forEach((z, i) => {
-		const hook = createMetalHook(metal, 0.42 + (i % 2) * 0.08);
-		hook.position.set(0, -0.032, z);
+		const hook = createMetalHook(metal, 0.4 + (i % 2) * 0.07);
+		hook.position.set(0, railY - 0.03, z);
 		group.add(hook);
 	});
-	// A double-sided label hung just below the hooks, turned to face the runner
-	// (+x). createReadableLabel gives a clean transparent plate, no brass slab.
-	const label = createReadableLabel(createWpHooksLabelTexture(), 1.8, 0.44);
-	label.position.set(0.06, -1.02, 0);
+	// "WP HOOKS · do_action()/apply_filters()" plate at eye level, facing +x.
+	const label = createReadableLabel(createWpHooksLabelTexture(), 1.5, 0.37);
+	label.position.set(0.08, 1.4, 0);
 	label.rotation.y = Math.PI / 2; // front (+z) turns to face +x, the interior
 	group.add(label);
 	return group;
