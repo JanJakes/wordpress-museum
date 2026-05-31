@@ -11798,10 +11798,10 @@ function placeEraProp(group, { obj, role = 'exhibit', side, z, inset = 0.5 }) {
 		// A viewing bench set back in the room facing the back/story wall, offset
 		// to one side so it clears the central red runner (|x|<1.14). Sits in the
 		// back third (z≈+1.7), well past the side-to-side ring chord at z=-2.5, at a
-		// natural distance from the back-wall art. The seat opens toward local -z,
-		// so a rotation of PI turns it to face the back wall (+z).
+		// natural distance from the back-wall art. The loaded sofa's seat opens
+		// toward local +z, so an unrotated bench already faces the back wall.
 		const x = side === 'left' ? -2.7 : 2.7;
-		addLocal(group, obj, x, 1.7, Math.PI);
+		addLocal(group, obj, x, 1.7, 0);
 		return;
 	}
 	if (role === 'plant') {
