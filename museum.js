@@ -4287,23 +4287,89 @@ function createMissionTabletTexture() {
 }
 
 function createWordPressMural(side) {
+	const group = new THREE.Group();
 	const muralHeight = wallHeight - portalDoorHeight - 0.2;
+	const muralWidth = hubSideLength * 0.92;
 	const mural = new THREE.Mesh(
-		new THREE.PlaneGeometry(hubSideLength * 0.92, muralHeight),
+		new THREE.PlaneGeometry(muralWidth, muralHeight),
 		new THREE.MeshBasicMaterial({
 			map: createWordPressMuralTexture(),
 			transparent: true,
 			side: THREE.DoubleSide,
 		})
 	);
-	mural.position
+	mural.position.z = 0.02;
+	group.add(mural);
+	group.add(createMuralFrame(muralWidth, muralHeight));
+
+	group.position
 		.copy(side.midpoint)
 		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.08));
-	mural.position.y = portalDoorHeight + muralHeight / 2 + 0.08;
-	mural.rotation.y = getRotationForNormal(
+	group.position.y = portalDoorHeight + muralHeight / 2 + 0.08;
+	group.rotation.y = getRotationForNormal(
 		side.normal.clone().multiplyScalar(-1)
 	);
-	return mural;
+	return group;
+}
+
+// An ornate brass frame around the mural banner, built in the mural's local
+// XY plane: an outer gilt molding, an inner liner standing slightly proud, and
+// raised corner bosses, matching the museum's brass plaque material.
+function createMuralFrame(width, height) {
+	const group = new THREE.Group();
+	const brass = new THREE.MeshStandardMaterial({
+		color: 0xc79b43,
+		roughness: 0.34,
+		metalness: 0.5,
+	});
+	const railWidth = 0.34;
+	const outerW = width + railWidth * 2;
+
+	const horizontal = new THREE.BoxGeometry(outerW, railWidth, 0.16);
+	const vertical = new THREE.BoxGeometry(railWidth, height, 0.16);
+	const rails = [
+		[horizontal, 0, height / 2 + railWidth / 2],
+		[horizontal, 0, -(height / 2 + railWidth / 2)],
+		[vertical, -(width / 2 + railWidth / 2), 0],
+		[vertical, width / 2 + railWidth / 2, 0],
+	];
+	for (const [geometry, x, y] of rails) {
+		const rail = new THREE.Mesh(geometry, brass);
+		rail.position.set(x, y, 0);
+		group.add(rail);
+	}
+
+	// Thin inner liner standing proud of the field for a beveled molding look.
+	const linerW = 0.08;
+	const linerH = new THREE.BoxGeometry(width + linerW * 2, linerW, 0.06);
+	const linerV = new THREE.BoxGeometry(linerW, height, 0.06);
+	const liners = [
+		[linerH, 0, height / 2 + linerW / 2],
+		[linerH, 0, -(height / 2 + linerW / 2)],
+		[linerV, -(width / 2 + linerW / 2), 0],
+		[linerV, width / 2 + linerW / 2, 0],
+	];
+	for (const [geometry, x, y] of liners) {
+		const liner = new THREE.Mesh(geometry, brass);
+		liner.position.set(x, y, 0.07);
+		group.add(liner);
+	}
+
+	// Raised corner bosses where the rails meet.
+	const bossGeometry = new THREE.BoxGeometry(railWidth * 1.3, railWidth * 1.3, 0.22);
+	for (const sx of [-1, 1]) {
+		for (const sy of [-1, 1]) {
+			const boss = new THREE.Mesh(bossGeometry, brass);
+			boss.position.set(
+				sx * (width / 2 + railWidth / 2),
+				sy * (height / 2 + railWidth / 2),
+				0.02
+			);
+			boss.rotation.z = Math.PI / 4;
+			group.add(boss);
+		}
+	}
+	return group;
 }
 
 function createPortalTransom(side, offset) {
@@ -4761,77 +4827,93 @@ function createWordPressMuralTexture() {
 }
 
 function drawUltimateMural(ctx, canvas) {
-	const color = activeVariant.eraColors[0];
-	const blue = activeVariant.eraColors[2];
-	const green = activeVariant.eraColors[3];
+	// An elegant engraved museum banner: a dark field with an ornamental gold
+	// double-rule border, corner flourishes and a small WordPress "W" mark, then
+	// a centered serif "WORDPRESS MUSEUM" title over a Roman-numeral founding date.
+	const gold = activeVariant.eraColors[0];
+	const cx = canvas.width / 2;
 	ctx.fillStyle = '#101827';
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	ctx.fillStyle = color;
-	ctx.fillRect(0, 0, canvas.width, 28);
-	ctx.fillRect(0, canvas.height - 28, canvas.width, 28);
 
-	ctx.globalAlpha = 0.18;
+	// Faint concentric rings centered behind the title, kept subtle as a backdrop.
+	ctx.globalAlpha = 0.1;
 	ctx.strokeStyle = '#fff5df';
-	ctx.lineWidth = 5;
-	for (let radius = 74; radius < 390; radius += 42) {
+	ctx.lineWidth = 4;
+	for (let radius = 96; radius < 380; radius += 52) {
 		ctx.beginPath();
-		ctx.arc(512, 320, radius, 0, Math.PI * 2);
+		ctx.arc(cx, 290, radius, 0, Math.PI * 2);
 		ctx.stroke();
 	}
 	ctx.globalAlpha = 1;
 
-	drawMuralTimeline(ctx, canvas, color, blue, green);
+	drawMuralBorder(ctx, canvas, gold);
+
+	// Centered WordPress "W" mark above the title.
+	drawMuralWMark(ctx, cx, 132, 42, gold);
 
 	ctx.fillStyle = '#fff5df';
 	ctx.textAlign = 'center';
 	fillFittedCanvasText(
 		ctx,
 		'WORDPRESS MUSEUM',
-		430,
-		235,
-		620,
-		96,
-		'900',
-		'Arial Black, Impact, sans-serif'
+		cx,
+		330,
+		760,
+		122,
+		'700',
+		'Georgia, "Times New Roman", serif'
 	);
-	ctx.fillStyle = blue;
-	ctx.font = '900 42px system-ui, sans-serif';
-	ctx.fillText('2003 -> BLOCKS -> PLAYGROUND', 430, 308);
-	ctx.fillStyle = 'rgba(255, 245, 223, 0.78)';
-	ctx.font = '800 25px system-ui, sans-serif';
-	ctx.fillText('Permalinks, plugins, REST, blocks, and one tiny Hello Dolly record', 430, 358);
-	ctx.fillStyle = color;
-	ctx.font = '900 21px ui-monospace, SFMono-Regular, Menlo, monospace';
-	ctx.fillText('mind the $wpdb gap / the loop loops forever', 430, 408);
+
+	// Thin divider rules flanking the founding-date subtitle, kept clear of the text.
+	ctx.fillStyle = gold;
+	ctx.fillRect(cx - 290, 412, 120, 3);
+	ctx.fillRect(cx + 170, 412, 120, 3);
+	ctx.font = '600 46px Georgia, "Times New Roman", serif';
+	ctx.fillStyle = gold;
+	ctx.fillText('EST. MMIII', cx, 426);
 }
 
-function drawMuralTimeline(ctx, canvas, color, blue, green) {
-	const y = 506;
-	const stops = [
-		['1.0', color],
-		['2.x', activeVariant.eraColors[1]],
-		['3.0', blue],
-		['4.x', green],
-		['5.0', activeVariant.eraColors[4]],
-		['6.x', activeVariant.eraColors[5]],
+// An ornamental double-rule border with diamond corner flourishes, framing the
+// engraved title field like a classic museum plaque.
+function drawMuralBorder(ctx, canvas, gold) {
+	ctx.strokeStyle = gold;
+	ctx.lineWidth = 6;
+	ctx.strokeRect(34, 34, canvas.width - 68, canvas.height - 68);
+	ctx.lineWidth = 2;
+	ctx.strokeRect(54, 54, canvas.width - 108, canvas.height - 108);
+
+	ctx.fillStyle = gold;
+	const corners = [
+		[54, 54],
+		[canvas.width - 54, 54],
+		[54, canvas.height - 54],
+		[canvas.width - 54, canvas.height - 54],
 	];
-	ctx.strokeStyle = 'rgba(255, 245, 223, 0.46)';
-	ctx.lineWidth = 9;
+	for (const [x, y] of corners) {
+		ctx.save();
+		ctx.translate(x, y);
+		ctx.rotate(Math.PI / 4);
+		ctx.fillRect(-9, -9, 18, 18);
+		ctx.restore();
+	}
+}
+
+// The official asymmetric WordPress "W" inside a thin ringed roundel.
+function drawMuralWMark(ctx, x, y, radius, gold) {
+	ctx.save();
+	ctx.translate(x, y);
+	ctx.strokeStyle = gold;
+	ctx.lineWidth = 3;
 	ctx.beginPath();
-	ctx.moveTo(130, y);
-	ctx.lineTo(876, y);
+	ctx.arc(0, 0, radius, 0, Math.PI * 2);
 	ctx.stroke();
-	stops.forEach(([label, stopColor], index) => {
-		const x = 150 + index * 142;
-		ctx.fillStyle = stopColor;
-		ctx.beginPath();
-		ctx.arc(x, y, 22, 0, Math.PI * 2);
-		ctx.fill();
-		ctx.fillStyle = '#101827';
-		ctx.font = '900 18px system-ui, sans-serif';
-		ctx.textAlign = 'center';
-		ctx.fillText(label, x, y + 6);
-	});
+	ctx.fillStyle = gold;
+	ctx.font = `700 ${Math.round(radius * 1.18)}px Georgia, "Times New Roman", serif`;
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('W', 0, 2);
+	ctx.textBaseline = 'alphabetic';
+	ctx.restore();
 }
 
 function drawMascotOnMural(ctx, x, y, scale, color, secondary) {
