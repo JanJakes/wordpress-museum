@@ -6745,7 +6745,6 @@ function createAtriumDecor() {
 		group.add(createAtriumCarpetRunners());
 		group.add(createAtriumTimelineRing());
 		group.add(createAtriumVersionOrbit());
-		group.add(createAtriumRopeArcs(color, secondary));
 		group.add(createLogoEvolutionDisplay());
 		group.add(createMissionTablet());
 	}
@@ -7263,7 +7262,6 @@ function createAtriumTimelineRing() {
 		}
 	}
 
-	group.add(createTimelineEntranceCue(radius));
 	return group;
 }
 
@@ -7377,84 +7375,6 @@ function createTimelineChevron(color, flowPhase) {
 	return group;
 }
 
-function createTimelineEntranceCue(radius) {
-	// Parked just inside the mural at the gap in the timeline, oriented to read
-	// from the rotunda centre (where visitors spawn looking toward the mural).
-	const group = new THREE.Group();
-	group.position.set(0, 0, radius);
-	group.rotation.y = Math.PI;
-
-	const plate = new THREE.Mesh(
-		new THREE.PlaneGeometry(3.7, 1.18),
-		new THREE.MeshStandardMaterial({
-			color: 0xf3ead0,
-			roughness: 0.52,
-			metalness: 0.06,
-		})
-	);
-	plate.rotation.x = -Math.PI / 2;
-	plate.position.y = 0.045;
-	group.add(plate);
-
-	const label = createReadableLabel(
-		createTimelineEntranceTexture(),
-		3.62,
-		1.1
-	);
-	label.rotation.x = -Math.PI / 2;
-	label.position.y = 0.09;
-	group.add(label);
-
-	return group;
-}
-
-function createTimelineEntranceTexture() {
-	const startColor = eraColors.get(eras[0]);
-	const endColor = eraColors.get(eras[eras.length - 1]);
-	const startYear = String(Math.min(...releases.map((release) => release.year)));
-	const endYear = String(Math.max(...releases.map((release) => release.year)));
-	const canvas = document.createElement('canvas');
-	canvas.width = 1024;
-	canvas.height = 320;
-	const ctx = canvas.getContext('2d');
-	ctx.textAlign = 'center';
-	ctx.textBaseline = 'middle';
-
-	ctx.fillStyle = '#1b2330';
-	ctx.font = '900 78px Arial Black, Impact, sans-serif';
-	fillFittedCanvasText(ctx, 'WORDPRESS THROUGH THE YEARS', 512, 96, 940, 78, '900', 'Arial Black, Impact, sans-serif');
-
-	// Mini timeline: earliest ───▸ latest year, the chevron echoing the floor flow.
-	ctx.fillStyle = startColor;
-	ctx.font = '900 56px Arial Black, Impact, sans-serif';
-	ctx.fillText(startYear, 250, 214);
-	ctx.fillStyle = endColor;
-	ctx.fillText(endYear, 774, 214);
-
-	ctx.strokeStyle = '#5b6472';
-	ctx.lineWidth = 8;
-	ctx.beginPath();
-	ctx.moveTo(346, 214);
-	ctx.lineTo(660, 214);
-	ctx.stroke();
-	ctx.fillStyle = '#5b6472';
-	ctx.beginPath();
-	ctx.moveTo(700, 214);
-	ctx.lineTo(656, 190);
-	ctx.lineTo(656, 238);
-	ctx.closePath();
-	ctx.fill();
-
-	ctx.fillStyle = '#5b6472';
-	ctx.font = '700 30px system-ui, sans-serif';
-	ctx.fillText('follow the timeline around the rotunda', 512, 272);
-
-	const texture = new THREE.CanvasTexture(canvas);
-	texture.colorSpace = THREE.SRGBColorSpace;
-	texture.anisotropy = 4;
-	return texture;
-}
-
 function createAtriumVersionOrbit() {
 	const group = new THREE.Group();
 	const orbitMaterial = new THREE.MeshBasicMaterial({
@@ -7508,15 +7428,6 @@ function createAtriumVersionOrbit() {
 	return group;
 }
 
-function createAtriumRopeArcs(color, secondary) {
-	const group = new THREE.Group();
-	group.add(createMuseumRopeArc(0, 0, 3.32, Math.PI * 0.12, Math.PI * 0.88, color));
-	group.add(createMuseumRopeArc(0, 0, 3.32, Math.PI * 1.12, Math.PI * 1.88, secondary));
-	group.add(createFloorGlowArc(0, 0, 3.95, Math.PI * 0.08, Math.PI * 0.92, color));
-	group.add(createFloorGlowArc(0, 0, 3.95, Math.PI * 1.08, Math.PI * 1.92, secondary));
-	return group;
-}
-
 function createOpenSourceAtriumRing() {
 	const group = new THREE.Group();
 	openSourceProjectItems.forEach((item, index) => {
@@ -7561,51 +7472,6 @@ function createOpenSourcePylon(item, index) {
 	const label = createReadableLabel(createOpenSourceSignTexture(item.title, item.note, item.color), 0.84, 0.34);
 	label.position.set(0, 0.76, -0.15);
 	group.add(label);
-	return group;
-}
-
-function createMuseumRopeArc(centerX, centerZ, radius, startAngle, endAngle, color) {
-	const points = [];
-	const segmentCount = 8;
-	for (let index = 0; index <= segmentCount; index++) {
-		const progress = index / segmentCount;
-		const angle = startAngle + (endAngle - startAngle) * progress;
-		points.push({
-			x: centerX + Math.cos(angle) * radius,
-			z: centerZ + Math.sin(angle) * radius,
-		});
-	}
-	return createMuseumRopeLine(points, color, {
-		postHeight: 0.74,
-		ropeY: 0.77,
-		postRadius: 0.04,
-		capRadius: 0.07,
-	});
-}
-
-function createFloorGlowArc(centerX, centerZ, radius, startAngle, endAngle, color) {
-	const group = new THREE.Group();
-	const material = new THREE.MeshBasicMaterial({
-		color,
-		transparent: true,
-		opacity: 0.22,
-		side: THREE.DoubleSide,
-		depthWrite: false,
-	});
-	const segmentCount = 18;
-	for (let index = 0; index < segmentCount; index++) {
-		const progress = (index + 0.5) / segmentCount;
-		const angle = startAngle + (endAngle - startAngle) * progress;
-		const tick = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.018, 0.46), material.clone());
-		tick.position.set(centerX + Math.cos(angle) * radius, 0.078, centerZ + Math.sin(angle) * radius);
-		tick.rotation.y = -angle;
-		group.add(tick);
-	}
-	registerAnimation(group, (object, elapsed) => {
-		for (const [index, child] of object.children.entries()) {
-			child.material.opacity = 0.16 + Math.sin(elapsed * 1.45 + index * 0.42) * 0.045;
-		}
-	});
 	return group;
 }
 
