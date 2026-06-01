@@ -5275,49 +5275,75 @@ function createRoomFloorGeometry() {
 	return new THREE.ShapeGeometry(shape);
 }
 
+// The gallery's title plaque: a light engraved-marble tablet (the same style as
+// the entrance banner) carrying the era name and its tagline, mounted high on
+// the back wall clear of the picture rails.
 function createRoomMural(room) {
-	const mural = new THREE.Mesh(
-		new THREE.PlaneGeometry(backWallWidth - 2.4, 0.68),
+	const group = new THREE.Group();
+	const width = backWallWidth - 4.0; // clears the flanking pilasters (±6.32)
+	const height = 1.25;
+	const tablet = new THREE.Mesh(
+		new THREE.PlaneGeometry(width, height),
 		new THREE.MeshBasicMaterial({
-			map: createRoomMuralTexture(room),
-			transparent: true,
+			map: createRoomMuralTexture(room, width / height),
 			side: THREE.DoubleSide,
 		})
 	);
-	mural.position.set(0, wallHeight - 1.15, roomDepth / 2 - wallThickness / 2 - 0.055);
-	mural.rotation.y = Math.PI;
-	return mural;
+	tablet.position.z = 0.02;
+	group.add(tablet);
+	group.add(createMuralFrame(width, height));
+	group.position.set(0, 5.8, roomDepth / 2 - wallThickness / 2 - 0.08);
+	group.rotation.y = Math.PI;
+	return group;
 }
 
-function createRoomMuralTexture(room) {
+function createRoomMuralTexture(room, aspect) {
 	const canvas = document.createElement('canvas');
-	canvas.width = 1024;
-	canvas.height = 160;
+	canvas.width = 1280;
+	canvas.height = Math.round(canvas.width / aspect);
 	const ctx = canvas.getContext('2d');
+	const w = canvas.width;
+	const h = canvas.height;
 	const copy = getEraMuralCopy(room.era);
-	ctx.fillStyle = 'rgba(12, 19, 32, 0.92)';
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	ctx.fillStyle = room.color;
-	ctx.fillRect(0, 0, canvas.width, 12);
-	ctx.fillRect(0, canvas.height - 12, canvas.width, 12);
-	ctx.globalAlpha = 0.18;
-	ctx.fillStyle = '#fff5df';
-	for (let index = 0; index < 24; index++) {
-		ctx.fillRect(42 + index * 42, 38 + (index % 2) * 72, 18, 18);
-	}
-	ctx.globalAlpha = 1;
-	ctx.fillStyle = '#fff5df';
-	ctx.textAlign = 'left';
-	ctx.font = '900 24px Arial Black, Impact, sans-serif';
-	ctx.fillText(room.yearRange, 42, 45);
-	ctx.font = '900 38px Arial Black, Impact, sans-serif';
-	fillFittedCanvasText(ctx, room.era.toUpperCase(), 42, 86, 680, 38, '900', 'Arial Black, Impact, sans-serif');
-	ctx.fillStyle = room.color;
-	ctx.font = '900 23px system-ui, sans-serif';
-	fillFittedCanvasText(ctx, copy.title, 42, 119, 560, 23, '900', 'system-ui, sans-serif');
-	ctx.fillStyle = 'rgba(255, 245, 223, 0.74)';
-	ctx.font = '700 18px system-ui, sans-serif';
-	fillFittedCanvasText(ctx, copy.note, 42, 145, 760, 18, '700', 'system-ui, sans-serif');
+	const bronze = '#7c5a22';
+
+	drawMuralMarbleField(ctx, w, h);
+	drawMuralBorder(ctx, w, h, bronze);
+
+	ctx.textAlign = 'center';
+	drawEngravedText(
+		ctx,
+		room.era.toUpperCase(),
+		w / 2,
+		h * 0.4,
+		w * 0.86,
+		h * 0.34,
+		'700',
+		'Georgia, "Times New Roman", serif',
+		bronze
+	);
+
+	// Tagline beneath, flanked by thin bronze rules clear of the lettering.
+	const subY = h * 0.75;
+	ctx.font = `600 ${Math.round(h * 0.16)}px Georgia, "Times New Roman", serif`;
+	const half = Math.min(ctx.measureText(copy.title).width, w * 0.66) / 2;
+	ctx.fillStyle = bronze;
+	const ruleW = h * 0.28;
+	const ruleGap = h * 0.12;
+	ctx.fillRect(w / 2 - half - ruleGap - ruleW, subY - 2, ruleW, 3);
+	ctx.fillRect(w / 2 + half + ruleGap, subY - 2, ruleW, 3);
+	drawEngravedText(
+		ctx,
+		copy.title,
+		w / 2,
+		subY,
+		w * 0.66,
+		h * 0.16,
+		'600',
+		'Georgia, "Times New Roman", serif',
+		bronze
+	);
+
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
@@ -5357,134 +5383,154 @@ function getEraMuralCopy(era) {
 	}[era];
 }
 
+// The interpretive plaque beneath the title tablet: a cast-bronze museum panel
+// carrying the era's note, its WordPress release span and count, and a small
+// engraved release timeline. Mounted just below the marble tablet.
 function createRoomStoryWall(room) {
 	const group = new THREE.Group();
+	const width = backWallWidth - 3.4; // ≈10.8
+	const height = 1.5;
+	const slab = new THREE.Mesh(
+		new THREE.BoxGeometry(width + 0.16, height + 0.16, 0.06),
+		new THREE.MeshStandardMaterial({ color: 0x5f4a24, roughness: 0.42, metalness: 0.58 })
+	);
+	group.add(slab);
 	const panel = new THREE.Mesh(
-		new THREE.PlaneGeometry(backWallWidth - 2.1, 1.32),
+		new THREE.PlaneGeometry(width, height),
 		new THREE.MeshBasicMaterial({
-			map: createRoomStoryTexture(room),
-			transparent: true,
+			map: createRoomStoryTexture(room, width / height),
 			side: THREE.DoubleSide,
-			depthWrite: false,
 		})
 	);
-	panel.position.set(0, 4.18, roomDepth / 2 - wallThickness / 2 - 0.08);
-	panel.rotation.y = Math.PI;
+	panel.position.z = 0.05;
 	group.add(panel);
-
-	const items = getEraReleaseItems(room.era);
-	const tickMaterial = new THREE.MeshBasicMaterial({ color: room.color });
-	const dotMaterial = new THREE.MeshBasicMaterial({ color: 0xfff5df });
-	const width = backWallWidth - 3.4;
-	const sweep = new THREE.Mesh(
-		new THREE.BoxGeometry(0.055, 1.04, 0.035),
-		new THREE.MeshBasicMaterial({
-			color: room.color,
-			transparent: true,
-			opacity: 0.32,
-			depthWrite: false,
-		})
-	);
-	const roomOffset = eras.indexOf(room.era) * 0.11;
-	sweep.position.set(-width / 2, 4.14, roomDepth / 2 - wallThickness / 2 - 0.17);
-	registerAnimation(sweep, (object, elapsed) => {
-		const progress = (elapsed * 0.055 + roomOffset) % 1;
-		object.position.x = -width / 2 + width * progress;
-		object.material.opacity = 0.18 + Math.sin(elapsed * 1.2 + roomOffset) * 0.06;
-	});
-	group.add(sweep);
-	items.forEach(({ release }, index) => {
-		const x = items.length === 1
-			? 0
-			: -width / 2 + (width * index) / (items.length - 1);
-		const y = 3.72 + Math.sin(index * 1.7) * 0.12;
-		const tick = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.34, 0.045), tickMaterial);
-		tick.position.set(x, y, roomDepth / 2 - wallThickness / 2 - 0.13);
-		group.add(tick);
-		if (index === 0 || index === items.length - 1 || release.version.endsWith('.0')) {
-			const dot = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 8), dotMaterial);
-			dot.position.set(x, y + 0.22, roomDepth / 2 - wallThickness / 2 - 0.16);
-			group.add(dot);
-		}
-	});
-
-	const first = items[0]?.release.version;
-	const last = items[items.length - 1]?.release.version;
-	if (first && last && first !== last) {
-		const label = createReadableLabel(
-			createSmallSignTexture(`WP ${first}-${last}`, room.color),
-			1.42,
-			0.28
-		);
-		label.position.set(-(backWallWidth / 2) + 1.52, 3.52, roomDepth / 2 - wallThickness / 2 - 0.18);
-		label.rotation.y = Math.PI;
-		group.add(label);
-	}
+	group.position.set(0, 4.0, roomDepth / 2 - wallThickness / 2 - 0.08);
+	group.rotation.y = Math.PI;
 	return group;
 }
 
-function createRoomStoryTexture(room) {
+function createRoomStoryTexture(room, aspect) {
 	const canvas = document.createElement('canvas');
-	canvas.width = 1024;
-	canvas.height = 320;
+	canvas.width = 1280;
+	canvas.height = Math.round(canvas.width / aspect);
 	const ctx = canvas.getContext('2d');
+	const w = canvas.width;
+	const h = canvas.height;
 	const copy = getEraMuralCopy(room.era);
 	const items = getEraReleaseItems(room.era);
 	const first = items[0]?.release;
 	const last = items[items.length - 1]?.release;
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-	const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
-	gradient.addColorStop(0, 'rgba(17, 24, 39, 0.08)');
-	gradient.addColorStop(0.18, 'rgba(17, 24, 39, 0.72)');
-	gradient.addColorStop(0.82, 'rgba(17, 24, 39, 0.72)');
-	gradient.addColorStop(1, 'rgba(17, 24, 39, 0.08)');
-	ctx.fillStyle = gradient;
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	drawBronzePlaqueField(ctx, w, h);
 
-	ctx.strokeStyle = room.color;
-	ctx.lineWidth = 8;
-	ctx.globalAlpha = 0.78;
-	ctx.strokeRect(84, 34, canvas.width - 168, canvas.height - 68);
-	ctx.globalAlpha = 1;
+	const padX = w * 0.06;
+	const colSplit = w * 0.62;
 
-	ctx.fillStyle = 'rgba(255, 245, 223, 0.12)';
-	for (let index = 0; index < 18; index++) {
-		const x = 116 + index * 48;
-		ctx.fillRect(x, 66 + (index % 3) * 56, 24, 10);
-	}
-
-	ctx.fillStyle = '#fff5df';
+	// Left column: the era's year range over its interpretive note.
 	ctx.textAlign = 'left';
-	ctx.font = '900 28px Arial Black, Impact, sans-serif';
-	ctx.fillText(`${room.yearRange} RELEASE LINE`, 118, 88);
-	ctx.font = '900 42px Arial Black, Impact, sans-serif';
-	fillFittedCanvasText(ctx, copy.title.toUpperCase(), 118, 144, 640, 42, '900', 'Arial Black, Impact, sans-serif');
-	ctx.fillStyle = room.color;
-	ctx.font = '900 22px system-ui, sans-serif';
-	fillFittedCanvasText(ctx, `${items.length} versions under glass`, 118, 184, 440, 22, '900', 'system-ui, sans-serif');
-	ctx.fillStyle = 'rgba(255, 245, 223, 0.78)';
-	ctx.font = '700 18px system-ui, sans-serif';
-	wrapText(ctx, copy.note, 118, 222, 580, 25, 2);
+	drawRaisedBronzeText(ctx, room.yearRange, padX, h * 0.27, colSplit - padX * 1.3, h * 0.2,
+		'700', 'Georgia, "Times New Roman", serif');
+	ctx.textBaseline = 'middle';
+	drawRaisedBronzeWrap(ctx, copy.note, padX, h * 0.56, colSplit - padX * 1.3, h * 0.15, 3,
+		'400', 'Georgia, "Times New Roman", serif');
 
+	// Right column: the WordPress release span and count.
 	ctx.textAlign = 'right';
-	ctx.fillStyle = '#fff5df';
-	ctx.font = '900 28px Arial Black, Impact, sans-serif';
-	if (last && first) {
-		ctx.fillText(`WP ${first.version}`, 896, 116);
-		ctx.fillText(`WP ${last.version}`, 896, 172);
+	const rx = w - padX;
+	if (first && last) {
+		const span = first.version === last.version
+			? `WP ${first.version}`
+			: `WP ${first.version}–${last.version}`;
+		drawRaisedBronzeText(ctx, span, rx, h * 0.29, w - colSplit - padX, h * 0.2,
+			'700', 'Georgia, "Times New Roman", serif');
 	}
-	ctx.fillStyle = room.color;
-	ctx.globalAlpha = 0.32;
-	ctx.fillRect(726, 198, 170, 12);
-	ctx.fillRect(726, 222, 116, 12);
-	ctx.fillRect(726, 246, 148, 12);
-	ctx.globalAlpha = 1;
+	const count = `${items.length} release${items.length === 1 ? '' : 's'}`;
+	drawRaisedBronzeText(ctx, count, rx, h * 0.52, w - colSplit - padX, h * 0.13,
+		'400', 'Georgia, "Times New Roman", serif');
+
+	// Engraved release timeline along the lower right.
+	drawBronzeTimeline(ctx, colSplit + padX * 0.4, w - padX, h * 0.76, items.length);
 
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
+}
+
+// A cast-bronze plaque field: a deep patinated-bronze gradient with faint
+// brushed-metal streaks, a recessed bevel, and a bright raised keyline.
+function drawBronzePlaqueField(ctx, w, h) {
+	const grad = ctx.createLinearGradient(0, 0, 0, h);
+	grad.addColorStop(0, '#6c5629');
+	grad.addColorStop(0.5, '#534020');
+	grad.addColorStop(1, '#41311a');
+	ctx.fillStyle = grad;
+	ctx.fillRect(0, 0, w, h);
+	for (let i = 0; i < 70; i++) {
+		ctx.globalAlpha = 0.05;
+		ctx.fillStyle = i % 2 ? '#d8b56a' : '#2a2010';
+		ctx.fillRect(pseudoRandom(i * 1.7 + 0.4) * w, 0, 1.4, h);
+	}
+	ctx.globalAlpha = 1;
+	const inset = Math.round(h * 0.09);
+	ctx.strokeStyle = 'rgba(0, 0, 0, 0.38)';
+	ctx.lineWidth = 3;
+	ctx.strokeRect(inset, inset, w - inset * 2, h - inset * 2);
+	ctx.strokeStyle = 'rgba(226, 192, 120, 0.55)';
+	ctx.lineWidth = 2;
+	ctx.strokeRect(inset + 4, inset + 4, w - inset * 2 - 8, h - inset * 2 - 8);
+}
+
+// Raised polished-bronze lettering: a dark recess offset down-right beneath a
+// warm gold fill, so the text reads as cast proud of the patinated field.
+function drawRaisedBronzeText(ctx, text, x, y, maxWidth, maxFontSize, weight, family) {
+	const prev = ctx.textBaseline;
+	ctx.textBaseline = 'middle';
+	ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+	fillFittedCanvasText(ctx, text, x + 2, y + 2, maxWidth, maxFontSize, weight, family);
+	ctx.fillStyle = '#f3e1ad';
+	fillFittedCanvasText(ctx, text, x, y, maxWidth, maxFontSize, weight, family);
+	ctx.textBaseline = prev;
+}
+
+function drawRaisedBronzeWrap(ctx, text, x, y, maxWidth, fontSize, maxLines, weight, family) {
+	ctx.font = `${weight} ${Math.round(fontSize)}px ${family}`;
+	const lineHeight = fontSize * 1.34;
+	ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+	wrapText(ctx, text, x + 1.5, y + 1.5, maxWidth, lineHeight, maxLines);
+	ctx.fillStyle = '#e9d4a0';
+	wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines);
+}
+
+// A slim engraved baseline with a bronze stud per release; the first and last
+// releases sit proud as larger polished dots.
+function drawBronzeTimeline(ctx, x0, x1, y, count) {
+	ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+	ctx.lineWidth = 3;
+	ctx.beginPath();
+	ctx.moveTo(x0, y + 1.5);
+	ctx.lineTo(x1, y + 1.5);
+	ctx.stroke();
+	ctx.strokeStyle = '#e2c078';
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	ctx.moveTo(x0, y);
+	ctx.lineTo(x1, y);
+	ctx.stroke();
+	for (let i = 0; i < count; i++) {
+		const t = count === 1 ? 0.5 : i / (count - 1);
+		const cx = x0 + (x1 - x0) * t;
+		const major = i === 0 || i === count - 1;
+		const r = major ? 6 : 3.5;
+		ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+		ctx.beginPath();
+		ctx.arc(cx + 1.5, y + 1.5, r, 0, Math.PI * 2);
+		ctx.fill();
+		ctx.fillStyle = major ? '#f3e1ad' : '#caa55e';
+		ctx.beginPath();
+		ctx.arc(cx, y, r, 0, Math.PI * 2);
+		ctx.fill();
+	}
 }
 
 function createRoomCeiling(color) {
@@ -6681,12 +6727,8 @@ function createRoomPilasterGrid(marbleMaterial, brassMaterial) {
 		cap.position.set(x, wallHeight - 0.36, roomDepth / 2 - wallThickness / 2 - 0.055);
 		group.add(cap);
 	}
-	const upperLedger = new THREE.Mesh(
-		new THREE.BoxGeometry(backWallWidth - 2.1, 0.07, 0.12),
-		brassMaterial
-	);
-	upperLedger.position.set(0, wallHeight - 0.94, roomDepth / 2 - wallThickness / 2 - 0.05);
-	group.add(upperLedger);
+	// (The old upper ledger at wallHeight-0.94 was removed: it crossed the title
+	// tablet's first line. The back rail at wallHeight-0.58 still crowns the wall.)
 	return group;
 }
 
