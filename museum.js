@@ -3115,12 +3115,14 @@ function createCeiling(bounds) {
 	shape.lineTo(bounds.maxX, bounds.maxZ);
 	shape.lineTo(bounds.minX, bounds.maxZ);
 	shape.closePath();
+	// The opening is centred on the rotunda hub (origin), not the asymmetric
+	// footprint, so it sits squarely over the octagon below.
 	const hole = new THREE.Path();
 	const holeRadius = hubCircumradius + 0.35;
 	for (let index = 0; index <= 8; index++) {
 		const angle = Math.PI / 8 + (index * Math.PI) / 4;
-		const px = centerX + Math.cos(angle) * holeRadius;
-		const pz = centerZ + Math.sin(angle) * holeRadius;
+		const px = Math.cos(angle) * holeRadius;
+		const pz = Math.sin(angle) * holeRadius;
 		if (index === 0) {
 			hole.moveTo(px, pz);
 		} else {
@@ -3142,7 +3144,7 @@ function createCeiling(bounds) {
 	roof.position.set(0, shellHeight, 0);
 	group.add(roof);
 
-	group.add(createAtriumGlassDome(centerX, centerZ));
+	group.add(createAtriumGlassDome(0, 0));
 	return group;
 }
 
@@ -3250,12 +3252,21 @@ function createCeilingDetails(bounds) {
 	const railY = shellHeight - 0.12;
 
 	if (isCurrentVariant) {
-		group.add(createGrandCeilingOculus(bounds));
-		group.add(createCathedralVaultSystem(bounds));
-		group.add(createCathedralRoseWindow(bounds));
-		group.add(createCathedralLightShafts(bounds));
-		group.add(createCathedralEraBanners(bounds));
-		group.add(createCathedralDustMotes(bounds));
+		// The cathedral dome and its fittings hang over the rotunda, so they are
+		// centred on the hub (origin) rather than on the asymmetric footprint that
+		// the flat roof, beams and skylights below span.
+		const hubBounds = {
+			minX: -hubCircumradius,
+			maxX: hubCircumradius,
+			minZ: -hubCircumradius,
+			maxZ: hubCircumradius,
+		};
+		group.add(createGrandCeilingOculus(hubBounds));
+		group.add(createCathedralVaultSystem(hubBounds));
+		group.add(createCathedralRoseWindow(hubBounds));
+		group.add(createCathedralLightShafts(hubBounds));
+		group.add(createCathedralEraBanners(hubBounds));
+		group.add(createCathedralDustMotes(hubBounds));
 		group.add(createOpenSourceConstellation());
 	}
 
