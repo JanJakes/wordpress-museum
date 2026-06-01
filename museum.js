@@ -4287,7 +4287,13 @@ function createMissionTabletTexture() {
 
 function createWordPressMural(side) {
 	const group = new THREE.Group();
-	const muralHeight = wallHeight - portalDoorHeight - 0.2;
+	// Seat the tablet in the clear band between the EXIT/WELCOME door signs
+	// (their tops sit at ≈portalDoorHeight+0.38) and the vault's springing
+	// entablature (its lower beam undersides at ≈wallHeight-0.02), so the
+	// framed banner crowds neither above nor below.
+	const bandBottom = portalDoorHeight + 0.72;
+	const bandTop = wallHeight - 0.38;
+	const muralHeight = bandTop - bandBottom;
 	// Narrow enough that the panel and its frame clear the flanking columns
 	// (their inner edge sits ~5.8m off centre) with a comfortable gap.
 	const muralWidth = hubSideLength * 0.6;
@@ -4306,7 +4312,7 @@ function createWordPressMural(side) {
 	group.position
 		.copy(side.midpoint)
 		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.08));
-	group.position.y = portalDoorHeight + muralHeight / 2 + 0.08;
+	group.position.y = (bandBottom + bandTop) / 2;
 	group.rotation.y = getRotationForNormal(
 		side.normal.clone().multiplyScalar(-1)
 	);
