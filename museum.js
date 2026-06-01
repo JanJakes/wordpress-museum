@@ -1383,19 +1383,20 @@ function createPlaygroundAnnex() {
 	// Equipment, kept around the edges so the centre and the door->exhibit sightline
 	// stay walkable. The exhibit sits on the east wall directly across from the door
 	// (z = playgroundDoorZCenter), so that lane and the room middle are left clear.
-	// A sandbox / swing set / slide line the south wall in non-overlapping slots; a
-	// see-saw sits along the west wall and the spring rider against the north wall,
-	// both well clear of the door (which is offset to the north end of the west wall)
-	// so the entry lane stays open.
+	// The sandbox sits against the east wall just right of the main exhibit sign, in
+	// view in front of the entrance (completing the sign's "the sandbox is over there
+	// →" gag); the slide/swing line the south wall and the see-saw/spring rider sit
+	// west/north, all clear of the open entry lane and room middle.
 	const southZ = playgroundMaxZ - 2.4;
-	group.add(createPlaygroundSandbox(playgroundMinX + 2.4, southZ)); // SW
+	group.add(createPlaygroundSandbox(playgroundMaxX - 2.0, playgroundDoorZCenter + 3.2)); // E wall, right of the sign
 	group.add(createPlaygroundSwingSet(playgroundMinX + 5.4, southZ + 0.1)); // S middle
-	group.add(createPlaygroundSlide(playgroundMaxX - 1.6, southZ, Math.PI)); // SE, chute -> -z
-	group.add(createPlaygroundSeesaw(playgroundMinX + 2.6, playgroundCenterZ + 0.4)); // W
+	group.add(createPlaygroundSlide(playgroundMinX + 2.3, southZ, Math.PI)); // SW, moved off the east wall to clear the sandbox
+	group.add(createPlaygroundSeesaw(playgroundMinX + 2.4, playgroundDoorZCenter + 2.0)); // W, clear of the entry sightline
 	group.add(createPlaygroundSpringRider(playgroundMinX + 6.5, playgroundMinZ + 1.2)); // N, east of door
 
-	// WordPress Playground exhibit panel on the east wall, facing the doorway.
+	// WordPress Playground exhibit panel + the "SANDBOX" sign, both on the east wall.
 	group.add(createPlaygroundExhibitSign());
+	group.add(createPlaygroundSandboxSign());
 	return group;
 }
 
@@ -1824,6 +1825,23 @@ function createPlaygroundExhibitSign() {
 	const accent = new THREE.PointLight(0x78e0dc, 0.9, 9);
 	accent.position.set(wallFace - 1.6, 2.7, playgroundDoorZCenter);
 	group.add(accent);
+	return group;
+}
+
+// A small "SANDBOX" sign on the east wall above the sandbox, just right of the
+// main exhibit panel — the literal end of its "the sandbox is over there →" gag.
+function createPlaygroundSandboxSign() {
+	const group = new THREE.Group();
+	const wallFace = playgroundMaxX - playgroundWallThickness / 2;
+	const z = playgroundDoorZCenter + 3.2;
+	const brass = new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 });
+	const frame = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.62, 1.78), brass);
+	frame.position.set(wallFace - 0.04, 2.35, z);
+	group.add(frame);
+	const sign = createReadableLabel(createSmallSignTexture('SANDBOX', '#78e0dc'), 1.6, 0.46);
+	sign.position.set(wallFace - 0.11, 2.35, z);
+	sign.rotation.y = -Math.PI / 2; // face -x, toward the room
+	group.add(sign);
 	return group;
 }
 
