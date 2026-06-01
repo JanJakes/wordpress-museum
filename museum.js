@@ -1865,34 +1865,45 @@ function createPlaygroundSandboxSign() {
 function createPlaygroundSignTexture() {
 	const canvas = document.createElement('canvas');
 	canvas.width = 1024;
-	canvas.height = 700;
+	canvas.height = 693; // ~1.48 aspect, matches the 3.4×2.3 board
 	const ctx = canvas.getContext('2d');
-	ctx.fillStyle = '#fff5df';
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	ctx.fillStyle = '#111827';
-	ctx.fillRect(28, 28, canvas.width - 56, canvas.height - 56);
-	ctx.fillStyle = '#78e0dc';
-	ctx.fillRect(28, 28, canvas.width - 56, 26);
-	ctx.fillRect(28, canvas.height - 54, canvas.width - 56, 26);
-	ctx.fillStyle = '#78e0dc';
+	const w = canvas.width;
+	const h = canvas.height;
+	const bronze = '#7c5a22';
+	const serif = 'Georgia, "Times New Roman", serif';
+
+	drawMuralMarbleField(ctx, w, h);
+	drawMuralBorder(ctx, w, h, bronze);
+
 	ctx.textAlign = 'center';
-	ctx.textBaseline = 'middle';
-	fillFittedCanvasText(ctx, 'WORDPRESS PLAYGROUND', 512, 130, 880, 76, '900', 'Arial Black, Impact, sans-serif');
-	ctx.fillStyle = '#fff5df';
-	ctx.font = '600 38px system-ui, sans-serif';
-	const lines = [
-		'Run WordPress instantly in your browser.',
-		'No server, no install — powered by',
-		'WebAssembly. A safe place to experiment.',
-		'Since 2022.',
+	drawEngravedText(ctx, 'WORDPRESS', w / 2, h * 0.15, w * 0.82, h * 0.12, '700', serif, bronze);
+	drawEngravedText(ctx, 'PLAYGROUND', w / 2, h * 0.27, w * 0.82, h * 0.12, '700', serif, bronze);
+
+	ctx.fillStyle = bronze;
+	ctx.fillRect(w / 2 - w * 0.17, h * 0.355, w * 0.34, 3);
+
+	const body = [
+		'Run WordPress instantly in your browser —',
+		'no server, no install, powered by WebAssembly.',
+		'A safe place to experiment. Since 2022.',
 	];
-	lines.forEach((line, i) => ctx.fillText(line, 512, 250 + i * 56));
-	ctx.fillStyle = '#ffd23f';
-	ctx.font = '900 34px Arial Black, Impact, sans-serif';
-	ctx.fillText('YES — AN ACTUAL PLAYGROUND.', 512, 520);
-	ctx.fillStyle = '#9fb8c9';
-	ctx.font = 'italic 28px system-ui, sans-serif';
-	ctx.fillText('(the sandbox is over there → a real code sandbox too)', 512, 600);
+	body.forEach((line, i) =>
+		drawEngravedText(ctx, line, w / 2, h * 0.46 + i * h * 0.082, w * 0.84, h * 0.05, '400', serif, '#5d5132')
+	);
+
+	drawEngravedText(ctx, 'YES — AN ACTUAL PLAYGROUND.', w / 2, h * 0.75, w * 0.8, h * 0.062, '700', serif, bronze);
+	drawEngravedText(
+		ctx,
+		'(the sandbox is over there → a real code sandbox, too)',
+		w / 2,
+		h * 0.86,
+		w * 0.84,
+		h * 0.042,
+		'italic 400',
+		serif,
+		'#6a5d3c'
+	);
+
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
@@ -2291,21 +2302,29 @@ function createPriceTag(text) {
 function createMercantileSignTexture(title, sub) {
 	const canvas = document.createElement('canvas');
 	canvas.width = 1024;
-	canvas.height = 320;
+	canvas.height = 295; // ~3.47 aspect, matches the 5.2×1.5 board
 	const ctx = canvas.getContext('2d');
-	ctx.fillStyle = '#1b2740';
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	ctx.fillStyle = '#e8b765';
-	ctx.fillRect(0, 0, canvas.width, 14);
-	ctx.fillRect(0, canvas.height - 14, canvas.width, 14);
-	ctx.fillStyle = '#ffd98a';
-	ctx.font = '900 116px Arial Black, Impact, sans-serif';
+	const w = canvas.width;
+	const h = canvas.height;
+	const bronze = '#7c5a22';
+	const serif = 'Georgia, "Times New Roman", serif';
+
+	drawMuralMarbleField(ctx, w, h);
+	drawMuralBorder(ctx, w, h, bronze);
+
 	ctx.textAlign = 'center';
-	ctx.textBaseline = 'middle';
-	fillFittedCanvasText(ctx, title, canvas.width / 2, 130, 940, 116, '900', 'Arial Black, Impact, sans-serif');
-	ctx.fillStyle = '#cfe4ff';
-	ctx.font = '700 46px system-ui, sans-serif';
-	fillFittedCanvasText(ctx, sub, canvas.width / 2, 232, 900, 46, '700', 'system-ui, sans-serif');
+	drawEngravedText(ctx, title, w / 2, h * 0.4, w * 0.84, h * 0.34, '700', serif, bronze);
+
+	const subY = h * 0.74;
+	ctx.font = `600 ${Math.round(h * 0.13)}px ${serif}`;
+	const half = Math.min(ctx.measureText(sub).width, w * 0.66) / 2;
+	ctx.fillStyle = bronze;
+	const ruleW = h * 0.24;
+	const ruleGap = h * 0.1;
+	ctx.fillRect(w / 2 - half - ruleGap - ruleW, subY - 2, ruleW, 3);
+	ctx.fillRect(w / 2 + half + ruleGap, subY - 2, ruleW, 3);
+	drawEngravedText(ctx, sub, w / 2, subY, w * 0.66, h * 0.13, '600', serif, bronze);
+
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
