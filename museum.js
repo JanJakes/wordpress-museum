@@ -6750,7 +6750,6 @@ function createAtriumDecor() {
 	if (isCurrentVariant) {
 		group.add(createAtriumCarpetRunners());
 		group.add(createAtriumTimelineRing());
-		group.add(createAtriumVersionOrbit());
 		group.add(createLogoEvolutionDisplay());
 		group.add(createMissionTablet());
 	}
@@ -7377,59 +7376,6 @@ function createTimelineChevron(color, flowPhase) {
 	// the direction of time.
 	registerAnimation(group, (object, elapsed) => {
 		material.opacity = 0.34 + Math.max(0, Math.sin(elapsed * 1.8 - flowPhase * 1.5)) * 0.5;
-	});
-	return group;
-}
-
-function createAtriumVersionOrbit() {
-	const group = new THREE.Group();
-	const orbitMaterial = new THREE.MeshBasicMaterial({
-		color: 0xfff5df,
-		transparent: true,
-		opacity: 0.16,
-		side: THREE.DoubleSide,
-		depthWrite: false,
-	});
-	const orbit = new THREE.Mesh(new THREE.RingGeometry(6.8, 6.92, 96), orbitMaterial);
-	orbit.rotation.x = -Math.PI / 2;
-	orbit.position.y = 0.07;
-	group.add(orbit);
-
-	const items = releases.filter((release) => release.version.endsWith('.0') || release.version.endsWith('.5'));
-	const radius = 6.86;
-	items.forEach((release, index) => {
-		const angle = Math.PI / 2 - (Math.PI * 2 * index) / items.length;
-		const color = eraColors.get(release.era);
-		const marker = new THREE.Mesh(
-			new THREE.BoxGeometry(0.34, 0.065, 0.16),
-			new THREE.MeshStandardMaterial({
-				color,
-				emissive: new THREE.Color(color),
-				emissiveIntensity: 0.12,
-				roughness: 0.46,
-				metalness: 0.12,
-			})
-		);
-		marker.position.set(Math.cos(angle) * radius, 0.12, Math.sin(angle) * radius);
-		marker.rotation.y = -angle;
-		registerAnimation(marker, (object, elapsed) => {
-			object.position.y = 0.12 + Math.sin(elapsed * 1.25 + index) * 0.018;
-		});
-		group.add(marker);
-
-		if (release.version.endsWith('.0')) {
-			const label = createReadableLabel(
-				createSmallSignTexture(`WP ${release.version}`, color),
-				0.92,
-				0.22
-			);
-			label.position.set(Math.cos(angle) * (radius + 0.44), 0.42, Math.sin(angle) * (radius + 0.44));
-			label.rotation.y = getRotationForNormal(new THREE.Vector3(-label.position.x, 0, -label.position.z).normalize());
-			registerAnimation(label, (object, elapsed) => {
-				object.position.y = 0.42 + Math.sin(elapsed * 1.05 + index) * 0.025;
-			});
-			group.add(label);
-		}
 	});
 	return group;
 }
