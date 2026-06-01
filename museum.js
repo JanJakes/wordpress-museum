@@ -169,7 +169,7 @@ const shellPadding = 1.4;
 const shellHeight = 12.4;
 const portalDoorHeight = 4.45;
 const portalDoorHalfWidth = 1.55;
-const portalCenterOffset = 2.5;
+const portalCenterOffset = 3.1;
 const portalAlcoveHalfWidth = 1.55;
 const portalAlcoveDepth = 4.4;
 const mercantileUrl = 'https://mercantile.wordpress.org/';
@@ -4248,7 +4248,6 @@ function createMuralWall(side) {
 	group.add(createWordPressMural(side));
 
 	if (isCurrentVariant) {
-		group.add(createMuralWapuuGreeter(side));
 		group.add(createPierWapuuPicture(side));
 		for (const portal of muralPortals) {
 			group.add(createPortalSign(side, portal));
@@ -4407,29 +4406,6 @@ function createPortalTransom(side, offset) {
 	return group;
 }
 
-function createMuralWapuuGreeter(side) {
-	// A fully 3D Wapuu standing on the central pier between the entrance and
-	// exit doors, cradling a WordPress logo medallion toward arriving visitors.
-	// Sized to stand chest-high to the visitor and fit the ~1.9m-wide pier
-	// without bleeding into either doorway opening.
-	const group = new THREE.Group();
-
-	const base = createPedestal(1.04, 0.28, activeVariant.eraColors[0]);
-	group.add(base);
-
-	const figure = createGreeterWapuu(2.3, activeVariant.eraColors[1]);
-	figure.position.y = 0.28;
-	group.add(figure);
-
-	const facing = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
-	group.position
-		.copy(side.midpoint)
-		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.34));
-	group.position.y = 0;
-	group.rotation.y = facing;
-	return group;
-}
-
 // A held-logo Wapuu: an emblem-free figure cradling a big WordPress medallion
 // in front of its belly. Shared by the static pier greeter and the
 // follow-the-viewer rotunda docent. The medallion is parented to the returned
@@ -4453,17 +4429,43 @@ function createGreeterWapuu(height, accent) {
 	return group;
 }
 
-// A brass-framed Wapuu portrait mounted on the central pier above the 3D
-// greeter. It holds the flat Wapuu cutout art and preserves Alex's easter egg:
-// clicking the picture cycles through the Wapuu image variations.
+// A large, ornately framed Wapuu portrait centered on the wide central pier
+// between the two doorways. The layered gilt frame and corner ornaments make it
+// the pier's centerpiece. It preserves Alex's easter egg: clicking the picture
+// cycles through the Wapuu image variations.
 function createPierWapuuPicture(side) {
 	const group = new THREE.Group();
-	const art = 0.96;
-	const frame = new THREE.Mesh(
-		new THREE.BoxGeometry(art + 0.14, art + 0.14, 0.08),
-		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	const art = 2.0;
+	const brass = new THREE.MeshStandardMaterial({
+		color: 0xc79b43,
+		roughness: 0.34,
+		metalness: 0.5,
+	});
+
+	// Outer beveled gilt molding (backing slab) and a slightly recessed inner liner.
+	const outer = new THREE.Mesh(
+		new THREE.BoxGeometry(art + 0.36, art + 0.36, 0.1),
+		brass
 	);
-	group.add(frame);
+	group.add(outer);
+	const liner = new THREE.Mesh(
+		new THREE.BoxGeometry(art + 0.12, art + 0.12, 0.06),
+		new THREE.MeshStandardMaterial({ color: 0xe6c87a, roughness: 0.3, metalness: 0.55 })
+	);
+	liner.position.z = 0.05;
+	group.add(liner);
+
+	// Raised diamond corner ornaments on the outer molding.
+	const ornament = new THREE.BoxGeometry(0.2, 0.2, 0.14);
+	const corner = (art + 0.36) / 2 - 0.05;
+	for (const sx of [-1, 1]) {
+		for (const sy of [-1, 1]) {
+			const boss = new THREE.Mesh(ornament, brass);
+			boss.position.set(sx * corner, sy * corner, 0.04);
+			boss.rotation.z = Math.PI / 4;
+			group.add(boss);
+		}
+	}
 
 	const textures = getWapuuTextures();
 	const picture = new THREE.Mesh(
@@ -4476,14 +4478,14 @@ function createPierWapuuPicture(side) {
 			depthWrite: false,
 		})
 	);
-	picture.position.z = 0.05;
+	picture.position.z = 0.09;
 	registerWapuuVariationClick(picture, textures);
 	group.add(picture);
 
 	group.position
 		.copy(side.midpoint)
 		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.06));
-	group.position.y = 2.86; // above the 3D greeter, below the doorway lintels
+	group.position.y = 2.62; // centered on the pier, below the mural and doorway lintels
 	group.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
 	return group;
 }
