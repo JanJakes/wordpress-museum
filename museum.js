@@ -5447,7 +5447,7 @@ function createRoomStoryTexture(room, aspect) {
 
 	// Left column: the era's year range over its interpretive note.
 	ctx.textAlign = 'left';
-	drawRaisedBronzeText(ctx, room.yearRange, padX, h * 0.27, colSplit - padX * 1.3, h * 0.2,
+	drawRaisedBronzeText(ctx, room.yearRange.replace('-', '–'), padX, h * 0.27, colSplit - padX * 1.3, h * 0.2,
 		'700', 'Georgia, "Times New Roman", serif');
 	ctx.textBaseline = 'middle';
 	drawRaisedBronzeWrap(ctx, copy.note, padX, h * 0.56, colSplit - padX * 1.3, h * 0.15, 3,
