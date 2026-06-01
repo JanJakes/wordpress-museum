@@ -3516,13 +3516,21 @@ function createCathedralVaultSystem(bounds) {
 
 function createAtriumCorniceRing(limestoneMaterial, brassMaterial) {
 	const group = new THREE.Group();
+	// Lower band sits just above the wall-top (≈y7.5); upper band rings the dome
+	// base. On the gallery walls the lower band crowns the doorways, but on the
+	// mural wall it would hang right over the museum banner, so it is skipped
+	// there — the upper band still rings all eight sides.
+	const lowerBand = [
+		{ y: wallHeight + 0.12, height: 0.28, depth: 0.34, material: limestoneMaterial },
+		{ y: wallHeight + 0.42, height: 0.055, depth: 0.42, material: brassMaterial },
+	];
+	const upperBand = [
+		{ y: shellHeight - 2.74, height: 0.18, depth: 0.28, material: limestoneMaterial },
+		{ y: shellHeight - 2.52, height: 0.05, depth: 0.36, material: brassMaterial },
+	];
 	for (const side of hubSides) {
-		for (const spec of [
-			{ y: wallHeight + 0.12, height: 0.28, depth: 0.34, material: limestoneMaterial },
-			{ y: wallHeight + 0.42, height: 0.055, depth: 0.42, material: brassMaterial },
-			{ y: shellHeight - 2.74, height: 0.18, depth: 0.28, material: limestoneMaterial },
-			{ y: shellHeight - 2.52, height: 0.05, depth: 0.36, material: brassMaterial },
-		]) {
+		const specs = side.kind === 'mural' ? upperBand : [...lowerBand, ...upperBand];
+		for (const spec of specs) {
 			const cornice = new THREE.Mesh(
 				new THREE.BoxGeometry(hubSideLength * 0.94, spec.height, spec.depth),
 				spec.material
