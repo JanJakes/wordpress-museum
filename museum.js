@@ -7429,11 +7429,6 @@ function createOpenSourcePylon(item, index) {
 
 function createAtriumMuseumArchitecture(color, secondary) {
 	const group = new THREE.Group();
-	const crownMaterial = new THREE.MeshStandardMaterial({
-		color: 0xc79b43,
-		roughness: 0.32,
-		metalness: 0.46,
-	});
 	const lintelMaterial = new THREE.MeshStandardMaterial({
 		color: 0xf4ecda,
 		roughness: 0.72,
@@ -7458,16 +7453,21 @@ function createAtriumMuseumArchitecture(color, secondary) {
 			column.position.set(position.x, 0, position.z);
 			group.add(column);
 		}
-		const lintel = new THREE.Mesh(
-			new THREE.BoxGeometry(isMural ? hubSideLength * 0.84 : roomDoorHalfWidth * 1.65, 0.18, 0.18),
-			isMural ? crownMaterial : lintelMaterial
-		);
-		lintel.position
-			.copy(side.midpoint)
-			.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.22));
-		lintel.position.y = isMural ? wallHeight - 0.36 : 5.08;
-		lintel.rotation.y = getRotationForNormal(side.normal);
-		group.add(lintel);
+		// Gallery doorways get a cream lintel crown above the opening. The mural
+		// wall is left clear: its lintel sat proud of the wall right across the
+		// top of the museum banner, obscuring it.
+		if (!isMural) {
+			const lintel = new THREE.Mesh(
+				new THREE.BoxGeometry(roomDoorHalfWidth * 1.65, 0.18, 0.18),
+				lintelMaterial
+			);
+			lintel.position
+				.copy(side.midpoint)
+				.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.22));
+			lintel.position.y = 5.08;
+			lintel.rotation.y = getRotationForNormal(side.normal);
+			group.add(lintel);
+		}
 		if (!isMural && side.era) {
 			group.add(createAtriumDoorBanner(side, eraColors.get(side.era)));
 			group.add(createAtriumGalleryBeacon(side, eraColors.get(side.era)));
