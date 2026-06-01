@@ -4294,9 +4294,9 @@ function createWordPressMural(side) {
 	const bandBottom = portalDoorHeight + 0.72;
 	const bandTop = wallHeight - 0.38;
 	const muralHeight = bandTop - bandBottom;
-	// Narrow enough that the panel and its frame clear the flanking columns
-	// (their inner edge sits ~5.8m off centre) with a comfortable gap.
-	const muralWidth = hubSideLength * 0.6;
+	// As wide as looks generous while the panel and its frame still clear the
+	// flanking column shafts (inner edge ≈5.9m off centre) with a comfortable gap.
+	const muralWidth = hubSideLength * 0.72;
 	const mural = new THREE.Mesh(
 		new THREE.PlaneGeometry(muralWidth, muralHeight),
 		new THREE.MeshBasicMaterial({
