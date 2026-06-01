@@ -5413,29 +5413,25 @@ function getEraMuralCopy(era) {
 	}[era];
 }
 
-// The interpretive plaque beneath the title tablet: a cast-bronze museum panel
-// carrying the era's note, its WordPress release span and count, and a small
-// engraved release timeline. Mounted just below the marble tablet.
+// The interpretive text beneath the title tablet: the era's note and its
+// WordPress release span/count, set directly into the marble back wall as
+// engraved museum wall lettering — no panel, slab or frame.
 function createRoomStoryWall(room) {
 	const group = new THREE.Group();
-	const width = backWallWidth - 3.4; // ≈10.8
-	const height = 1.5;
-	const slab = new THREE.Mesh(
-		new THREE.BoxGeometry(width + 0.16, height + 0.16, 0.06),
-		new THREE.MeshStandardMaterial({ color: 0x5f4a24, roughness: 0.42, metalness: 0.58 })
-	);
-	group.add(slab);
-	const panel = new THREE.Mesh(
+	const width = backWallWidth - 3.0;
+	const height = 1.6;
+	const text = new THREE.Mesh(
 		new THREE.PlaneGeometry(width, height),
 		new THREE.MeshBasicMaterial({
 			map: createRoomStoryTexture(room, width / height),
+			transparent: true,
 			side: THREE.DoubleSide,
+			depthWrite: false,
 		})
 	);
-	panel.position.z = 0.05;
-	group.add(panel);
-	group.position.set(0, 4.0, roomDepth / 2 - wallThickness / 2 - 0.08);
-	group.rotation.y = Math.PI;
+	text.position.set(0, 3.95, roomDepth / 2 - wallThickness / 2 - 0.03);
+	text.rotation.y = Math.PI;
+	group.add(text);
 	return group;
 }
 
@@ -5450,36 +5446,25 @@ function createRoomStoryTexture(room, aspect) {
 	const items = getEraReleaseItems(room.era);
 	const first = items[0]?.release;
 	const last = items[items.length - 1]?.release;
+	const serif = 'Georgia, "Times New Roman", serif';
+	const ink = '#2d2718';
 
-	drawBronzePlaqueField(ctx, w, h);
+	// The canvas stays transparent — only the lettering is drawn, so it reads as
+	// carved directly into the marble back wall rather than mounted on a panel.
+	ctx.textAlign = 'center';
+	drawEngravedText(ctx, room.yearRange.replace('-', '–'), w / 2, h * 0.18, w * 0.7, h * 0.23,
+		'700', serif, ink);
 
-	const padX = w * 0.06;
-	const colSplit = w * 0.62;
+	drawEngravedWrap(ctx, copy.note, w / 2, h * 0.5, w * 0.86, h * 0.155, 2, '400', serif, ink);
 
-	// Left column: the era's year range over its interpretive note.
-	ctx.textAlign = 'left';
-	drawRaisedBronzeText(ctx, room.yearRange.replace('-', '–'), padX, h * 0.27, colSplit - padX * 1.3, h * 0.2,
-		'700', 'Georgia, "Times New Roman", serif');
-	ctx.textBaseline = 'middle';
-	drawRaisedBronzeWrap(ctx, copy.note, padX, h * 0.56, colSplit - padX * 1.3, h * 0.15, 3,
-		'400', 'Georgia, "Times New Roman", serif');
-
-	// Right column: the WordPress release span and count.
-	ctx.textAlign = 'right';
-	const rx = w - padX;
-	if (first && last) {
-		const span = first.version === last.version
-			? `WP ${first.version}`
-			: `WP ${first.version}–${last.version}`;
-		drawRaisedBronzeText(ctx, span, rx, h * 0.29, w - colSplit - padX, h * 0.2,
-			'700', 'Georgia, "Times New Roman", serif');
-	}
+	const span = first && last
+		? (first.version === last.version
+			? `WordPress ${first.version}`
+			: `WordPress ${first.version}–${last.version}`)
+		: '';
 	const count = `${items.length} release${items.length === 1 ? '' : 's'}`;
-	drawRaisedBronzeText(ctx, count, rx, h * 0.52, w - colSplit - padX, h * 0.13,
-		'400', 'Georgia, "Times New Roman", serif');
-
-	// Engraved release timeline along the lower right.
-	drawBronzeTimeline(ctx, colSplit + padX * 0.4, w - padX, h * 0.76, items.length);
+	drawEngravedText(ctx, `${span}   ·   ${count}`, w / 2, h * 0.86, w * 0.78, h * 0.125,
+		'600', serif, ink);
 
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
@@ -5487,80 +5472,31 @@ function createRoomStoryTexture(room, aspect) {
 	return texture;
 }
 
-// A cast-bronze plaque field: a deep patinated-bronze gradient with faint
-// brushed-metal streaks, a recessed bevel, and a bright raised keyline.
-function drawBronzePlaqueField(ctx, w, h) {
-	const grad = ctx.createLinearGradient(0, 0, 0, h);
-	grad.addColorStop(0, '#6c5629');
-	grad.addColorStop(0.5, '#534020');
-	grad.addColorStop(1, '#41311a');
-	ctx.fillStyle = grad;
-	ctx.fillRect(0, 0, w, h);
-	for (let i = 0; i < 70; i++) {
-		ctx.globalAlpha = 0.05;
-		ctx.fillStyle = i % 2 ? '#d8b56a' : '#2a2010';
-		ctx.fillRect(pseudoRandom(i * 1.7 + 0.4) * w, 0, 1.4, h);
-	}
-	ctx.globalAlpha = 1;
-	const inset = Math.round(h * 0.09);
-	ctx.strokeStyle = 'rgba(0, 0, 0, 0.38)';
-	ctx.lineWidth = 3;
-	ctx.strokeRect(inset, inset, w - inset * 2, h - inset * 2);
-	ctx.strokeStyle = 'rgba(226, 192, 120, 0.55)';
-	ctx.lineWidth = 2;
-	ctx.strokeRect(inset + 4, inset + 4, w - inset * 2 - 8, h - inset * 2 - 8);
-}
-
-// Raised polished-bronze lettering: a dark recess offset down-right beneath a
-// warm gold fill, so the text reads as cast proud of the patinated field.
-function drawRaisedBronzeText(ctx, text, x, y, maxWidth, maxFontSize, weight, family) {
-	const prev = ctx.textBaseline;
+// Engraved wall lettering, wrapped to fit and centred on y: a pale highlight
+// offset under the dark carved fill so the text reads as incised into the stone.
+function drawEngravedWrap(ctx, text, x, y, maxWidth, fontSize, maxLines, weight, family, fill) {
 	ctx.textBaseline = 'middle';
-	ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-	fillFittedCanvasText(ctx, text, x + 2, y + 2, maxWidth, maxFontSize, weight, family);
-	ctx.fillStyle = '#f3e1ad';
-	fillFittedCanvasText(ctx, text, x, y, maxWidth, maxFontSize, weight, family);
-	ctx.textBaseline = prev;
-}
-
-function drawRaisedBronzeWrap(ctx, text, x, y, maxWidth, fontSize, maxLines, weight, family) {
 	ctx.font = `${weight} ${Math.round(fontSize)}px ${family}`;
-	const lineHeight = fontSize * 1.34;
-	ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-	wrapText(ctx, text, x + 1.5, y + 1.5, maxWidth, lineHeight, maxLines);
-	ctx.fillStyle = '#e9d4a0';
-	wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines);
-}
-
-// A slim engraved baseline with a bronze stud per release; the first and last
-// releases sit proud as larger polished dots.
-function drawBronzeTimeline(ctx, x0, x1, y, count) {
-	ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
-	ctx.lineWidth = 3;
-	ctx.beginPath();
-	ctx.moveTo(x0, y + 1.5);
-	ctx.lineTo(x1, y + 1.5);
-	ctx.stroke();
-	ctx.strokeStyle = '#e2c078';
-	ctx.lineWidth = 2;
-	ctx.beginPath();
-	ctx.moveTo(x0, y);
-	ctx.lineTo(x1, y);
-	ctx.stroke();
-	for (let i = 0; i < count; i++) {
-		const t = count === 1 ? 0.5 : i / (count - 1);
-		const cx = x0 + (x1 - x0) * t;
-		const major = i === 0 || i === count - 1;
-		const r = major ? 6 : 3.5;
-		ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-		ctx.beginPath();
-		ctx.arc(cx + 1.5, y + 1.5, r, 0, Math.PI * 2);
-		ctx.fill();
-		ctx.fillStyle = major ? '#f3e1ad' : '#caa55e';
-		ctx.beginPath();
-		ctx.arc(cx, y, r, 0, Math.PI * 2);
-		ctx.fill();
+	const lineHeight = fontSize * 1.4;
+	// Count the lines this text wraps to so the block is centred on y.
+	const words = text.split(' ');
+	let line = '';
+	let lines = 1;
+	for (const word of words) {
+		const test = line ? `${line} ${word}` : word;
+		if (ctx.measureText(test).width > maxWidth && line) {
+			if (lines >= maxLines) break;
+			lines += 1;
+			line = word;
+		} else {
+			line = test;
+		}
 	}
+	const startY = y - ((lines - 1) * lineHeight) / 2;
+	ctx.fillStyle = 'rgba(255, 252, 244, 0.5)';
+	wrapText(ctx, text, x + 1.5, startY + 1.5, maxWidth, lineHeight, maxLines);
+	ctx.fillStyle = fill;
+	wrapText(ctx, text, x, startY, maxWidth, lineHeight, maxLines);
 }
 
 function createRoomCeiling(color) {
