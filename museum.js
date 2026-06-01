@@ -274,8 +274,8 @@ const playgroundDoorZCenter = (playgroundChamferZMin + playgroundChamferZMax) / 
 const playgroundDoorHalfWidth = 1.0; // 2m clear opening
 const playgroundDoorHeight = 3.0;
 const playgroundWallThickness = 0.3;
-const playgroundWidth = 11; // z-extent (south from the gallery corner)
-const playgroundDepth = 10; // x-extent, east from the chamfer wall
+const playgroundWidth = 12.5; // z-extent (south from the gallery corner); expanded for room
+const playgroundDepth = 12.5; // x-extent, east from the chamfer wall; expanded for room
 const playgroundHeight = 5.4;
 // The Block Editor gallery (eras[5]) fills the area just NW of the chamfer top
 // (its left corner reaches world x=28, z~11.6), so the annex starts a little south
@@ -1387,12 +1387,13 @@ function createPlaygroundAnnex() {
 	// view in front of the entrance (completing the sign's "the sandbox is over there
 	// →" gag); the slide/swing line the south wall and the see-saw/spring rider sit
 	// west/north, all clear of the open entry lane and room middle.
-	const southZ = playgroundMaxZ - 2.4;
 	group.add(createPlaygroundSandbox(playgroundMaxX - 2.0, playgroundDoorZCenter + 3.2)); // E wall, right of the sign
-	group.add(createPlaygroundSwingSet(playgroundMinX + 5.4, southZ + 0.1)); // S middle
-	group.add(createPlaygroundSlide(playgroundMinX + 2.3, southZ, Math.PI)); // SW, moved off the east wall to clear the sandbox
-	group.add(createPlaygroundSeesaw(playgroundMinX + 2.4, playgroundDoorZCenter + 2.0)); // W, clear of the entry sightline
-	group.add(createPlaygroundSpringRider(playgroundMinX + 6.5, playgroundMinZ + 1.2)); // N, east of door
+	// Slide angled ~45° out of the SW corner so its chute leads into the room centre
+	// (and reads as a clear focal point on the way in).
+	group.add(createPlaygroundSlide(playgroundMinX + 3.0, playgroundMaxZ - 3.0, Math.PI * 0.75));
+	group.add(createPlaygroundSwingSet(playgroundCenterX, playgroundMaxZ - 1.7)); // S wall, centred
+	group.add(createPlaygroundSeesaw(playgroundMinX + 2.8, playgroundDoorZCenter + 2.0)); // W, clear of the entry sightline
+	group.add(createPlaygroundSpringRider(playgroundMinX + 7.5, playgroundMinZ + 1.6)); // N, east of the door
 
 	// WordPress Playground exhibit panel + the "SANDBOX" sign, both on the east wall.
 	group.add(createPlaygroundExhibitSign());
@@ -1645,18 +1646,24 @@ function createPlaygroundSwingSet(x, z) {
 	const chainMat = new THREE.MeshStandardMaterial({ color: 0xb8c2cf, roughness: 0.4, metalness: 0.7 });
 	const beamY = 2.5;
 	const halfSpan = 1.7;
-	// A-frame legs at each end.
+	const splay = 0.92; // how far each A-frame's feet splay fore/aft (±z)
+	// A proper A-frame at each beam end: two splayed legs rising from the floor to
+	// meet at the apex where the beam rests, plus a low cross-tie between the feet.
 	for (const ex of [-halfSpan, halfSpan]) {
-		for (const dz of [-0.7, 0.7]) {
-			const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, beamY + 0.1, 10), frameMat);
-			leg.position.set(ex + (dz > 0 ? 0.35 : -0.35), (beamY + 0.1) / 2, dz);
-			leg.rotation.x = dz > 0 ? -0.26 : 0.26;
-			leg.rotation.z = dz > 0 ? 0 : 0;
-			group.add(leg);
+		const apex = new THREE.Vector3(ex, beamY, 0);
+		for (const dz of [-splay, splay]) {
+			group.add(createCylinderBetween(new THREE.Vector3(ex, 0, dz), apex, 0.07, frameMat, 12));
 		}
+		group.add(createCylinderBetween(
+			new THREE.Vector3(ex, 0.55, -splay),
+			new THREE.Vector3(ex, 0.55, splay),
+			0.04,
+			frameMat,
+			8
+		));
 	}
-	// Top beam.
-	const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, halfSpan * 2 + 0.4, 12), frameMat);
+	// Top beam resting across the two apexes.
+	const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, halfSpan * 2 + 0.16, 12), frameMat);
 	beam.rotation.z = Math.PI / 2;
 	beam.position.set(0, beamY, 0);
 	group.add(beam);
