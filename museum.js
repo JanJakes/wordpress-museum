@@ -1391,7 +1391,7 @@ function createPlaygroundAnnex() {
 	// Slide angled ~45° out of the SW corner so its chute leads into the room centre
 	// (and reads as a clear focal point on the way in).
 	group.add(createPlaygroundSlide(playgroundMinX + 3.0, playgroundMaxZ - 3.0, Math.PI * 0.75));
-	group.add(createPlaygroundSwingSet(playgroundCenterX, playgroundMaxZ - 1.7)); // S wall, centred
+	group.add(createPlaygroundSwingSet(playgroundMaxX - 4.0, playgroundMaxZ - 1.7)); // SE, well clear of the SW slide
 	group.add(createPlaygroundSeesaw(playgroundMinX + 2.8, playgroundDoorZCenter + 2.0)); // W, clear of the entry sightline
 	group.add(createPlaygroundSpringRider(playgroundMinX + 7.5, playgroundMinZ + 1.6)); // N, east of the door
 
@@ -1608,17 +1608,27 @@ function createPlaygroundSlide(x, z, facing) {
 		rail.position.set(0, platformY + 0.45, lz);
 		group.add(rail);
 	}
-	// Ladder: side rails + rungs on the -z side.
-	for (const lx of [-0.4, 0.4]) {
-		const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, platformY + 0.5, 8), stepMat);
-		rail.position.set(lx, (platformY + 0.5) / 2, -0.6);
-		rail.rotation.x = -0.32;
-		group.add(rail);
+	// Ladder on the -z side: two splayed rails running from the floor up to the
+	// platform's back edge, with evenly spaced rungs interpolated along the same
+	// line so the rails and rungs stay aligned and actually reach the deck.
+	const ladderTopZ = -0.5; // platform back edge
+	const ladderFootZ = -1.25; // splayed out at the base
+	const ladderHalfW = 0.42;
+	for (const lx of [-ladderHalfW, ladderHalfW]) {
+		group.add(createCylinderBetween(
+			new THREE.Vector3(lx, 0, ladderFootZ),
+			new THREE.Vector3(lx, platformY, ladderTopZ),
+			0.05,
+			stepMat,
+			10
+		));
 	}
-	for (let i = 0; i < 4; i++) {
-		const rung = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.8, 8), stepMat);
+	const rungCount = 5;
+	for (let i = 1; i <= rungCount; i++) {
+		const t = i / (rungCount + 1);
+		const rung = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, ladderHalfW * 2, 8), stepMat);
 		rung.rotation.z = Math.PI / 2;
-		rung.position.set(0, 0.4 + i * 0.42, -0.6 + i * 0.07);
+		rung.position.set(0, t * platformY, ladderFootZ + t * (ladderTopZ - ladderFootZ));
 		group.add(rung);
 	}
 	// Sloped chute toward +z, with low side rails.
