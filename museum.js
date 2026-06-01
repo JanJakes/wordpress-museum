@@ -4288,11 +4288,13 @@ function createMissionTabletTexture() {
 function createWordPressMural(side) {
 	const group = new THREE.Group();
 	const muralHeight = wallHeight - portalDoorHeight - 0.2;
-	const muralWidth = hubSideLength * 0.92;
+	// Narrow enough that the panel and its frame clear the flanking columns
+	// (their inner edge sits ~5.8m off centre) with a comfortable gap.
+	const muralWidth = hubSideLength * 0.6;
 	const mural = new THREE.Mesh(
 		new THREE.PlaneGeometry(muralWidth, muralHeight),
 		new THREE.MeshBasicMaterial({
-			map: createWordPressMuralTexture(),
+			map: createWordPressMuralTexture(muralWidth / muralHeight),
 			transparent: true,
 			side: THREE.DoubleSide,
 		})
@@ -4311,21 +4313,27 @@ function createWordPressMural(side) {
 	return group;
 }
 
-// An ornate brass frame around the mural banner, built in the mural's local
-// XY plane: an outer gilt molding, an inner liner standing slightly proud, and
-// raised corner bosses, matching the museum's brass plaque material.
+// A refined carved-stone molding around the marble tablet, built in the mural's
+// local XY plane: a pale marble outer band echoing the wall, with a slim polished
+// bronze bead seated against the field. Kept elegant and light rather than heavy.
 function createMuralFrame(width, height) {
 	const group = new THREE.Group();
-	const brass = new THREE.MeshStandardMaterial({
-		color: 0xc79b43,
-		roughness: 0.34,
-		metalness: 0.5,
+	const stone = new THREE.MeshStandardMaterial({
+		color: 0xe7decb,
+		roughness: 0.66,
+		metalness: 0.05,
 	});
-	const railWidth = 0.34;
-	const outerW = width + railWidth * 2;
+	const bronze = new THREE.MeshStandardMaterial({
+		color: 0xb98a3e,
+		roughness: 0.38,
+		metalness: 0.55,
+	});
 
-	const horizontal = new THREE.BoxGeometry(outerW, railWidth, 0.16);
-	const vertical = new THREE.BoxGeometry(railWidth, height, 0.16);
+	// Outer marble molding band.
+	const railWidth = 0.18;
+	const outerW = width + railWidth * 2;
+	const horizontal = new THREE.BoxGeometry(outerW, railWidth, 0.12);
+	const vertical = new THREE.BoxGeometry(railWidth, height, 0.12);
 	const rails = [
 		[horizontal, 0, height / 2 + railWidth / 2],
 		[horizontal, 0, -(height / 2 + railWidth / 2)],
@@ -4333,40 +4341,25 @@ function createMuralFrame(width, height) {
 		[vertical, width / 2 + railWidth / 2, 0],
 	];
 	for (const [geometry, x, y] of rails) {
-		const rail = new THREE.Mesh(geometry, brass);
+		const rail = new THREE.Mesh(geometry, stone);
 		rail.position.set(x, y, 0);
 		group.add(rail);
 	}
 
-	// Thin inner liner standing proud of the field for a beveled molding look.
-	const linerW = 0.08;
-	const linerH = new THREE.BoxGeometry(width + linerW * 2, linerW, 0.06);
-	const linerV = new THREE.BoxGeometry(linerW, height, 0.06);
-	const liners = [
-		[linerH, 0, height / 2 + linerW / 2],
-		[linerH, 0, -(height / 2 + linerW / 2)],
-		[linerV, -(width / 2 + linerW / 2), 0],
-		[linerV, width / 2 + linerW / 2, 0],
+	// Slim bronze bead seated against the field for a crisp inner edge.
+	const beadW = 0.05;
+	const beadH = new THREE.BoxGeometry(width + beadW * 2, beadW, 0.05);
+	const beadV = new THREE.BoxGeometry(beadW, height, 0.05);
+	const beads = [
+		[beadH, 0, height / 2 + beadW / 2],
+		[beadH, 0, -(height / 2 + beadW / 2)],
+		[beadV, -(width / 2 + beadW / 2), 0],
+		[beadV, width / 2 + beadW / 2, 0],
 	];
-	for (const [geometry, x, y] of liners) {
-		const liner = new THREE.Mesh(geometry, brass);
-		liner.position.set(x, y, 0.07);
-		group.add(liner);
-	}
-
-	// Raised corner bosses where the rails meet.
-	const bossGeometry = new THREE.BoxGeometry(railWidth * 1.3, railWidth * 1.3, 0.22);
-	for (const sx of [-1, 1]) {
-		for (const sy of [-1, 1]) {
-			const boss = new THREE.Mesh(bossGeometry, brass);
-			boss.position.set(
-				sx * (width / 2 + railWidth / 2),
-				sy * (height / 2 + railWidth / 2),
-				0.02
-			);
-			boss.rotation.z = Math.PI / 4;
-			group.add(boss);
-		}
+	for (const [geometry, x, y] of beads) {
+		const bead = new THREE.Mesh(geometry, bronze);
+		bead.position.set(x, y, 0.05);
+		group.add(bead);
 	}
 	return group;
 }
@@ -4770,12 +4763,16 @@ function registerWapuuVariationClick(wapuu, textures) {
 	});
 }
 
-function createWordPressMuralTexture() {
+function createWordPressMuralTexture(aspect) {
 	const canvas = document.createElement('canvas');
 	canvas.width = 1024;
 	canvas.height = 640;
 	const ctx = canvas.getContext('2d');
 	if (activeVariant.muralStyle === 'ultimate') {
+		// Match the canvas aspect to the mural plane so a drawn circle (the W
+		// medallion) stays circular on the wall rather than stretching to an ellipse.
+		canvas.width = 1280;
+		canvas.height = Math.round(canvas.width / aspect);
 		drawUltimateMural(ctx, canvas);
 		const texture = new THREE.CanvasTexture(canvas);
 		texture.colorSpace = THREE.SRGBColorSpace;
@@ -4829,93 +4826,158 @@ function createWordPressMuralTexture() {
 }
 
 function drawUltimateMural(ctx, canvas) {
-	// An elegant engraved museum banner: a dark field with an ornamental gold
-	// double-rule border, corner flourishes and a small WordPress "W" mark, then
-	// a centered serif "WORDPRESS MUSEUM" title over a Roman-numeral founding date.
-	const gold = activeVariant.eraColors[0];
-	const cx = canvas.width / 2;
-	ctx.fillStyle = '#101827';
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	// An elegant engraved-marble museum tablet, the kind carved over a grand
+	// entrance: a light cream-marble field with soft veining and an inset bevel,
+	// a circular WordPress "W" medallion, and chiselled serif "WORDPRESS MUSEUM"
+	// over a Roman-numeral founding date. The canvas aspect matches the wall
+	// plane so the medallion reads as a true circle rather than an ellipse.
+	const bronze = '#7c5a22';
+	const w = canvas.width;
+	const h = canvas.height;
 
-	// Faint concentric rings centered behind the title, kept subtle as a backdrop.
-	ctx.globalAlpha = 0.1;
-	ctx.strokeStyle = '#fff5df';
-	ctx.lineWidth = 4;
-	for (let radius = 96; radius < 380; radius += 52) {
-		ctx.beginPath();
-		ctx.arc(cx, 290, radius, 0, Math.PI * 2);
-		ctx.stroke();
-	}
-	ctx.globalAlpha = 1;
+	drawMuralMarbleField(ctx, w, h);
+	drawMuralBorder(ctx, w, h, bronze);
 
-	drawMuralBorder(ctx, canvas, gold);
+	// Circular "W" medallion seated on the left, balancing the engraved title.
+	const medallionR = h * 0.3;
+	const medallionX = h * 0.62;
+	drawMuralWMark(ctx, medallionX, h / 2, medallionR, bronze);
 
-	// Centered WordPress "W" mark above the title.
-	drawMuralWMark(ctx, cx, 132, 42, gold);
-
-	ctx.fillStyle = '#fff5df';
+	// Title + subtitle centred in the field to the right of the medallion.
+	const textCx = (medallionX + medallionR + w) / 2;
 	ctx.textAlign = 'center';
-	fillFittedCanvasText(
+	drawEngravedText(
 		ctx,
 		'WORDPRESS MUSEUM',
-		cx,
-		330,
-		760,
-		122,
+		textCx,
+		h * 0.45,
+		w - medallionX - medallionR - h * 0.5,
+		h * 0.32,
 		'700',
-		'Georgia, "Times New Roman", serif'
+		'Georgia, "Times New Roman", serif',
+		bronze
 	);
 
-	// Thin divider rules flanking the founding-date subtitle, kept clear of the text.
-	ctx.fillStyle = gold;
-	ctx.fillRect(cx - 290, 412, 120, 3);
-	ctx.fillRect(cx + 170, 412, 120, 3);
-	ctx.font = '600 46px Georgia, "Times New Roman", serif';
-	ctx.fillStyle = gold;
-	ctx.fillText('EST. MMIII', cx, 426);
+	// Thin bronze rules flanking the founding-date subtitle, clear of the text.
+	const subY = h * 0.74;
+	ctx.font = `600 ${Math.round(h * 0.115)}px Georgia, "Times New Roman", serif`;
+	const dateHalf = ctx.measureText('EST. MMIII').width / 2;
+	ctx.fillStyle = bronze;
+	const ruleW = h * 0.26;
+	const ruleGap = h * 0.1;
+	ctx.fillRect(textCx - dateHalf - ruleGap - ruleW, subY - 2, ruleW, 3);
+	ctx.fillRect(textCx + dateHalf + ruleGap, subY - 2, ruleW, 3);
+	drawEngravedText(
+		ctx,
+		'EST. MMIII',
+		textCx,
+		subY,
+		w,
+		h * 0.115,
+		'600',
+		'Georgia, "Times New Roman", serif',
+		bronze
+	);
 }
 
-// An ornamental double-rule border with diamond corner flourishes, framing the
-// engraved title field like a classic museum plaque.
-function drawMuralBorder(ctx, canvas, gold) {
-	ctx.strokeStyle = gold;
-	ctx.lineWidth = 6;
-	ctx.strokeRect(34, 34, canvas.width - 68, canvas.height - 68);
-	ctx.lineWidth = 2;
-	ctx.strokeRect(54, 54, canvas.width - 108, canvas.height - 108);
+// A light cream/ivory marble field with soft warm/grey veining and a gentle
+// polish sheen, matching the museum's light marble walls.
+function drawMuralMarbleField(ctx, w, h) {
+	ctx.fillStyle = '#efe8d6';
+	ctx.fillRect(0, 0, w, h);
 
-	ctx.fillStyle = gold;
-	const corners = [
-		[54, 54],
-		[canvas.width - 54, 54],
-		[54, canvas.height - 54],
-		[canvas.width - 54, canvas.height - 54],
-	];
-	for (const [x, y] of corners) {
-		ctx.save();
-		ctx.translate(x, y);
-		ctx.rotate(Math.PI / 4);
-		ctx.fillRect(-9, -9, 18, 18);
-		ctx.restore();
+	const sheen = ctx.createLinearGradient(0, 0, w, h);
+	sheen.addColorStop(0, 'rgba(255, 252, 242, 0.5)');
+	sheen.addColorStop(0.5, 'rgba(255, 250, 236, 0.12)');
+	sheen.addColorStop(1, 'rgba(120, 108, 84, 0.1)');
+	ctx.fillStyle = sheen;
+	ctx.fillRect(0, 0, w, h);
+
+	// Soft meandering veins, mostly horizontal across the wide tablet.
+	const veinCount = 9;
+	for (let index = 0; index < veinCount; index++) {
+		const seed = index * 2.3 + 0.7;
+		let cx = -20;
+		let cy = (pseudoRandom(seed) * 0.85 + 0.08) * h;
+		ctx.beginPath();
+		ctx.moveTo(cx, cy);
+		for (let step = 0; step < 7; step++) {
+			cx += w * 0.16;
+			cy += (pseudoRandom(seed + step) - 0.5) * h * 0.22;
+			ctx.lineTo(cx, cy);
+		}
+		ctx.strokeStyle = index % 3 === 0
+			? 'rgba(176, 142, 70, 0.28)'
+			: 'rgba(150, 142, 122, 0.18)';
+		ctx.lineWidth = index % 3 === 0 ? 1.6 : 1.0;
+		ctx.stroke();
 	}
 }
 
-// The official asymmetric WordPress "W" inside a thin ringed roundel.
-function drawMuralWMark(ctx, x, y, radius, gold) {
+// A refined inset bevel framing the engraved field: a soft inner shadow line
+// and a bright highlight so the lettering reads as cut into a recessed panel.
+function drawMuralBorder(ctx, w, h, bronze) {
+	const inset = Math.round(h * 0.075);
+	ctx.strokeStyle = 'rgba(120, 104, 72, 0.32)';
+	ctx.lineWidth = 3;
+	ctx.strokeRect(inset, inset, w - inset * 2, h - inset * 2);
+	ctx.strokeStyle = 'rgba(255, 252, 244, 0.55)';
+	ctx.lineWidth = 2;
+	ctx.strokeRect(inset + 4, inset + 4, w - inset * 2 - 8, h - inset * 2 - 8);
+
+	// Slim bronze keyline just inside the bevel.
+	ctx.strokeStyle = bronze;
+	ctx.lineWidth = 2;
+	ctx.strokeRect(inset + 9, inset + 9, w - inset * 2 - 18, h - inset * 2 - 18);
+}
+
+// The WordPress "W" engraved into a circular bronze-ringed marble medallion.
+function drawMuralWMark(ctx, x, y, radius, bronze) {
 	ctx.save();
 	ctx.translate(x, y);
-	ctx.strokeStyle = gold;
-	ctx.lineWidth = 3;
+
+	// Recessed marble disc with a soft inner shadow for depth.
+	const disc = ctx.createRadialGradient(0, -radius * 0.2, radius * 0.2, 0, 0, radius);
+	disc.addColorStop(0, '#f3ecda');
+	disc.addColorStop(1, '#d8cdb2');
+	ctx.fillStyle = disc;
 	ctx.beginPath();
 	ctx.arc(0, 0, radius, 0, Math.PI * 2);
+	ctx.fill();
+
+	// Double bronze ring.
+	ctx.strokeStyle = bronze;
+	ctx.lineWidth = Math.max(3, radius * 0.06);
+	ctx.beginPath();
+	ctx.arc(0, 0, radius - ctx.lineWidth, 0, Math.PI * 2);
 	ctx.stroke();
-	ctx.fillStyle = gold;
+	ctx.lineWidth = Math.max(1.5, radius * 0.025);
+	ctx.beginPath();
+	ctx.arc(0, 0, radius - radius * 0.18, 0, Math.PI * 2);
+	ctx.stroke();
+
+	// Engraved "W": a light emboss highlight under a darker bronze fill.
 	ctx.font = `700 ${Math.round(radius * 1.18)}px Georgia, "Times New Roman", serif`;
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-	ctx.fillText('W', 0, 2);
+	ctx.fillStyle = 'rgba(255, 252, 244, 0.6)';
+	ctx.fillText('W', 1.5, radius * 0.04 + 2);
+	ctx.fillStyle = bronze;
+	ctx.fillText('W', 0, radius * 0.04);
 	ctx.textBaseline = 'alphabetic';
 	ctx.restore();
+}
+
+// Chiselled lettering: a pale emboss highlight offset down-right under the dark
+// carved fill, so the text reads as engraved into the stone.
+function drawEngravedText(ctx, text, x, y, maxWidth, maxFontSize, weight, family, fill) {
+	const prevBaseline = ctx.textBaseline;
+	ctx.textBaseline = 'middle';
+	ctx.fillStyle = 'rgba(255, 252, 244, 0.55)';
+	fillFittedCanvasText(ctx, text, x + 2, y + 2, maxWidth, maxFontSize, weight, family);
+	ctx.fillStyle = fill;
+	fillFittedCanvasText(ctx, text, x, y, maxWidth, maxFontSize, weight, family);
+	ctx.textBaseline = prevBaseline;
 }
 
 function drawMascotOnMural(ctx, x, y, scale, color, secondary) {
