@@ -4217,14 +4217,7 @@ function createOpenSourceConstellation() {
 
 		const cableTop = new THREE.Vector3(position.x, shellHeight - 0.56, position.z);
 		group.add(createCylinderBetween(cableTop, position, 0.008, cableMaterial, 8));
-
-		const label = createReadableLabel(createOpenSourceSignTexture(item.title, item.note, item.color), 0.82, 0.32);
-		label.position.copy(position).add(new THREE.Vector3(0, -0.42, 0));
-		label.rotation.y = getRotationForNormal(new THREE.Vector3(-position.x, 0, -position.z).normalize());
-		registerAnimation(label, (object, elapsed) => {
-			object.position.y = position.y - 0.42 + Math.sin(elapsed * 0.9 + index) * 0.035;
-		});
-		group.add(label);
+		// (Per-node project labels removed — unreadable from the floor.)
 	});
 
 	nodes.forEach((position, index) => {
