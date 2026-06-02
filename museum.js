@@ -3432,7 +3432,6 @@ function createCeilingDetails(bounds) {
 		group.add(createCathedralVaultSystem(hubBounds));
 		group.add(createCathedralRoseWindow(hubBounds));
 		group.add(createCathedralLightShafts(hubBounds));
-		group.add(createCathedralEraBanners(hubBounds));
 		group.add(createCathedralDustMotes(hubBounds));
 		group.add(createOpenSourceConstellation());
 	}
@@ -4133,103 +4132,6 @@ function createCathedralLightShafts(bounds) {
 		group.add(cone);
 	}
 	return group;
-}
-
-function createCathedralEraBanners(bounds) {
-	const group = new THREE.Group();
-	const centerX = (bounds.minX + bounds.maxX) / 2;
-	const centerZ = (bounds.minZ + bounds.maxZ) / 2;
-	const eraList = window.WP_MUSEUM_ERAS;
-	roomSides.forEach((side, index) => {
-		const eraName = side.era;
-		const eraIndex = eraList.indexOf(eraName);
-		const color = activeVariant.eraColors[eraIndex % activeVariant.eraColors.length];
-		const radius = hubApothem - 1.5;
-		const x = centerX + Math.sin(side.angle) * radius;
-		const z = centerZ - Math.cos(side.angle) * radius;
-		const banner = new THREE.Mesh(
-			new THREE.PlaneGeometry(1.2, 3.4),
-			new THREE.MeshBasicMaterial({
-				map: createEraBannerTexture(eraName, color),
-				transparent: true,
-				side: THREE.DoubleSide,
-				depthWrite: false,
-			})
-		);
-		banner.position.set(x, wallHeight + 1.7, z);
-		banner.rotation.y = side.angle;
-		registerAnimation(banner, (object, elapsed) => {
-			object.rotation.z = Math.sin(elapsed * 0.85 + index) * 0.045;
-			object.position.y = wallHeight + 1.7 + Math.sin(elapsed * 0.65 + index) * 0.06;
-		});
-		group.add(banner);
-
-		const rod = new THREE.Mesh(
-			new THREE.CylinderGeometry(0.045, 0.045, 1.42, 12),
-			new THREE.MeshStandardMaterial({ color: 0xf2cf86, roughness: 0.35, metalness: 0.62 })
-		);
-		rod.rotation.z = Math.PI / 2;
-		rod.position.set(x, wallHeight + 3.42, z);
-		rod.rotation.y = side.angle;
-		group.add(rod);
-
-		const cap = new THREE.Mesh(
-			new THREE.SphereGeometry(0.085, 14, 10),
-			new THREE.MeshStandardMaterial({
-				color: 0xfff5df,
-				emissive: new THREE.Color(color),
-				emissiveIntensity: 0.22,
-				roughness: 0.3,
-				metalness: 0.4,
-			})
-		);
-		cap.position.set(x, wallHeight + 1.05, z);
-		group.add(cap);
-	});
-	return group;
-}
-
-function createEraBannerTexture(era, color) {
-	const canvas = document.createElement('canvas');
-	canvas.width = 256;
-	canvas.height = 768;
-	const ctx = canvas.getContext('2d');
-	const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-	grad.addColorStop(0, color);
-	grad.addColorStop(0.5, 'rgba(20, 26, 42, 0.92)');
-	grad.addColorStop(1, color);
-	ctx.fillStyle = grad;
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-	ctx.fillStyle = 'rgba(20, 26, 42, 0.55)';
-	ctx.fillRect(14, 14, canvas.width - 28, canvas.height - 28);
-
-	ctx.strokeStyle = color;
-	ctx.lineWidth = 6;
-	ctx.strokeRect(22, 22, canvas.width - 44, canvas.height - 44);
-
-	ctx.save();
-	ctx.translate(canvas.width / 2, canvas.height / 2);
-	ctx.rotate(-Math.PI / 2);
-	ctx.fillStyle = '#fff5df';
-	ctx.textAlign = 'center';
-	ctx.textBaseline = 'middle';
-	ctx.font = '900 64px Arial Black, Impact, sans-serif';
-	ctx.fillText(era.toUpperCase(), 0, 0);
-	ctx.restore();
-
-	const trim = 70;
-	ctx.fillStyle = color;
-	ctx.beginPath();
-	ctx.moveTo(28, canvas.height - 28);
-	ctx.lineTo(canvas.width / 2, canvas.height - 28 + trim);
-	ctx.lineTo(canvas.width - 28, canvas.height - 28);
-	ctx.fill();
-
-	const texture = new THREE.CanvasTexture(canvas);
-	texture.colorSpace = THREE.SRGBColorSpace;
-	texture.anisotropy = 4;
-	return texture;
 }
 
 function createCathedralDustMotes(bounds) {
