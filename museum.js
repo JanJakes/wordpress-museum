@@ -7620,7 +7620,6 @@ function createAtriumMuseumArchitecture(color, secondary) {
 			group.add(lintel);
 		}
 		if (!isMural && side.era) {
-			group.add(createAtriumDoorBanner(side, eraColors.get(side.era)));
 			group.add(createAtriumGalleryBeacon(side, eraColors.get(side.era)));
 		}
 	}
@@ -7819,67 +7818,6 @@ function createAtriumGalleryBeacon(side, color) {
 	label.position.set(0, 0.52, -0.17);
 	group.add(label);
 	return group;
-}
-
-function createAtriumDoorBanner(side, color) {
-	const group = new THREE.Group();
-	const banner = new THREE.Mesh(
-		new THREE.PlaneGeometry(4.35, 0.58),
-		new THREE.MeshBasicMaterial({
-			map: createAtriumBannerTexture(side.era, color),
-			transparent: true,
-			side: THREE.DoubleSide,
-		})
-	);
-	banner.position
-		.copy(side.midpoint)
-		.add(side.normal.clone().multiplyScalar(-0.42));
-	banner.position.y = 5.26;
-	banner.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
-	group.add(banner);
-
-	for (const offset of [-1.85, 1.85]) {
-		const hanger = new THREE.Mesh(
-			new THREE.BoxGeometry(0.035, 0.72, 0.035),
-			new THREE.MeshBasicMaterial({ color: 0xfff5df, transparent: true, opacity: 0.5 })
-		);
-		hanger.position
-			.copy(side.midpoint)
-			.add(side.tangent.clone().multiplyScalar(offset))
-			.add(side.normal.clone().multiplyScalar(-0.43));
-		hanger.position.y = 5.68;
-		hanger.rotation.y = getRotationForNormal(side.normal);
-		group.add(hanger);
-	}
-	return group;
-}
-
-function createAtriumBannerTexture(era, color) {
-	const canvas = document.createElement('canvas');
-	canvas.width = 768;
-	canvas.height = 140;
-	const ctx = canvas.getContext('2d');
-	const items = getEraReleaseItems(era);
-	ctx.fillStyle = 'rgba(17, 24, 39, 0.9)';
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	ctx.fillStyle = color;
-	ctx.fillRect(0, 0, canvas.width, 12);
-	ctx.fillRect(0, canvas.height - 12, canvas.width, 12);
-	ctx.fillStyle = 'rgba(255, 245, 223, 0.18)';
-	for (let index = 0; index < 10; index++) {
-		ctx.fillRect(70 + index * 60, 35 + (index % 2) * 44, 28, 8);
-	}
-	ctx.fillStyle = '#fff5df';
-	ctx.textAlign = 'center';
-	ctx.font = '900 32px Arial Black, Impact, sans-serif';
-	fillFittedCanvasText(ctx, era.toUpperCase(), canvas.width / 2, 58, 610, 32, '900', 'Arial Black, Impact, sans-serif');
-	ctx.fillStyle = color;
-	ctx.font = '900 18px system-ui, sans-serif';
-	ctx.fillText(`${getReleaseYearRange(items)} / ${items.length} releases`, canvas.width / 2, 96);
-	const texture = new THREE.CanvasTexture(canvas);
-	texture.colorSpace = THREE.SRGBColorSpace;
-	texture.anisotropy = 4;
-	return texture;
 }
 
 function createAtriumLightRig(color, secondary) {
