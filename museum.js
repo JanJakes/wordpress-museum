@@ -6316,9 +6316,13 @@ function createFloorStripe(x, z, width, length, rotation, material) {
 // the central stripe without z-fighting; the diagonal side stripes (x≈±2.25)
 // stay visible flanking the carpet.
 function createRoomCarpetRunner() {
-	const runner = createCarpetRunner(2.0, roomDepth - 2.0);
-	const front = -roomDepth / 2 + 0.4;
+	// Width matches the atrium star arm (2.2) and the front edge tucks just under
+	// the doorway threshold, overlapping the arm (which ends at radius 16.6), so
+	// the runner reads continuously from the rotunda into the room — no gap or
+	// width step at the entry.
+	const front = -roomDepth / 2 - 0.05;
 	const back = roomDepth / 2 - 1.6;
+	const runner = createCarpetRunner(2.2, back - front);
 	runner.position.set(0, 0.092, (front + back) / 2);
 	return runner;
 }
