@@ -857,6 +857,10 @@ body[data-variant='current'] .tour-controls button {
 	letter-spacing: 0.04em;
 }
 
+body[data-variant='current'] .mobile-pad button {
+	border-radius: 0;
+}
+
 body[data-variant='current'] #release-counter {
 	font-family: var(--pixel-font);
 	font-size: 0.66rem;
