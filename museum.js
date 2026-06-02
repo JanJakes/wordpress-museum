@@ -15153,7 +15153,6 @@ function updatePanel(release) {
 	const playgroundUrl = new URL('https://playground.wordpress.net/');
 	playgroundUrl.searchParams.set('blueprint-url', blueprintUrl.href);
 	document.querySelector('#open-playground').href = playgroundUrl.href;
-	document.querySelector('#open-blueprint').href = blueprintUrl.href;
 }
 
 function updateRail(syncRail = true) {

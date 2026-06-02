@@ -823,13 +823,6 @@ body[data-variant='current'] .panel-links a:first-child {
 	box-shadow: 3px 3px 0 rgba(28, 19, 6, 0.6);
 }
 
-body[data-variant='current'] .panel-links a:nth-child(2) {
-	background: transparent;
-	color: #2a1808;
-	border-color: #2a1808;
-	box-shadow: 3px 3px 0 rgba(28, 19, 6, 0.3);
-}
-
 body[data-variant='current'] .tour-controls {
 	padding: 8px 12px;
 	background: #1c1306;
@@ -848,6 +841,7 @@ body[data-variant='current'] .tour-controls button {
 	background: transparent;
 	color: #ffd166;
 	border: 1.5px solid #ffd166;
+	border-radius: 0;
 	letter-spacing: 0.04em;
 }
 
@@ -1007,8 +1001,25 @@ body[data-variant='current'] .panel-toggle:hover {
 }
 
 body[data-variant='current'] .panel-toggle-open {
-	display: inline-block;
-	transition: transform 200ms ease;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 14px;
+	height: 14px;
+	/* The "›" glyph isn't in Press Start 2P, so it falls back to a font whose
+	   off-centre glyph drifts low-left. Draw a crisp chevron instead, centred by
+	   construction regardless of the visitor's fonts. */
+	font-size: 0;
+}
+
+body[data-variant='current'] .panel-toggle-open::before {
+	content: '';
+	box-sizing: border-box;
+	width: 8px;
+	height: 8px;
+	border: solid #ffd166;
+	border-width: 2.5px 2.5px 0 0;
+	transform: translateX(-2px) rotate(45deg);
 }
 
 body[data-variant='current'] .release-panel.is-collapsed .panel-toggle {
