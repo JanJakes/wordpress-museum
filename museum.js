@@ -6221,9 +6221,9 @@ function createDoorSign(material, z, rotationY) {
 		new THREE.PlaneGeometry(5.6, 0.7),
 		material
 	);
-	// Mounted high on the wall band above the portal lintel (door header ~4.45,
-	// accent band ~4.66) rather than over the opening itself.
-	sign.position.set(0, 5.3, z);
+	// Mounted near the top of the portal frame, just below its top rail (~6.93),
+	// high on the wall well above the door opening.
+	sign.position.set(0, 6.4, z);
 	sign.rotation.y = rotationY;
 	return sign;
 }
