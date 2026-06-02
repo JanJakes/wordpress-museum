@@ -827,6 +827,7 @@ body[data-variant='current'] .tour-controls {
 	padding: 8px 12px;
 	background: #1c1306;
 	border: 2px solid #ffd166;
+	border-radius: 0;
 	box-shadow:
 		3px 3px 0 rgba(28, 19, 6, 0.6),
 		0 12px 40px rgba(0, 0, 0, 0.46);
