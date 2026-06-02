@@ -6760,6 +6760,7 @@ function createAtriumDecor() {
 		group.add(createAtriumTimelineRing());
 		group.add(createLogoEvolutionDisplay());
 		group.add(createMissionTablet());
+		group.add(createAtriumWayfindingSigns());
 	}
 	addAtriumFeature(group, activeVariant.atriumFeature, color, secondary);
 	addAtriumBenches(group);
@@ -6819,6 +6820,69 @@ function createMissionTablet() {
 	group.position.set(center.x, 2.1, center.z);
 	group.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
 	return group;
+}
+
+// Two directional plaques on the hub walls flanking the entrance bay:
+// "START HERE" toward the first gallery (Blogging Roots) and "EXIT" toward the
+// Mercantile (which sits beyond the +x portal). Each sits on the wall segment
+// nearest the entrance, above the bay's showcase panel, facing the rotunda.
+function createAtriumWayfindingSigns() {
+	const group = new THREE.Group();
+	const specs = [
+		{ era: eras[0], label: 'START HERE  →' },
+		{ era: eras[eras.length - 1], label: 'EXIT  →' },
+	];
+	const segmentLength = (roomWidth - roomDoorHalfWidth * 2) / 2;
+	const segmentOffset = roomDoorHalfWidth + segmentLength / 2;
+	for (const spec of specs) {
+		const side = hubSides.find((s) => s.era === spec.era);
+		if (!side) continue;
+		const candA = side.midpoint.clone().add(side.tangent.clone().multiplyScalar(segmentOffset));
+		const candB = side.midpoint.clone().add(side.tangent.clone().multiplyScalar(-segmentOffset));
+		const near = candA.z > candB.z ? candA : candB; // segment nearer the entrance (+z)
+		const center = near.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.06));
+		const sign = createWayfindingPlaque(spec.label);
+		sign.position.set(center.x, 3.7, center.z);
+		sign.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
+		group.add(sign);
+	}
+	return group;
+}
+
+function createWayfindingPlaque(label) {
+	const group = new THREE.Group();
+	const width = 2.3;
+	const height = 0.64;
+	const frame = new THREE.Mesh(
+		new THREE.BoxGeometry(width + 0.12, height + 0.12, 0.06),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	const plaque = new THREE.Mesh(
+		new THREE.PlaneGeometry(width, height),
+		new THREE.MeshBasicMaterial({ map: createWayfindingTexture(label, width / height) })
+	);
+	plaque.position.z = 0.035;
+	group.add(frame, plaque);
+	return group;
+}
+
+function createWayfindingTexture(label, aspect) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 1024;
+	canvas.height = Math.round(canvas.width / aspect);
+	const ctx = canvas.getContext('2d');
+	const w = canvas.width;
+	const h = canvas.height;
+	const bronze = '#7c5a22';
+	drawMuralMarbleField(ctx, w, h);
+	drawMuralBorder(ctx, w, h, bronze);
+	ctx.textAlign = 'center';
+	drawEngravedText(ctx, label, w / 2, h * 0.52, w * 0.82, h * 0.5,
+		'700', 'Georgia, "Times New Roman", serif', bronze);
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
 }
 
 function createLogoEvolutionPanel() {
