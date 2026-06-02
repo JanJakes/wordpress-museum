@@ -1398,6 +1398,7 @@ function createPlaygroundAnnex() {
 	// WordPress Playground exhibit panel + the "SANDBOX" sign, both on the east wall.
 	group.add(createPlaygroundExhibitSign());
 	group.add(createPlaygroundSandboxSign());
+	group.add(createPlaygroundBlueprint());
 	return group;
 }
 
@@ -1860,6 +1861,172 @@ function createPlaygroundSandboxSign() {
 	sign.rotation.y = -Math.PI / 2; // face -x, toward the room
 	group.add(sign);
 	return group;
+}
+
+// A real architectural floor plan of the annex itself, drawn as a cyanotype
+// blueprint and framed on the free east wall right of the sandbox — a wink at
+// WordPress Playground's own "Blueprints", but an actual building one this time.
+function createPlaygroundBlueprint() {
+	const group = new THREE.Group();
+	const wallFace = playgroundMaxX - playgroundWallThickness / 2;
+	const z = playgroundDoorZCenter + 5.6; // right of the SANDBOX sign, clear of the swings
+	const w = 1.5;
+	const h = 1.7;
+	const brass = new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 });
+	const frame = new THREE.Mesh(new THREE.BoxGeometry(0.08, h + 0.14, w + 0.14), brass);
+	frame.position.set(wallFace - 0.04, 2.6, z);
+	group.add(frame);
+	const plan = new THREE.Mesh(
+		new THREE.PlaneGeometry(w, h),
+		new THREE.MeshBasicMaterial({ map: createPlaygroundBlueprintTexture() })
+	);
+	plan.position.set(wallFace - 0.12, 2.6, z);
+	plan.rotation.y = -Math.PI / 2; // face -x, toward the room
+	group.add(plan);
+	const accent = new THREE.PointLight(0xbfe0ff, 0.45, 6);
+	accent.position.set(wallFace - 1.4, 3.5, z);
+	group.add(accent);
+	return group;
+}
+
+function createPlaygroundBlueprintTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 1024;
+	canvas.height = 1161; // matches the 1.5 x 1.7 plane
+	const ctx = canvas.getContext('2d');
+	const W = canvas.width;
+	const H = canvas.height;
+	const ink = '#d6e6ff';
+
+	// Cyanotype field with a faint construction grid.
+	ctx.fillStyle = '#15406e';
+	ctx.fillRect(0, 0, W, H);
+	ctx.strokeStyle = 'rgba(214, 230, 255, 0.1)';
+	ctx.lineWidth = 1;
+	for (let x = 0; x <= W; x += 48) {
+		ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+	}
+	for (let y = 0; y <= H; y += 48) {
+		ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+	}
+	ctx.strokeStyle = ink;
+	ctx.lineWidth = 4;
+	ctx.strokeRect(22, 22, W - 44, H - 44);
+	ctx.lineWidth = 1.5;
+	ctx.strokeRect(33, 33, W - 66, H - 66);
+
+	// Plan area maps the annex interior x[27.5,40.5] x z[11.8,24.6] to the canvas
+	// (world +x -> right, world +z -> down).
+	const wx0 = 27.5, wx1 = 40.5, wz0 = 11.8, wz1 = 24.6;
+	const areaL = 96, areaR = W - 96, areaT = 92, areaB = H - 250;
+	const s = Math.min((areaR - areaL) / (wx1 - wx0), (areaB - areaT) / (wz1 - wz0));
+	const planW = (wx1 - wx0) * s, planH = (wz1 - wz0) * s;
+	const ox = areaL + (areaR - areaL - planW) / 2;
+	const oy = areaT + (areaB - areaT - planH) / 2;
+	const X = (wx) => ox + (wx - wx0) * s;
+	const Y = (wz) => oy + (wz - wz0) * s;
+
+	const label = (text, cx, cy, size = 19) => {
+		ctx.fillStyle = ink;
+		ctx.font = `700 ${size}px "Courier New", monospace`;
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'middle';
+		ctx.fillText(text, cx, cy);
+	};
+	const box = (x0, z0, x1, z1) => {
+		ctx.strokeStyle = ink;
+		ctx.lineWidth = 2;
+		ctx.strokeRect(X(x0), Y(z0), X(x1) - X(x0), Y(z1) - Y(z0));
+	};
+
+	// Perimeter walls (double line) with the entrance gap on the west wall.
+	const L = X(wx0), R = X(wx1), T = Y(wz0), B = Y(wz1);
+	ctx.strokeStyle = ink;
+	ctx.lineWidth = 6;
+	ctx.beginPath();
+	ctx.moveTo(L, T); ctx.lineTo(R, T); ctx.lineTo(R, B); ctx.lineTo(L, B); // N, E, S
+	ctx.lineTo(L, Y(15.9)); ctx.moveTo(L, Y(13.7)); ctx.lineTo(L, T);       // W wall, broken at the door
+	ctx.stroke();
+	// Door swing arc + label.
+	ctx.lineWidth = 1.5;
+	ctx.beginPath();
+	ctx.arc(L, Y(13.7), Y(15.9) - Y(13.7), 0, Math.PI / 2);
+	ctx.stroke();
+	label('ENTRANCE', X(29.4), Y(14.8), 16);
+
+	// Fixtures, positioned and sized from the actual annex layout.
+	// Sandbox (square, dotted "sand" fill).
+	box(37.2, 15.5, 39.8, 18.1);
+	ctx.fillStyle = 'rgba(214,230,255,0.5)';
+	for (let i = 0; i < 60; i++) {
+		const px = X(37.4) + pseudoRandom(i * 1.3 + 0.2) * (X(39.6) - X(37.4));
+		const py = Y(15.7) + pseudoRandom(i * 1.7 + 0.9) * (Y(17.9) - Y(15.7));
+		ctx.fillRect(px, py, 2, 2);
+	}
+	label('SANDBOX', X(38.5), Y(16.8), 17);
+
+	// Slide (tower + tapering chute).
+	box(30, 19.8, 33, 22.6);
+	ctx.strokeStyle = ink; ctx.lineWidth = 1.5;
+	ctx.beginPath(); ctx.moveTo(X(30.4), Y(22.2)); ctx.lineTo(X(32.6), Y(20.2)); ctx.stroke();
+	label('SLIDE', X(31.5), Y(21.2), 16);
+
+	// Swings (frame + two seats).
+	box(34.6, 22.2, 38.4, 23.6);
+	ctx.fillStyle = ink;
+	for (const sx of [35.6, 37.4]) {
+		ctx.beginPath(); ctx.arc(X(sx), Y(22.9), 5, 0, Math.PI * 2); ctx.fill();
+	}
+	label('SWINGS', X(36.5), Y(24.0), 16);
+
+	// Spring rider (small disc) + info desk (rect by the north wall).
+	ctx.strokeStyle = ink; ctx.lineWidth = 2;
+	ctx.beginPath(); ctx.arc(X(30.8), Y(16.8), s * 0.6, 0, Math.PI * 2); ctx.stroke();
+	label('RIDER', X(30.8), Y(18.0), 14);
+	box(34.5, 13.2, 36.5, 14.2);
+	label('INFO', X(35.5), Y(13.7), 13);
+
+	// Overall dimension along the top edge.
+	ctx.strokeStyle = ink; ctx.lineWidth = 1;
+	ctx.beginPath(); ctx.moveTo(L, T - 26); ctx.lineTo(R, T - 26); ctx.stroke();
+	ctx.beginPath(); ctx.moveTo(L, T - 32); ctx.lineTo(L, T - 20); ctx.moveTo(R, T - 32); ctx.lineTo(R, T - 20); ctx.stroke();
+	label('12.5 m', (L + R) / 2, T - 40, 16);
+
+	// North arrow (top-right of the plan).
+	const nx = R - 26, ny = T + 40;
+	ctx.strokeStyle = ink; ctx.fillStyle = ink; ctx.lineWidth = 2;
+	ctx.beginPath(); ctx.moveTo(nx, ny - 22); ctx.lineTo(nx - 7, ny); ctx.lineTo(nx + 7, ny); ctx.closePath(); ctx.fill();
+	ctx.beginPath(); ctx.moveTo(nx, ny); ctx.lineTo(nx, ny + 16); ctx.stroke();
+	label('N', nx, ny + 28, 15);
+
+	// Title block.
+	const ty = areaB + 40;
+	ctx.strokeStyle = ink; ctx.lineWidth = 2;
+	ctx.beginPath(); ctx.moveTo(56, ty - 14); ctx.lineTo(W - 56, ty - 14); ctx.stroke();
+	ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+	ctx.fillStyle = ink;
+	ctx.font = '800 40px "Arial Black", Impact, sans-serif';
+	ctx.fillText('THE WORDPRESS PLAYGROUND', 64, ty + 32);
+	ctx.font = '700 22px "Courier New", monospace';
+	ctx.fillText('ANNEX · FLOOR PLAN · PLAN VIEW', 64, ty + 66);
+	ctx.textAlign = 'right';
+	ctx.fillText('SHEET A-01', W - 64, ty + 32);
+	ctx.fillText('EST. 2022', W - 64, ty + 66);
+	// Scale bar.
+	const sb = 5 * s; // 5 metres
+	const sbx = 64, sby = ty + 104;
+	ctx.strokeStyle = ink; ctx.lineWidth = 2;
+	ctx.beginPath(); ctx.moveTo(sbx, sby); ctx.lineTo(sbx + sb, sby); ctx.stroke();
+	ctx.beginPath(); ctx.moveTo(sbx, sby - 6); ctx.lineTo(sbx, sby + 6); ctx.moveTo(sbx + sb, sby - 6); ctx.lineTo(sbx + sb, sby + 6); ctx.stroke();
+	ctx.textAlign = 'left'; ctx.font = '700 18px "Courier New", monospace';
+	ctx.fillText('0', sbx - 4, sby + 24); ctx.fillText('5 m', sbx + sb - 14, sby + 24);
+	ctx.textAlign = 'right'; ctx.font = 'italic 700 20px "Courier New", monospace';
+	ctx.fillText('A REAL BLUEPRINT — NO JSON REQUIRED', W - 64, sby + 22);
+
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
 }
 
 function createPlaygroundSignTexture() {
