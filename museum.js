@@ -6207,23 +6207,33 @@ function createDoorFrame(room) {
 	accentBand.position.set(0, 4.66, z - 0.02);
 	group.add(accentBand);
 
+	// Solid tympanum filling the portal above the doorway opening, so the room
+	// sign has a wall to sit on instead of floating over the open upper portal.
+	const tympanumBottom = 4.66;
+	const tympanum = new THREE.Mesh(
+		new THREE.BoxGeometry(gap * 2, wallHeight - tympanumBottom, wallThickness),
+		jambMaterial
+	);
+	tympanum.position.set(0, (tympanumBottom + wallHeight) / 2, z);
+	group.add(tympanum);
+
+	const roomNumber = eras.indexOf(room.era) + 1;
 	const signMaterial = new THREE.MeshBasicMaterial({
-		map: createEraTexture(room.era, room.color, room.yearRange),
+		map: createEraTexture(room.era, room.color, room.yearRange, roomNumber),
 		transparent: true,
 	});
-	group.add(createDoorSign(signMaterial, z - 0.08, Math.PI));
-	group.add(createDoorSign(signMaterial, z + 0.08, 0));
+	group.add(createDoorSign(signMaterial, z - wallThickness / 2 - 0.02, Math.PI));
+	group.add(createDoorSign(signMaterial, z + wallThickness / 2 + 0.02, 0));
 	return group;
 }
 
 function createDoorSign(material, z, rotationY) {
 	const sign = new THREE.Mesh(
-		new THREE.PlaneGeometry(5.6, 0.7),
+		new THREE.PlaneGeometry(4.4, 1.9),
 		material
 	);
-	// Mounted near the top of the portal frame, just below its top rail (~6.93),
-	// high on the wall well above the door opening.
-	sign.position.set(0, 6.4, z);
+	// Centered on the solid tympanum above the doorway (which spans ~4.66–7.35).
+	sign.position.set(0, 5.9, z);
 	sign.rotation.y = rotationY;
 	return sign;
 }
@@ -14576,33 +14586,57 @@ function getVersionSlug(release) {
 	return release.version.replaceAll('.', '-');
 }
 
-function createEraTexture(text, color, yearRange) {
+function createEraTexture(text, color, yearRange, roomNumber) {
 	const canvas = document.createElement('canvas');
 	canvas.width = 1024;
-	canvas.height = 160;
+	canvas.height = 442; // matches the taller 4.4 x 1.9 door sign
 	const ctx = canvas.getContext('2d');
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	const w = canvas.width;
+	const h = canvas.height;
+	ctx.clearRect(0, 0, w, h);
 	ctx.fillStyle = color;
 	ctx.globalAlpha = 0.92;
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillRect(0, 0, w, h);
 	ctx.globalAlpha = 1;
-	ctx.fillStyle = '#07100b';
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-	ctx.font = '800 30px system-ui, sans-serif';
-	ctx.globalAlpha = 0.72;
-	ctx.fillText(yearRange, canvas.width / 2, 42);
+
+	// Room number in a circle (cream disc with a bronze ring), above the text.
+	const cx = w / 2;
+	const cyc = h * 0.25;
+	const rad = h * 0.185;
+	ctx.fillStyle = '#f4eede';
+	ctx.beginPath();
+	ctx.arc(cx, cyc, rad, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.strokeStyle = '#7c5a22';
+	ctx.lineWidth = Math.max(4, rad * 0.12);
+	ctx.beginPath();
+	ctx.arc(cx, cyc, rad - ctx.lineWidth * 0.6, 0, Math.PI * 2);
+	ctx.stroke();
+	ctx.fillStyle = '#07100b';
+	ctx.font = `900 ${Math.round(rad * 1.1)}px "Arial Black", Impact, sans-serif`;
+	ctx.fillText(String(roomNumber), cx, cyc + 3);
+
+	// Year range.
+	ctx.fillStyle = '#07100b';
+	ctx.globalAlpha = 0.74;
+	ctx.font = `800 ${Math.round(h * 0.085)}px system-ui, sans-serif`;
+	ctx.fillText(yearRange, cx, h * 0.58);
 	ctx.globalAlpha = 1;
+
+	// Era name.
 	fillFittedCanvasText(
 		ctx,
 		text.toUpperCase(),
-		canvas.width / 2,
-		107,
-		900,
-		58,
+		cx,
+		h * 0.81,
+		w * 0.92,
+		Math.round(h * 0.17),
 		'900',
-		'Arial Black, Impact, sans-serif'
+		'"Arial Black", Impact, sans-serif'
 	);
+
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
