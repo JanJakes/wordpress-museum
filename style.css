@@ -381,6 +381,17 @@ h1 {
 	line-height: 1.38;
 }
 
+.help-card ul {
+	margin: 6px 0 0;
+	padding-left: 1.3em;
+	list-style: square;
+}
+
+.help-card li {
+	font-size: 0.86rem;
+	line-height: 1.5;
+}
+
 body[data-ui='terminal'] {
 	--paper: #afffce;
 	--muted: rgba(175, 255, 206, 0.68);
@@ -916,6 +927,12 @@ body[data-variant='current'] .help-card strong {
 }
 
 body[data-variant='current'] .help-card span:not(.help-stamp) {
+	font-family: var(--retro-font);
+	font-size: 1rem;
+	color: #2a1808;
+}
+
+body[data-variant='current'] .help-card li {
 	font-family: var(--retro-font);
 	font-size: 1rem;
 	color: #2a1808;
