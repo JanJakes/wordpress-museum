@@ -6228,14 +6228,39 @@ function createDoorFrame(room) {
 }
 
 function createDoorSign(material, z, rotationY) {
-	const sign = new THREE.Mesh(
-		new THREE.PlaneGeometry(4.4, 1.9),
-		material
-	);
+	const group = new THREE.Group();
+	const w = 4.4;
+	const h = 1.9;
+	const sign = new THREE.Mesh(new THREE.PlaneGeometry(w, h), material);
+	sign.position.z = 0.01;
+	group.add(sign);
+
+	// Brass molding frame around the sign.
+	const brass = new THREE.MeshStandardMaterial({
+		color: 0xc79b43,
+		emissive: 0x2a1c06,
+		emissiveIntensity: 0.12,
+		roughness: 0.34,
+		metalness: 0.52,
+	});
+	const railW = 0.17;
+	const depth = 0.1;
+	const bars = [
+		[w + railW * 2, railW, 0, h / 2 + railW / 2],
+		[w + railW * 2, railW, 0, -(h / 2 + railW / 2)],
+		[railW, h, -(w / 2 + railW / 2), 0],
+		[railW, h, w / 2 + railW / 2, 0],
+	];
+	for (const [bw, bh, bx, by] of bars) {
+		const bar = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, depth), brass);
+		bar.position.set(bx, by, 0);
+		group.add(bar);
+	}
+
 	// Centered on the solid tympanum above the doorway (which spans ~4.66–7.35).
-	sign.position.set(0, 5.9, z);
-	sign.rotation.y = rotationY;
-	return sign;
+	group.position.set(0, 5.9, z);
+	group.rotation.y = rotationY;
+	return group;
 }
 
 function createRoomLight(color) {
@@ -14607,44 +14632,67 @@ function createEraTexture(text, color, yearRange, roomNumber) {
 	const ctx = canvas.getContext('2d');
 	const w = canvas.width;
 	const h = canvas.height;
+	const ink = '#0c1208';
+	const bronze = 'rgba(124, 90, 34, 0.95)';
+	const cx = w / 2;
 	ctx.clearRect(0, 0, w, h);
+
+	// Era-colour field with a soft top-lit retro sheen.
 	ctx.fillStyle = color;
-	ctx.globalAlpha = 0.92;
 	ctx.fillRect(0, 0, w, h);
-	ctx.globalAlpha = 1;
+	const sheen = ctx.createLinearGradient(0, 0, 0, h);
+	sheen.addColorStop(0, 'rgba(255, 255, 255, 0.18)');
+	sheen.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
+	sheen.addColorStop(1, 'rgba(0, 0, 0, 0.16)');
+	ctx.fillStyle = sheen;
+	ctx.fillRect(0, 0, w, h);
+
+	// Framed-poster border: a cream keyline with a bronze inner rule.
+	const m = Math.round(h * 0.06);
+	ctx.strokeStyle = 'rgba(255, 250, 235, 0.92)';
+	ctx.lineWidth = Math.round(h * 0.022);
+	ctx.strokeRect(m, m, w - 2 * m, h - 2 * m);
+	const m2 = m + Math.round(h * 0.03);
+	ctx.strokeStyle = bronze;
+	ctx.lineWidth = 3;
+	ctx.strokeRect(m2, m2, w - 2 * m2, h - 2 * m2);
+	// Diamond studs at the inner corners.
+	ctx.fillStyle = 'rgba(255, 250, 235, 0.92)';
+	for (const sx of [m2, w - m2]) {
+		for (const sy of [m2, h - m2]) {
+			ctx.save();
+			ctx.translate(sx, sy);
+			ctx.rotate(Math.PI / 4);
+			ctx.fillRect(-7, -7, 14, 14);
+			ctx.restore();
+		}
+	}
+
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-	const cx = w / 2;
 
-	// Room number as a Roman numeral, flanked by short rules, above the text.
+	// Room number as an engraved Roman numeral flanked by short bronze rules.
 	const roman = toRoman(roomNumber);
-	const numY = h * 0.23;
-	ctx.fillStyle = '#07100b';
-	ctx.font = `700 ${Math.round(h * 0.2)}px Georgia, "Times New Roman", serif`;
+	const numY = h * 0.265;
+	ctx.font = `700 ${Math.round(h * 0.16)}px Georgia, "Times New Roman", serif`;
+	ctx.fillStyle = 'rgba(255, 250, 235, 0.4)';
+	ctx.fillText(roman, cx + 1.5, numY + 2);
+	ctx.fillStyle = ink;
 	ctx.fillText(roman, cx, numY);
 	const half = ctx.measureText(roman).width / 2;
-	const ruleW = h * 0.16;
-	const ruleGap = h * 0.08;
+	const ruleW = h * 0.13;
+	const ruleGap = h * 0.055;
+	ctx.fillStyle = bronze;
 	ctx.fillRect(cx - half - ruleGap - ruleW, numY - 2, ruleW, 4);
 	ctx.fillRect(cx + half + ruleGap, numY - 2, ruleW, 4);
 
-	// Year range (enlarged).
-	ctx.globalAlpha = 0.78;
-	ctx.font = `800 ${Math.round(h * 0.11)}px system-ui, sans-serif`;
-	ctx.fillText(yearRange, cx, h * 0.52);
-	ctx.globalAlpha = 1;
+	// Year range — large and engraved.
+	drawEngravedText(ctx, yearRange, cx, h * 0.54, w * 0.72, Math.round(h * 0.16),
+		'800', 'Georgia, "Times New Roman", serif', ink);
 
-	// Era name.
-	fillFittedCanvasText(
-		ctx,
-		text.toUpperCase(),
-		cx,
-		h * 0.81,
-		w * 0.92,
-		Math.round(h * 0.17),
-		'900',
-		'"Arial Black", Impact, sans-serif'
-	);
+	// Era name — engraved.
+	drawEngravedText(ctx, text.toUpperCase(), cx, h * 0.81, w * 0.82, Math.round(h * 0.165),
+		'900', '"Arial Black", Impact, sans-serif', ink);
 
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
