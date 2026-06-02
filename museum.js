@@ -14586,6 +14586,20 @@ function getVersionSlug(release) {
 	return release.version.replaceAll('.', '-');
 }
 
+function toRoman(n) {
+	const map = [
+		[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
+	];
+	let out = '';
+	for (const [value, symbol] of map) {
+		while (n >= value) {
+			out += symbol;
+			n -= value;
+		}
+	}
+	return out;
+}
+
 function createEraTexture(text, color, yearRange, roomNumber) {
 	const canvas = document.createElement('canvas');
 	canvas.width = 1024;
@@ -14600,29 +14614,24 @@ function createEraTexture(text, color, yearRange, roomNumber) {
 	ctx.globalAlpha = 1;
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-
-	// Room number in a circle (cream disc with a bronze ring), above the text.
 	const cx = w / 2;
-	const cyc = h * 0.25;
-	const rad = h * 0.185;
-	ctx.fillStyle = '#f4eede';
-	ctx.beginPath();
-	ctx.arc(cx, cyc, rad, 0, Math.PI * 2);
-	ctx.fill();
-	ctx.strokeStyle = '#7c5a22';
-	ctx.lineWidth = Math.max(4, rad * 0.12);
-	ctx.beginPath();
-	ctx.arc(cx, cyc, rad - ctx.lineWidth * 0.6, 0, Math.PI * 2);
-	ctx.stroke();
-	ctx.fillStyle = '#07100b';
-	ctx.font = `900 ${Math.round(rad * 1.1)}px "Arial Black", Impact, sans-serif`;
-	ctx.fillText(String(roomNumber), cx, cyc + 3);
 
-	// Year range.
+	// Room number as a Roman numeral, flanked by short rules, above the text.
+	const roman = toRoman(roomNumber);
+	const numY = h * 0.23;
 	ctx.fillStyle = '#07100b';
-	ctx.globalAlpha = 0.74;
-	ctx.font = `800 ${Math.round(h * 0.085)}px system-ui, sans-serif`;
-	ctx.fillText(yearRange, cx, h * 0.58);
+	ctx.font = `700 ${Math.round(h * 0.2)}px Georgia, "Times New Roman", serif`;
+	ctx.fillText(roman, cx, numY);
+	const half = ctx.measureText(roman).width / 2;
+	const ruleW = h * 0.16;
+	const ruleGap = h * 0.08;
+	ctx.fillRect(cx - half - ruleGap - ruleW, numY - 2, ruleW, 4);
+	ctx.fillRect(cx + half + ruleGap, numY - 2, ruleW, 4);
+
+	// Year range (enlarged).
+	ctx.globalAlpha = 0.78;
+	ctx.font = `800 ${Math.round(h * 0.11)}px system-ui, sans-serif`;
+	ctx.fillText(yearRange, cx, h * 0.52);
 	ctx.globalAlpha = 1;
 
 	// Era name.
