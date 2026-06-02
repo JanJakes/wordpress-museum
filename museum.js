@@ -6832,8 +6832,10 @@ function createAtriumWayfindingSigns() {
 		{ era: eras[0], label: 'START HERE  →' },
 		{ era: eras[eras.length - 1], label: 'EXIT  →' },
 	];
-	const segmentLength = (roomWidth - roomDoorHalfWidth * 2) / 2;
-	const segmentOffset = roomDoorHalfWidth + segmentLength / 2;
+	// Centre the sign in the visible marble pier — midway between the gallery's
+	// doorway column (≈roomDoorHalfWidth+0.34 off the face centre) and the corner
+	// column shared with the mural (≈innerHalfWidth) — not on the wall opening.
+	const segmentOffset = (roomDoorHalfWidth + 0.34 + innerHalfWidth) / 2;
 	for (const spec of specs) {
 		const side = hubSides.find((s) => s.era === spec.era);
 		if (!side) continue;
@@ -6866,6 +6868,9 @@ function createWayfindingPlaque(label) {
 	return group;
 }
 
+// A simple directional information sign — a dark panel with a gold keyline and
+// clean sans-serif lettering — deliberately plainer than the marble exhibit
+// banners so it reads as wayfinding.
 function createWayfindingTexture(label, aspect) {
 	const canvas = document.createElement('canvas');
 	canvas.width = 1024;
@@ -6873,12 +6878,24 @@ function createWayfindingTexture(label, aspect) {
 	const ctx = canvas.getContext('2d');
 	const w = canvas.width;
 	const h = canvas.height;
-	const bronze = '#7c5a22';
-	drawMuralMarbleField(ctx, w, h);
-	drawMuralBorder(ctx, w, h, bronze);
+
+	const grad = ctx.createLinearGradient(0, 0, 0, h);
+	grad.addColorStop(0, '#2a1d0b');
+	grad.addColorStop(1, '#17100a');
+	ctx.fillStyle = grad;
+	ctx.fillRect(0, 0, w, h);
+
+	const m = Math.round(h * 0.13);
+	ctx.strokeStyle = '#d8b25a';
+	ctx.lineWidth = Math.max(3, h * 0.045);
+	ctx.strokeRect(m, m, w - m * 2, h - m * 2);
+
 	ctx.textAlign = 'center';
-	drawEngravedText(ctx, label, w / 2, h * 0.52, w * 0.82, h * 0.5,
-		'700', 'Georgia, "Times New Roman", serif', bronze);
+	ctx.textBaseline = 'middle';
+	ctx.fillStyle = '#fff5df';
+	fillFittedCanvasText(ctx, label, w / 2, h * 0.52, w * 0.78, h * 0.42,
+		'700', 'Arial, "Helvetica Neue", sans-serif');
+
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
