@@ -8387,13 +8387,12 @@ function addEraVignette(group, room, roomIndex) {
 	addRoomVignetteLights(group, color);
 }
 
-// Stands a Gutenberg-pun printing press against the right side wall in the
-// mid-back segment (clear of the central runner, the back-segment wall exhibit,
-// the shared doorway at connectorDoorZ, and the chamfer corner at spokeEndZ).
-// Its front (local +z) is turned to face the room interior.
+// Stands the Gutenberg-pun printing press out in the open floor bay between the
+// central axial runner and the octagon ring carpet (the +x side), rather than
+// flat against a wall. Turned to face the room's entry doorway so arriving
+// visitors meet the press head-on. Clear of both carpets and the wall railings.
 function addBlockEditorPrintingPress(group, color) {
-	const spot = sideWallFloorSpot('right', 2.9, 0.78, '+z');
-	addLocal(group, createPrintingPress(color), spot.x, spot.z, spot.rotation);
+	addLocal(group, createPrintingPress(color), 5.0, 0.5, -2.61);
 }
 
 // A procedural 15th–18th c. screw printing press: oak frame, central iron screw
