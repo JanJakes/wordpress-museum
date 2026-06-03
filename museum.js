@@ -10528,8 +10528,8 @@ function createCobweb(threadColor) {
 	return group;
 }
 
-// A minimal spider: a dark two-segment body and eight bent legs, sized to perch
-// on the cobweb near its hub. Modelled small (~9cm) so it reads as a detail.
+// A minimal spider: a dark two-segment body and eight bent legs, sized to sit
+// flat in the cobweb. Modelled small (~9cm) so it reads as a detail.
 function createTinySpider() {
 	const spider = new THREE.Group();
 	const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x0c0a07, roughness: 0.7 });
@@ -10553,8 +10553,10 @@ function createTinySpider() {
 			spider.add(createCylinderBetween(new THREE.Vector3(0, 0, knee.z), knee, 0.006, bodyMaterial, 4));
 		}
 	}
-	spider.position.set(0.46, -0.46, 0.02);
-	spider.rotation.z = -0.4;
+	// Perched mid-web, lying flat against the threads (the web is a vertical plane),
+	// within the spokes' fan rather than off in the empty corner.
+	spider.position.set(-0.2, 0.55, 0.06);
+	spider.rotation.x = Math.PI / 2;
 	return spider;
 }
 
