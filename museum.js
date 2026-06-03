@@ -10486,7 +10486,7 @@ function addWpHooksRail(group) {
 	// stands clearly in the empty bay rather than crowding a runner or the corner.
 	// Turned so its face (label + hook mouths) points back toward the rotunda's
 	// main entrance, where the do_action()/apply_filters() joke greets arrivals.
-	rack.position.set(-5.0, 0, 0.5);
+	rack.position.set(-3.3, 0, 1.0);
 	rack.rotation.y = 0.82;
 	group.add(rack);
 }
