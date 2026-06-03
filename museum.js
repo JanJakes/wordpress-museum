@@ -6295,7 +6295,6 @@ function createRoomLight(color) {
 function createRoomFloorWayfinding(room) {
 	const group = new THREE.Group();
 	const color = room.color;
-	const roomIndex = eras.indexOf(room.era);
 	const stripeMaterial = new THREE.MeshBasicMaterial({
 		color,
 		transparent: true,
@@ -6312,26 +6311,6 @@ function createRoomFloorWayfinding(room) {
 	group.add(createFloorStripe(-2.25, -1.95, 0.055, 4.1, Math.PI / 4, stripeMaterial));
 	group.add(createFloorStripe(2.25, -1.95, 0.055, 4.1, -Math.PI / 4, stripeMaterial));
 	group.add(createFloorStripe(0, 3.65, 4.8, 0.055, 0, softMaterial));
-
-	for (const station of getEraVignetteStations(roomIndex)) {
-		const ring = new THREE.Mesh(
-			new THREE.RingGeometry(0.38, 0.48, 40),
-			new THREE.MeshBasicMaterial({
-				color,
-				transparent: true,
-				opacity: 0.42,
-				depthWrite: false,
-				side: THREE.DoubleSide,
-			})
-		);
-		ring.rotation.x = -Math.PI / 2;
-		ring.position.set(station.x, 0.088, station.z);
-		registerAnimation(ring, (object, elapsed) => {
-			const pulse = 1 + Math.sin(elapsed * 1.8 + station.x) * 0.035;
-			object.scale.set(pulse, pulse, pulse);
-		});
-		group.add(ring);
-	}
 	return group;
 }
 
@@ -8333,7 +8312,7 @@ function addEraVignette(group, room, roomIndex) {
 	const secondary = activeVariant.eraColors[(roomIndex + 2) % activeVariant.eraColors.length];
 	const stations = getEraVignetteStations(roomIndex);
 	getEraVignetteItems(room, color, secondary).forEach((item, index) => {
-		const station = stations[index];
+		const station = item.at || stations[index];
 		addLocal(
 			group,
 			createVignetteStation(color, item.label, item.object, {
@@ -11748,7 +11727,6 @@ function addEraModelProps(group, room, roomIndex, color, secondary) {
 		],
 		'Block Editor': [
 			{ obj: model('laptop', 0.46, 'screen'), side: 'left', z: -5.7, inset: 0.45 },
-			{ obj: sofa(2.0), role: 'bench', side: 'left' },
 		],
 		'Blocks Everywhere': [
 			{ obj: createFlatPhoneExhibit(secondary), side: 'right', z: -5.7, inset: 0.45 },
@@ -11831,9 +11809,10 @@ function getEraVignetteItems(room, color, secondary) {
 			{ label: 'MEDIA', object: createCommentAquarium(secondary, color, 0.54), width: 1.65 },
 		],
 		'Block Editor': [
-			{ label: 'BLOCKS', object: createBlockFountain(color, 0.62), width: 1.55 },
-			{ label: 'GUTENBERG', object: createDisplayCase(secondary, '5.0', { showLabel: false }), width: 1.55 },
-			{ label: 'GROUPS', object: createDisplayCase(secondary, 'GROUP', { showLabel: false }), width: 1.55 },
+			// Stands out in the open floor (where the viewing sofa used to be),
+			// turned to face the room entry — the Gutenberg press carries the era's
+			// "movable type" pun, so the abstract GUTENBERG/GROUPS cases were dropped.
+			{ label: 'BLOCKS', object: createBlockFountain(color, 0.62), width: 1.55, at: { x: -2.7, z: 1.7, rotation: -0.27 } },
 		],
 		'Blocks Everywhere': [
 			{ label: 'PATTERNS', object: createBlockFountain(color, 0.58), width: 1.55 },
