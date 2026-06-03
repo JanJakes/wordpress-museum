@@ -10405,7 +10405,7 @@ function addWebStand(group) {
 	// turned to face the main entrance — "The Web" pun standing opposite the
 	// do_action()/apply_filters() hooks, a matched pair flanking the runner.
 	stand.position.set(3.3, 0, 1.0);
-	stand.rotation.y = -0.82;
+	stand.rotation.y = -2.79; // front (+z: web + plate) turns to face the entry doorway
 	group.add(stand);
 }
 
@@ -10416,32 +10416,47 @@ function createWebStand() {
 	const group = new THREE.Group();
 	const stone = new THREE.MeshStandardMaterial({ color: 0x9aa3ad, roughness: 0.92, metalness: 0.05 });
 	const bark = new THREE.MeshStandardMaterial({ color: 0x5b4327, roughness: 0.93 });
-	// Weighted base — same footprint as the WP HOOKS rack so the pair reads even.
+	const V = THREE.Vector3;
+	const seg = (a, b, r) => group.add(createCylinderBetween(a, b, r, bark, 6));
+	// Weighted stone base — same footprint as the WP HOOKS rack so the pair reads even.
 	const base = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.36, 0.09, 20), stone);
 	base.position.y = 0.045;
 	group.add(base);
-	// Gnarled trunk rising to a fork.
-	const forkY = 1.35;
-	const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.075, forkY, 10), bark);
-	trunk.position.y = forkY / 2;
-	group.add(trunk);
-	// Two limbs splaying into a V (±34° from vertical) — the crook the web fills.
-	const hub = new THREE.Vector3(0, forkY, 0);
-	const limbLen = 1.4;
-	for (const edge of [0.19 * Math.PI, 0.81 * Math.PI]) {
-		const tip = new THREE.Vector3(Math.cos(edge) * limbLen, forkY + Math.sin(edge) * limbLen, 0);
-		group.add(createCylinderBetween(hub, tip, 0.036, bark, 6));
-	}
-	// The hand-spun web, hub at the fork, rotated so its fan opens straight up
-	// between the two limbs; faces local +z (the stand front).
+	// A small gnarled tree: a slightly kinked trunk forking into a web-bearing
+	// crook, with secondary boughs and twigs leaning out of plane (±z) so it reads
+	// as a tree rather than a flat fork.
+	const knee = new V(0.05, 0.6, 0.03);
+	const fork = new V(-0.02, 1.3, 0);
+	seg(new V(0, 0.06, 0), knee, 0.08);
+	seg(knee, fork, 0.056);
+	// Main V limbs (kept in the x/y plane) that frame the web.
+	const limbR = fork.clone().add(new V(Math.cos(0.19 * Math.PI), Math.sin(0.19 * Math.PI), 0).multiplyScalar(1.4));
+	const limbL = fork.clone().add(new V(Math.cos(0.81 * Math.PI), Math.sin(0.81 * Math.PI), 0).multiplyScalar(1.4));
+	seg(fork, limbR, 0.042);
+	seg(fork, limbL, 0.042);
+	// Twigs off the limb tips.
+	seg(limbR, limbR.clone().add(new V(0.46, 0.4, 0.2)), 0.022);
+	seg(limbR, limbR.clone().add(new V(0.16, 0.5, -0.24)), 0.02);
+	seg(limbL, limbL.clone().add(new V(-0.46, 0.42, -0.16)), 0.022);
+	seg(limbL, limbL.clone().add(new V(-0.14, 0.48, 0.22)), 0.02);
+	// Lower side boughs spreading fore-and-aft, each with a sub-twig.
+	const bough1 = knee.clone().add(new V(0.5, 0.5, 0.36));
+	seg(knee, bough1, 0.03);
+	seg(bough1, bough1.clone().add(new V(0.26, 0.34, 0.18)), 0.017);
+	const mid = new V(0, 0.96, 0.01);
+	const bough2 = mid.clone().add(new V(-0.46, 0.46, -0.38));
+	seg(mid, bough2, 0.03);
+	seg(bough2, bough2.clone().add(new V(-0.22, 0.32, -0.2)), 0.017);
+	// The hand-spun web (and spider) strung across the crook, fan opening up;
+	// faces local +z (the stand front).
 	const web = createCobweb(0x6f685c);
-	web.position.copy(hub);
+	web.position.copy(fork);
 	web.rotation.z = -0.6;
 	web.scale.setScalar(0.9);
 	group.add(web);
 	// "THE WEB" plate at eye level on the trunk front (+z), like the hooks plate.
 	const label = createReadableLabel(createWebStandLabelTexture(), 1.4, 0.36);
-	label.position.set(0, 1.0, 0.13);
+	label.position.set(0, 1.0, 0.18);
 	group.add(label);
 	return group;
 }
