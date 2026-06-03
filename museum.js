@@ -10481,13 +10481,13 @@ function createTinySpider() {
 // vignette plinth below, and the back-wall plaques. A small label names the joke.
 function addWpHooksRail(group) {
 	const rack = createWpHooksRail(0x9aa3ad);
-	// A free-standing hook rack standing in the open floor on the left, by the floor
-	// roundel — clear of the central runner (x=0) and the octagon ring carpet, so it
-	// reads as a free-standing piece rather than sitting on a runner. Turned so its
-	// face (label + hook mouths) points back toward the rotunda's main entrance, so
-	// the do_action()/apply_filters() joke is legible to arriving visitors.
-	rack.position.set(-7.3, 0, -3.0);
-	rack.rotation.y = 0.43;
+	// A free-standing hook rack centred in the open floor between the two carpets —
+	// the central axial runner (x≈0) and the octagon ring carpet (z≈−2) — so it
+	// stands clearly in the empty bay rather than crowding a runner or the corner.
+	// Turned so its face (label + hook mouths) points back toward the rotunda's
+	// main entrance, where the do_action()/apply_filters() joke greets arrivals.
+	rack.position.set(-5.0, 0, 0.5);
+	rack.rotation.y = 0.82;
 	group.add(rack);
 }
 
