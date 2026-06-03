@@ -7435,29 +7435,6 @@ function createAtriumTimelineRing() {
 		group.add(node);
 	});
 
-	// Chevrons flowing from each era toward the next, tinted with the colour of
-	// the era they point to. The mural gap is intentionally left unbridged.
-	for (let index = 0; index < total - 1; index++) {
-		const startAngle = orderedSides[index].angle;
-		const endAngle = orderedSides[index + 1].angle;
-		const nextColor = eraColors.get(orderedSides[index + 1].era);
-		const chevronCount = 2;
-		for (let step = 1; step <= chevronCount; step++) {
-			const t = step / (chevronCount + 1);
-			const angle = startAngle + (endAngle - startAngle) * t;
-			const direction = getDirectionFromAngle(angle);
-			// Phase grows monotonically along the timeline so the pulse travels
-			// forward in time.
-			const flowPhase = index + t;
-			const chevron = createTimelineChevron(nextColor, flowPhase);
-			chevron.position.set(direction.x * radius, 0.07, direction.z * radius);
-			chevron.rotation.y = getRotationForNormal(
-				new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle))
-			);
-			group.add(chevron);
-		}
-	}
-
 	return group;
 }
 
@@ -7543,32 +7520,6 @@ function createTimelineYearTexture(year, eraName, ordinal, total, color) {
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
-}
-
-function createTimelineChevron(color, flowPhase) {
-	const group = new THREE.Group();
-	const material = new THREE.MeshBasicMaterial({
-		color,
-		transparent: true,
-		opacity: 0.6,
-		side: THREE.DoubleSide,
-		depthWrite: false,
-	});
-	const tip = new THREE.Vector2(0, 0.3);
-	for (const tailX of [-0.22, 0.22]) {
-		const tail = new THREE.Vector2(tailX, -0.1);
-		const span = tip.clone().sub(tail);
-		const bar = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.02, span.length()), material);
-		bar.position.set((tip.x + tail.x) / 2, 0, (tip.y + tail.y) / 2);
-		bar.rotation.y = getRotationForNormal(new THREE.Vector3(span.x, 0, span.y));
-		group.add(bar);
-	}
-	// A bright crest sweeps from the earliest era toward the latest, reinforcing
-	// the direction of time.
-	registerAnimation(group, (object, elapsed) => {
-		material.opacity = 0.34 + Math.max(0, Math.sin(elapsed * 1.8 - flowPhase * 1.5)) * 0.5;
-	});
-	return group;
 }
 
 // An elegant standing torchère matching the rotunda: a stepped marble base, a
