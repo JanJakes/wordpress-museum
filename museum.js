@@ -7619,6 +7619,58 @@ function createOpenSourcePylon(item, index) {
 	return group;
 }
 
+// An elegant standing torchère matching the rotunda: a stepped marble base, a
+// slender fluted brass stem, and a warm glowing alabaster uplighter bowl.
+function createMuseumFloorLamp() {
+	const group = new THREE.Group();
+	const brass = new THREE.MeshStandardMaterial({
+		color: 0xc79b43,
+		emissive: 0x2a1c06,
+		emissiveIntensity: 0.08,
+		roughness: 0.32,
+		metalness: 0.62,
+	});
+	const marble = new THREE.MeshStandardMaterial({ color: 0xefe7d4, roughness: 0.7, metalness: 0.04 });
+	const glass = new THREE.MeshStandardMaterial({
+		color: 0xfff3d4,
+		emissive: 0xffd9a0,
+		emissiveIntensity: 0.7,
+		roughness: 0.5,
+		metalness: 0,
+		transparent: true,
+		opacity: 0.9,
+	});
+
+	const base = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.12, 28), marble);
+	base.position.y = 0.06;
+	group.add(base);
+	const step = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.24, 0.07, 28), marble);
+	step.position.y = 0.155;
+	group.add(step);
+	const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.05, 24), brass);
+	ring.position.y = 0.2;
+	group.add(ring);
+
+	const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.055, 1.15, 18), brass);
+	stem.position.y = 0.775;
+	group.add(stem);
+
+	const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.06, 0.12, 18), brass);
+	collar.position.y = 1.41;
+	group.add(collar);
+	const bowlFloor = new THREE.Mesh(new THREE.CircleGeometry(0.12, 24), brass);
+	bowlFloor.rotation.x = -Math.PI / 2;
+	bowlFloor.position.y = 1.49;
+	group.add(bowlFloor);
+	const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.11, 0.26, 28, 1, true), glass);
+	bowl.position.y = 1.6;
+	registerAnimation(bowl, (object, elapsed) => {
+		object.material.emissiveIntensity = 0.62 + Math.sin(elapsed * 0.9) * 0.1;
+	});
+	group.add(bowl);
+	return group;
+}
+
 function createAtriumMuseumArchitecture(color, secondary) {
 	const group = new THREE.Group();
 	const structuralColumnHeight = shellHeight - 0.58;
@@ -7650,12 +7702,8 @@ function createAtriumMuseumArchitecture(color, secondary) {
 	for (let index = 0; index < 8; index++) {
 		const angle = (Math.PI * 2 * index) / 8 + Math.PI / 8;
 		const radius = hubApothem - 1.15;
-		const lamp = createLoadedModel('detailLightSingle', {
-			targetHeight: 1.55,
-			fallback: 'light',
-		});
+		const lamp = createMuseumFloorLamp();
 		lamp.position.set(Math.sin(angle) * radius, 0, -Math.cos(angle) * radius);
-		lamp.rotation.y = angle + Math.PI;
 		group.add(lamp);
 
 		if (index % 4 === 0) {
