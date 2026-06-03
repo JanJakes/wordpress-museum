@@ -11812,7 +11812,7 @@ function getEraVignetteItems(room, color, secondary) {
 			// Stands out in the open floor (where the viewing sofa used to be),
 			// turned to face the room entry — the Gutenberg press carries the era's
 			// "movable type" pun, so the abstract GUTENBERG/GROUPS cases were dropped.
-			{ label: 'BLOCKS', object: createBlockFountain(color, 0.62), width: 1.55, at: { x: -2.7, z: 1.7, rotation: -0.27 } },
+			{ label: 'BLOCKS', object: createBlockFountain(color, 0.62), width: 1.55, at: { x: -3.75, z: 1.3, rotation: -0.38 } },
 		],
 		'Blocks Everywhere': [
 			{ label: 'PATTERNS', object: createBlockFountain(color, 0.58), width: 1.55 },
