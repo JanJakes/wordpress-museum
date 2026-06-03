@@ -6859,7 +6859,6 @@ function createAtriumDecor() {
 	group.add(createAtriumFloorMedallion(color, secondary));
 	if (isCurrentVariant) {
 		group.add(createAtriumCarpetRunners());
-		group.add(createAtriumTimelineRing());
 		group.add(createLogoEvolutionDisplay());
 		group.add(createMissionTablet());
 		group.add(createAtriumWayfindingSigns());
@@ -7406,120 +7405,6 @@ function getGalleryDoorwayPoints(room, doorHalfW) {
 		}
 	}
 	return points;
-}
-
-// Floor wayfinding: a chronological "era timeline" laid out on the rotunda
-// floor. Each of the seven galleries gets a year node in its own direction,
-// linked by chevrons that flow forward through time, with a welcome banner by
-// the mural. Makes the chronological direction obvious from the hub.
-function createAtriumTimelineRing() {
-	const group = new THREE.Group();
-	const radius = 9.4;
-	const yearByEra = new Map(
-		getEraReleaseGroups().map(({ era, items }) => [era, getReleaseYearRange(items)])
-	);
-	// eras is already chronological, so iterating it orders the galleries in time.
-	const orderedSides = eras.map((era) => roomLayout.get(era)).filter(Boolean);
-	const total = orderedSides.length;
-
-	orderedSides.forEach((side, index) => {
-		const node = createTimelineYearNode(
-			yearByEra.get(side.era) || '',
-			side.era,
-			index + 1,
-			total,
-			eraColors.get(side.era)
-		);
-		node.position.copy(side.normal).multiplyScalar(radius);
-		node.rotation.y = -side.angle;
-		group.add(node);
-	});
-
-	return group;
-}
-
-function createTimelineYearNode(year, eraName, ordinal, total, color) {
-	const group = new THREE.Group();
-
-	const disc = new THREE.Mesh(
-		new THREE.CircleGeometry(0.74, 44),
-		new THREE.MeshStandardMaterial({
-			color: 0xf3ead0,
-			roughness: 0.5,
-			metalness: 0.08,
-		})
-	);
-	disc.rotation.x = -Math.PI / 2;
-	disc.position.y = 0.045;
-	group.add(disc);
-
-	const brassMaterial = new THREE.MeshStandardMaterial({
-		color: 0xc79b43,
-		emissive: new THREE.Color(color),
-		emissiveIntensity: 0.08,
-		roughness: 0.32,
-		metalness: 0.5,
-	});
-	const rim = new THREE.Mesh(new THREE.TorusGeometry(0.74, 0.04, 10, 52), brassMaterial);
-	rim.rotation.x = Math.PI / 2;
-	rim.position.y = 0.05;
-	group.add(rim);
-
-	// Era-coloured collar so each node reads as its gallery from across the hub.
-	const collar = new THREE.Mesh(
-		new THREE.RingGeometry(0.56, 0.66, 44),
-		new THREE.MeshBasicMaterial({
-			color,
-			transparent: true,
-			opacity: 0.62,
-			side: THREE.DoubleSide,
-		})
-	);
-	collar.rotation.x = -Math.PI / 2;
-	collar.position.y = 0.052;
-	group.add(collar);
-	registerAnimation(collar, (object, elapsed) => {
-		object.material.opacity = 0.5 + Math.sin(elapsed * 1.2 - ordinal * 0.7) * 0.16;
-	});
-
-	const label = createReadableLabel(
-		createTimelineYearTexture(year, eraName, ordinal, total, color),
-		1.28,
-		1.28
-	);
-	label.rotation.x = -Math.PI / 2;
-	label.position.y = 0.09;
-	group.add(label);
-
-	return group;
-}
-
-function createTimelineYearTexture(year, eraName, ordinal, total, color) {
-	const canvas = document.createElement('canvas');
-	canvas.width = 512;
-	canvas.height = 512;
-	const ctx = canvas.getContext('2d');
-	ctx.textAlign = 'center';
-	ctx.textBaseline = 'middle';
-
-	ctx.fillStyle = '#5b6472';
-	ctx.font = '900 40px system-ui, sans-serif';
-	ctx.fillText(`${ordinal} / ${total}`, 256, 110);
-
-	ctx.fillStyle = '#1b2330';
-	fillFittedCanvasText(ctx, year, 256, 244, 400, 150, '900', 'Arial Black, Impact, sans-serif');
-
-	ctx.fillStyle = color;
-	roundRectPath(ctx, 176, 332, 160, 12, 6);
-	ctx.fill();
-
-	ctx.fillStyle = '#2c333f';
-	fillFittedCanvasText(ctx, eraName.toUpperCase(), 256, 392, 440, 44, '900', 'system-ui, sans-serif');
-
-	const texture = new THREE.CanvasTexture(canvas);
-	texture.colorSpace = THREE.SRGBColorSpace;
-	texture.anisotropy = 4;
-	return texture;
 }
 
 // An elegant standing torchère matching the rotunda: a stepped marble base, a
