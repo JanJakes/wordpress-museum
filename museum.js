@@ -10481,17 +10481,19 @@ function createTinySpider() {
 // vignette plinth below, and the back-wall plaques. A small label names the joke.
 function addWpHooksRail(group) {
 	const rack = createWpHooksRail(0x9aa3ad);
-	// A free-standing hook rack in the open left band at eye level, so the hooks and
-	// their do_action()/apply_filters() label are easy to spot from the runner.
-	// Clear of the central runner (x=0), the ring chord (z≈−2.5) and the front
-	// vignette stations (z≈−3.8).
-	rack.position.set(-6.0, 0, -0.9);
+	// A free-standing hook rack standing in the open floor on the left, by the floor
+	// roundel — clear of the central runner (x=0) and the octagon ring carpet, so it
+	// reads as a free-standing piece rather than sitting on a runner. Turned so its
+	// face (label + hook mouths) points back toward the rotunda's main entrance, so
+	// the do_action()/apply_filters() joke is legible to arriving visitors.
+	rack.position.set(-7.3, 0, -3.0);
+	rack.rotation.y = 0.43;
 	group.add(rack);
 }
 
 // A free-standing "WP HOOKS" rack: a weighted base + upright post carrying a
-// horizontal rail near eye level, three J-hooks hanging off it (bends opening
-// toward the interior +x), and a label. Built standing on the floor (y=0).
+// horizontal rail near eye level, a pair of J-hooks hanging off it (bends opening
+// toward the front +x), and a label. Built standing on the floor (y=0).
 function createWpHooksRail(metalColor) {
 	const group = new THREE.Group();
 	const metal = new THREE.MeshStandardMaterial({ color: metalColor, roughness: 0.4, metalness: 0.7 });
@@ -10512,8 +10514,8 @@ function createWpHooksRail(metalColor) {
 	rail.rotation.x = Math.PI / 2;
 	rail.position.set(0, railY, 0);
 	group.add(rail);
-	// Three J-hooks hanging from the rail; bends open toward the interior (+x).
-	const drops = [-0.6, 0.0, 0.6];
+	// A pair of J-hooks hanging from the rail, flanking the post so neither fouls it.
+	const drops = [-0.6, 0.6];
 	drops.forEach((z, i) => {
 		const hook = createMetalHook(metal, 0.4 + (i % 2) * 0.07);
 		hook.position.set(0, railY - 0.03, z);
@@ -10527,25 +10529,28 @@ function createWpHooksRail(metalColor) {
 	return group;
 }
 
-// One hanging J-hook: a vertical shank dropping from the rail that curves into an
-// upward-cupping bend in the y/x plane, so its silhouette reads as a hook from
-// the interior side. Built hanging from local y≈0 downward.
+// One hanging J-hook: a long vertical shank dropping from the rail, ending in a
+// short open curl that turns back up into a stubby lip. The long shank + short
+// curled tip with a clear gap reads unmistakably as a hook (not a near-closed
+// ring). Built hanging from local y≈0 downward, curl in the x/y plane.
 function createMetalHook(material, shankLength) {
 	const hook = new THREE.Group();
+	const tube = 0.02;
+	const radius = 0.12;
 	const shank = new THREE.Mesh(
-		new THREE.CylinderGeometry(0.02, 0.02, shankLength, 10),
+		new THREE.CylinderGeometry(tube, tube, shankLength, 10),
 		material
 	);
 	shank.position.y = -shankLength / 2;
 	hook.add(shank);
-	// Three-quarter torus forming the J curl, lying in the x/y plane so it opens
-	// toward +x (the room interior).
+	// A just-past-half torus arc: it meets the shank bottom heading straight down,
+	// sweeps under, and comes back up into a short tip — leaving a wide-open mouth.
 	const bend = new THREE.Mesh(
-		new THREE.TorusGeometry(0.11, 0.02, 10, 22, Math.PI * 1.5),
+		new THREE.TorusGeometry(radius, tube, 10, 28, Math.PI * 1.08),
 		material
 	);
-	bend.rotation.z = Math.PI * 0.75;
-	bend.position.set(0.0, -shankLength - 0.06, 0);
+	bend.rotation.z = Math.PI;
+	bend.position.set(radius, -shankLength, 0);
 	hook.add(bend);
 	return hook;
 }
