@@ -8361,6 +8361,7 @@ function addEraVignette(group, room, roomIndex) {
 			addBlockEditorPrintingPress(group, color);
 		} else if (room.era === 'Blocks Everywhere') {
 			addLocal(group, createDarkModePanel(), 3.95, frontWallZ);
+			addScatteredFloorBlocks(group, roomIndex);
 		}
 	}
 	addRoomVignetteLights(group, color);
@@ -8372,6 +8373,36 @@ function addEraVignette(group, room, roomIndex) {
 // visitors meet the press head-on. Clear of both carpets and the wall railings.
 function addBlockEditorPrintingPress(group, color) {
 	addLocal(group, createPrintingPress(color), 3.75, 1.3, -2.76);
+}
+
+// "Blocks everywhere" taken literally: loose colourful blocks strewn across the
+// whole gallery floor at random spots, sizes and angles. Decorative only — they
+// rest on the floor and never affect the wall-based collision. Kept off the
+// plinths and the entry-doorway mouth so the room still reads as walkable.
+function addScatteredFloorBlocks(group, roomIndex) {
+	const palette = activeVariant.eraColors;
+	const stations = getEraVignetteStations(roomIndex);
+	const clearOfStations = (x, z) => stations.every((s) => Math.hypot(x - s.x, z - s.z) > 1.05);
+	let placed = 0;
+	for (let attempt = 0; placed < 52 && attempt < 600; attempt++) {
+		const z = -7 + Math.random() * 14;
+		const half = sideHalfWidthAtZ(z) - 0.7; // stay off the angled side walls
+		const x = (Math.random() * 2 - 1) * half;
+		if (z < -6 && Math.abs(x) < 2.2) continue; // keep the entry doorway mouth clear
+		if (!clearOfStations(x, z)) continue;
+		const size = 0.18 + Math.random() * 0.26;
+		const block = new THREE.Mesh(
+			new THREE.BoxGeometry(size, size, size),
+			new THREE.MeshStandardMaterial({
+				color: palette[Math.floor(Math.random() * palette.length)],
+				roughness: 0.5,
+			})
+		);
+		block.position.set(x, size * 0.5, z);
+		block.rotation.set((Math.random() - 0.5) * 0.12, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 0.12);
+		group.add(block);
+		placed++;
+	}
 }
 
 // A procedural 15th–18th c. screw printing press: oak frame, central iron screw
