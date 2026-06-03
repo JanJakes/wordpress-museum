@@ -8342,7 +8342,7 @@ function addEraVignette(group, room, roomIndex) {
 			addGuestbookLectern(group);
 			addRetroHomepageStation(group);
 			addBloggingRootsScreenshots(group);
-			addCornerCobweb(group);
+			addWebStand(group);
 			addWpHooksRail(group);
 		} else if (room.era === 'CMS Toolkit') {
 			addLocal(group, createSkeuomorphicPanel(), 3.95, frontWallZ);
@@ -10399,18 +10399,73 @@ function addBloggingRootsScreenshots(group) {
 // meets the left chamfer — a quiet pun on "the Web". It strings across the
 // corner just below the cove cornice, well above the walkway and clear of the
 // release plaques and ceiling mobiles, with a tiny spider resting on it.
-function addCornerCobweb(group) {
-	// Dusty grey-brown threads (not pale cream) so the web reads against the light
-	// marble, dropped to ~3.4m — a height a visitor actually sees in the corner
-	// rather than hiding it up in the ceiling shadow.
+function addWebStand(group) {
+	const stand = createWebStand();
+	// Sited as the mirror of the WP HOOKS rack across the central runner (x=0) and
+	// turned to face the main entrance — "The Web" pun standing opposite the
+	// do_action()/apply_filters() hooks, a matched pair flanking the runner.
+	stand.position.set(3.3, 0, 1.0);
+	stand.rotation.y = -0.82;
+	group.add(stand);
+}
+
+// A free-standing "The Web" exhibit: a stone-footed forked branch with a
+// hand-spun cobweb (and its spider) strung across the crook, and a small plate.
+// Built facing local +z, sized to echo the WP HOOKS rack it mirrors.
+function createWebStand() {
+	const group = new THREE.Group();
+	const stone = new THREE.MeshStandardMaterial({ color: 0x9aa3ad, roughness: 0.92, metalness: 0.05 });
+	const bark = new THREE.MeshStandardMaterial({ color: 0x5b4327, roughness: 0.93 });
+	// Weighted base — same footprint as the WP HOOKS rack so the pair reads even.
+	const base = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.36, 0.09, 20), stone);
+	base.position.y = 0.045;
+	group.add(base);
+	// Gnarled trunk rising to a fork.
+	const forkY = 1.35;
+	const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.075, forkY, 10), bark);
+	trunk.position.y = forkY / 2;
+	group.add(trunk);
+	// Two limbs splaying into a V (±34° from vertical) — the crook the web fills.
+	const hub = new THREE.Vector3(0, forkY, 0);
+	const limbLen = 1.4;
+	for (const edge of [0.19 * Math.PI, 0.81 * Math.PI]) {
+		const tip = new THREE.Vector3(Math.cos(edge) * limbLen, forkY + Math.sin(edge) * limbLen, 0);
+		group.add(createCylinderBetween(hub, tip, 0.036, bark, 6));
+	}
+	// The hand-spun web, hub at the fork, rotated so its fan opens straight up
+	// between the two limbs; faces local +z (the stand front).
 	const web = createCobweb(0x6f685c);
-	// The corner vertical edge sits at (−backFlatHalf, +roomDepth/2); pull the web
-	// centre off both walls so its spokes can anchor onto each surface.
-	web.position.set(-backFlatHalf + 0.62, 3.4, roomDepth / 2 - 0.62);
-	// Face diagonally down-and-in toward the room interior (the −x/−z runner side).
-	web.rotation.y = -Math.PI / 4 - Math.PI;
-	web.rotation.x = 0.32;
+	web.position.copy(hub);
+	web.rotation.z = -0.6;
+	web.scale.setScalar(0.9);
 	group.add(web);
+	// "THE WEB" plate at eye level on the trunk front (+z), like the hooks plate.
+	const label = createReadableLabel(createWebStandLabelTexture(), 1.4, 0.36);
+	label.position.set(0, 1.0, 0.13);
+	group.add(label);
+	return group;
+}
+
+function createWebStandLabelTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 900;
+	canvas.height = 220;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#1a1208';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#f4ead0';
+	ctx.fillRect(14, 14, canvas.width - 28, canvas.height - 28);
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillStyle = '#241a0c';
+	fillFittedCanvasText(ctx, 'THE WEB', canvas.width / 2, 80, 760, 84, '900', 'Georgia, "Times New Roman", serif');
+	ctx.fillStyle = '#7a5a1c';
+	ctx.font = 'italic 600 40px Georgia, serif';
+	ctx.fillText('the original World Wide Web', canvas.width / 2, 158);
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
 }
 
 // A flat cobweb in the local x/y plane (anchored corner at the +x edge): radial
