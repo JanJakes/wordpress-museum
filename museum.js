@@ -7480,9 +7480,6 @@ function createAtriumMuseumArchitecture(color, secondary) {
 			column.position.set(position.x, 0, position.z);
 			group.add(column);
 		}
-		if (!isMural && side.era) {
-			group.add(createAtriumGalleryBeacon(side, eraColors.get(side.era)));
-		}
 	}
 
 	group.add(createHubCornerPilasters());
@@ -7631,49 +7628,6 @@ function createCathedralColumn(height, accentColor, secondaryColor) {
 	const capPlate = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.18, 1.05), marbleMaterial);
 	capPlate.position.y = height - 0.2;
 	group.add(capPlate);
-	return group;
-}
-
-function createAtriumGalleryBeacon(side, color) {
-	const group = new THREE.Group();
-	const sideIndex = roomSides.findIndex((roomSide) => roomSide.era === side.era);
-	const offset = (sideIndex % 2 ? 1 : -1) * (roomDoorHalfWidth + 0.92);
-	const position = side.midpoint
-		.clone()
-		.add(side.tangent.clone().multiplyScalar(offset))
-		.add(side.normal.clone().multiplyScalar(-0.92));
-	group.position.set(position.x, 0, position.z);
-	group.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
-
-	const baseMaterial = new THREE.MeshStandardMaterial({
-		color: 0xf4ecda,
-		roughness: 0.68,
-		metalness: 0.06,
-	});
-	const glassMaterial = new THREE.MeshBasicMaterial({
-		color,
-		transparent: true,
-		opacity: 0.36,
-		depthWrite: false,
-	});
-	const base = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 0.2, 18), baseMaterial);
-	base.position.y = 0.1;
-	group.add(base);
-
-	const column = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.075, 1.35, 14), glassMaterial);
-	column.position.y = 0.88;
-	registerAnimation(column, (object, elapsed) => {
-		object.material.opacity = 0.28 + Math.sin(elapsed * 1.3 + sideIndex) * 0.08;
-	});
-	group.add(column);
-
-	const cap = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 10), new THREE.MeshBasicMaterial({ color }));
-	cap.position.y = 1.62;
-	group.add(cap);
-
-	const label = createReadableLabel(createSmallSignTexture(side.era.split(' ')[0].toUpperCase(), color), 0.86, 0.2);
-	label.position.set(0, 0.52, -0.17);
-	group.add(label);
 	return group;
 }
 
