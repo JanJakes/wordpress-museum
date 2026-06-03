@@ -8392,7 +8392,7 @@ function addEraVignette(group, room, roomIndex) {
 // flat against a wall. Turned to face the room's entry doorway so arriving
 // visitors meet the press head-on. Clear of both carpets and the wall railings.
 function addBlockEditorPrintingPress(group, color) {
-	addLocal(group, createPrintingPress(color), 5.0, 0.5, -2.61);
+	addLocal(group, createPrintingPress(color), 3.75, 1.3, -2.76);
 }
 
 // A procedural 15th–18th c. screw printing press: oak frame, central iron screw
@@ -8465,12 +8465,12 @@ function createPrintingPress(color) {
 	// Angled museum placard at the front of the bed, tilted up toward a standing
 	// viewer so the Gutenberg pun reads clearly; kept within the press footprint.
 	const plaque = createReadableLabel(createPrintingPressPlaqueTexture(color), 1.1, 0.48);
-	plaque.position.set(0, 0.66, 0.38);
-	plaque.rotation.x = -0.62;
+	plaque.position.set(0, 0.54, 0.40);
+	plaque.rotation.x = -0.52;
 	group.add(plaque);
 	for (const x of [-0.5, 0.5]) {
 		const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.5, 8), iron);
-		leg.position.set(x, 0.42, 0.34);
+		leg.position.set(x, 0.33, 0.36);
 		group.add(leg);
 	}
 
@@ -8479,33 +8479,37 @@ function createPrintingPress(color) {
 
 function createPrintingPressPlaqueTexture(color) {
 	const canvas = document.createElement('canvas');
-	canvas.width = 512;
-	canvas.height = 220;
+	canvas.width = 768;
+	canvas.height = 330;
 	const ctx = canvas.getContext('2d');
 	ctx.fillStyle = '#fff5df';
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 	const accent = `#${new THREE.Color(color).getHexString()}`;
 	ctx.fillStyle = accent;
-	ctx.fillRect(0, 0, canvas.width, 16);
-	ctx.fillRect(0, canvas.height - 16, canvas.width, 16);
+	ctx.fillRect(0, 0, canvas.width, 24);
+	ctx.fillRect(0, canvas.height - 24, canvas.width, 24);
 
-	ctx.fillStyle = '#1a120a';
-	ctx.font = '900 46px Georgia, "Times New Roman", serif';
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-	ctx.fillText('GUTENBERG', canvas.width / 2, 50);
+	// Title — large, heavy and letter-spaced, in near-black for high contrast so it
+	// stays legible from across the room and at the placard's backward tilt.
+	ctx.fillStyle = '#140d06';
+	ctx.font = '900 84px Georgia, "Times New Roman", serif';
+	if ('letterSpacing' in ctx) ctx.letterSpacing = '5px';
+	ctx.fillText('GUTENBERG', canvas.width / 2, 84);
+	if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
 
 	ctx.fillStyle = '#3a2c14';
-	ctx.font = '400 22px Georgia, serif';
-	wrapText(ctx, 'Johannes Gutenberg, movable type, c. 1440 → the block editor, 2018.', canvas.width / 2, 96, canvas.width - 48, 28, 2);
+	ctx.font = '400 33px Georgia, serif';
+	wrapText(ctx, 'Johannes Gutenberg, movable type, c. 1440 → the block editor, 2018.', canvas.width / 2, 158, canvas.width - 72, 42, 2);
 
 	ctx.fillStyle = accent;
-	ctx.font = '700 24px Georgia, serif';
-	ctx.fillText('Movable type, meet movable blocks.', canvas.width / 2, 178);
+	ctx.font = '700 36px Georgia, serif';
+	ctx.fillText('Movable type, meet movable blocks.', canvas.width / 2, 274);
 
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
-	texture.anisotropy = 4;
+	texture.anisotropy = 8;
 	return texture;
 }
 
