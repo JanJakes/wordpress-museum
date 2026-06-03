@@ -6855,7 +6855,6 @@ function createAtriumDecor() {
 	if (isCurrentVariant) {
 		group.add(createAtriumMuseumArchitecture(color, secondary));
 		group.add(createAtriumLightRig(color, secondary));
-		group.add(createOpenSourceAtriumRing());
 	}
 	group.add(createAtriumFloorMedallion(color, secondary));
 	if (isCurrentVariant) {
@@ -7569,53 +7568,6 @@ function createTimelineChevron(color, flowPhase) {
 	registerAnimation(group, (object, elapsed) => {
 		material.opacity = 0.34 + Math.max(0, Math.sin(elapsed * 1.8 - flowPhase * 1.5)) * 0.5;
 	});
-	return group;
-}
-
-function createOpenSourceAtriumRing() {
-	const group = new THREE.Group();
-	openSourceProjectItems.forEach((item, index) => {
-		const angle = -Math.PI * 0.8 + (Math.PI * 1.6 * index) / (openSourceProjectItems.length - 1);
-		const radius = 11.85;
-		const pylon = createOpenSourcePylon(item, index);
-		pylon.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
-		pylon.rotation.y = getRotationForNormal(new THREE.Vector3(-pylon.position.x, 0, -pylon.position.z).normalize());
-		pylon.scale.setScalar(0.76);
-		group.add(pylon);
-	});
-	return group;
-}
-
-function createOpenSourcePylon(item, index) {
-	const group = new THREE.Group();
-	const base = new THREE.Mesh(
-		new THREE.CylinderGeometry(0.26, 0.36, 0.18, 20),
-		new THREE.MeshStandardMaterial({ color: 0xf8efd9, roughness: 0.68, metalness: 0.04 })
-	);
-	base.position.y = 0.1;
-	group.add(base);
-
-	const post = new THREE.Mesh(
-		new THREE.CylinderGeometry(0.038, 0.052, 1.08, 14),
-		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.32, metalness: 0.5 })
-	);
-	post.position.y = 0.64;
-	group.add(post);
-
-	const orb = new THREE.Mesh(
-		new THREE.SphereGeometry(0.11, 18, 12),
-		new THREE.MeshBasicMaterial({ color: item.color, transparent: true, opacity: 0.9 })
-	);
-	orb.position.y = 1.24;
-	registerAnimation(orb, (object, elapsed) => {
-		object.scale.setScalar(1 + Math.sin(elapsed * 1.5 + index) * 0.08);
-		object.material.opacity = 0.72 + Math.sin(elapsed * 1.8 + index) * 0.13;
-	});
-	group.add(orb);
-
-	const label = createReadableLabel(createOpenSourceSignTexture(item.title, item.note, item.color), 0.84, 0.34);
-	label.position.set(0, 0.76, -0.15);
-	group.add(label);
 	return group;
 }
 
