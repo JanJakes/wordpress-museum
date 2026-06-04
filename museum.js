@@ -8613,6 +8613,7 @@ function createAtriumDecor() {
 		group.add(createLogoEvolutionDisplay());
 		group.add(createMissionTablet());
 		group.add(createAtriumWayfindingSigns());
+		group.add(createPhpElephantExhibit());
 	}
 	addAtriumFeature(group, activeVariant.atriumFeature, color, secondary);
 	addAtriumBenches(group);
@@ -8917,6 +8918,125 @@ function drawWordPressMark(ctx, cx, cy, r, color) {
 	ctx.lineTo(0.6 * r, -0.5 * r);
 	ctx.stroke();
 	ctx.restore();
+}
+
+// A friendly low-poly PHP "elePHPant" greeting visitors in the rotunda — a nod to
+// the language WordPress has run on since day one. On a low plinth with a label,
+// in the open marble wedge between the Dashboard and CMS carpet arms.
+function createPhpElephantExhibit() {
+	const group = new THREE.Group();
+	const spot = new THREE.Vector3(-6.0, 0, -2.5);
+	const facing = 0.6; // turn toward the rotunda centre / entrance
+
+	const plinth = new THREE.Mesh(
+		new THREE.CylinderGeometry(1.5, 1.6, 0.22, 40),
+		new THREE.MeshStandardMaterial({ color: 0x6f6a63, roughness: 0.8, metalness: 0.06 })
+	);
+	plinth.position.set(spot.x, 0.11, spot.z);
+	group.add(plinth);
+
+	const elephant = createPhpElephant();
+	elephant.position.set(spot.x, 0.22, spot.z);
+	elephant.rotation.y = facing;
+	group.add(elephant);
+
+	// A low, angled museum label block at the plinth's front edge — kept short so
+	// the elephant (and its trunk) stays fully in view above it.
+	const dir = new THREE.Vector3(Math.sin(facing), 0, Math.cos(facing));
+	const labelSpot = spot.clone().add(dir.clone().multiplyScalar(1.55));
+	const lectern = new THREE.Group();
+	lectern.position.set(labelSpot.x, 0, labelSpot.z);
+	lectern.rotation.y = facing;
+	const block = new THREE.Mesh(
+		new THREE.BoxGeometry(1.3, 0.46, 0.4),
+		new THREE.MeshStandardMaterial({ color: 0x6f6a63, roughness: 0.8, metalness: 0.06 })
+	);
+	block.position.set(0, 0.23, 0);
+	lectern.add(block);
+	const plate = createExhibitPlate('THE elePHPant', 'PHP — the language WordPress runs on, since 2003', 1.18);
+	plate.position.set(0, 0.42, 0.12);
+	plate.rotation.x = -0.95; // slope the face up toward the viewer
+	lectern.add(plate);
+	group.add(lectern);
+
+	return group;
+}
+
+// The elephant itself, modelled facing +z with its feet at y = 0.
+function createPhpElephant() {
+	const g = new THREE.Group();
+	const blue = new THREE.MeshStandardMaterial({ color: 0x777bb3, roughness: 0.62, metalness: 0.04 });
+	const blueDark = new THREE.MeshStandardMaterial({ color: 0x5b6299, roughness: 0.62 });
+	const white = new THREE.MeshStandardMaterial({ color: 0xf3f1ea, roughness: 0.5 });
+	const black = new THREE.MeshStandardMaterial({ color: 0x16181f, roughness: 0.4 });
+
+	const body = new THREE.Mesh(new THREE.SphereGeometry(0.66, 24, 18), blue);
+	body.scale.set(1.0, 0.92, 1.4);
+	body.position.set(0, 1.2, -0.05);
+	g.add(body);
+
+	const legGeo = new THREE.CylinderGeometry(0.17, 0.21, 0.66, 14);
+	for (const [lx, lz] of [[-0.42, 0.55], [0.42, 0.55], [-0.42, -0.62], [0.42, -0.62]]) {
+		const leg = new THREE.Mesh(legGeo, blue);
+		leg.position.set(lx, 0.33, lz);
+		g.add(leg);
+		for (let i = -1; i <= 1; i++) {
+			const nail = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), white);
+			nail.position.set(lx + i * 0.08, 0.05, lz + 0.18);
+			g.add(nail);
+		}
+	}
+
+	const head = new THREE.Mesh(new THREE.SphereGeometry(0.5, 22, 16), blue);
+	head.scale.set(0.95, 0.95, 0.85);
+	head.position.set(0, 1.34, 0.95);
+	g.add(head);
+
+	for (const s of [-1, 1]) {
+		const ear = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 12), blueDark);
+		ear.scale.set(0.12, 0.98, 0.85);
+		ear.position.set(s * 0.5, 1.42, 0.8);
+		ear.rotation.z = s * 0.22;
+		ear.rotation.y = s * 0.35;
+		g.add(ear);
+	}
+
+	// Curling trunk.
+	const trunkCurve = new THREE.CatmullRomCurve3([
+		new THREE.Vector3(0, 1.2, 1.22),
+		new THREE.Vector3(0, 0.95, 1.6),
+		new THREE.Vector3(0, 0.6, 1.78),
+		new THREE.Vector3(0, 0.34, 1.66),
+		new THREE.Vector3(0, 0.27, 1.48),
+	]);
+	const trunk = new THREE.Mesh(new THREE.TubeGeometry(trunkCurve, 28, 0.165, 12, false), blue);
+	g.add(trunk);
+	const trunkTip = new THREE.Mesh(new THREE.SphereGeometry(0.155, 12, 10), blue);
+	trunkTip.position.set(0, 0.27, 1.48);
+	g.add(trunkTip);
+
+	for (const s of [-1, 1]) {
+		const tusk = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.34, 10), white);
+		tusk.position.set(s * 0.2, 1.0, 1.34);
+		tusk.rotation.x = Math.PI * 0.62;
+		g.add(tusk);
+		const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 10), black);
+		eye.position.set(s * 0.3, 1.5, 1.3);
+		g.add(eye);
+		const hl = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), white);
+		hl.position.set(s * 0.3 + 0.02, 1.53, 1.36);
+		g.add(hl);
+	}
+
+	const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.038, 0.62, 8), blue);
+	tail.position.set(0, 1.02, -1.0);
+	tail.rotation.x = -0.5;
+	g.add(tail);
+	const tuft = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), blueDark);
+	tuft.position.set(0, 0.72, -1.18);
+	g.add(tuft);
+
+	return g;
 }
 
 function createAtriumFloorMedallion(color, secondary) {
