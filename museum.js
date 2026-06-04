@@ -354,6 +354,19 @@ const ERA_ANNEX_CONFIGS = [
 		width: 10,
 		build: buildDeviceLabAnnex,
 	},
+	{
+		era: eras[2], // III · CMS Toolkit → default-themes gallery
+		title: 'THEME GALLERY',
+		accent: '#e0bd62',
+		glow: 0xffcf6a,
+		floorColor: 0x6b4a2c,
+		wallColor: 0x5e3036,
+		ceilingColor: 0xe7dcc4,
+		light: 0xfff0d8,
+		depth: 10,
+		width: 10,
+		build: buildThemeGalleryAnnex,
+	},
 ];
 const eraAnnexes = computeEraAnnexes();
 const eraAnnexEras = new Set(eraAnnexes.map((annex) => annex.config.era));
@@ -3194,6 +3207,191 @@ function createDeviceLabPlacardTexture() {
 		'handset to the wall. The admin learned to bend.',
 	];
 	lines.forEach((l, i) => ctx.fillText(l, 70, 198 + i * 38));
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
+}
+
+// III · CMS Toolkit → a portrait gallery of WordPress's default themes, the
+// yearly-theme tradition that 3.0 began (2010), with Kubrick as the ancestor.
+function buildThemeGalleryAnnex(ctx) {
+	const { depth, sMid, sMin, sMax } = ctx;
+
+	// Red gallery runner.
+	const runner = new THREE.Mesh(
+		new THREE.PlaneGeometry(2.4, depth - 1.6),
+		new THREE.MeshStandardMaterial({ color: 0x7a2630, roughness: 0.92 })
+	);
+	runner.rotation.x = -Math.PI / 2;
+	runner.position.set(sMid, 0.02, depth / 2);
+	ctx.group.add(runner);
+
+	// Far wall: Kubrick, the ancestor, large.
+	const hero = createOrnateFramedPanel(createThemeTexture('kubrick'), 2.0, 1.6);
+	hero.position.set(sMid, 2.95, depth - 0.14);
+	hero.rotation.y = Math.PI;
+	ctx.group.add(hero);
+
+	// Left wall: the first three yearly defaults.
+	['twentyten', 'twentyeleven', 'twentytwelve'].forEach((k, i) => {
+		const fr = createOrnateFramedPanel(createThemeTexture(k), 1.5, 1.2);
+		fr.position.set(sMin + 0.13, 2.5, 2.4 + i * 2.6);
+		fr.rotation.y = Math.PI / 2;
+		ctx.group.add(fr);
+	});
+
+	// Right wall: placard, then the tradition rolling on.
+	const placard = createOrnateFramedPanel(createThemeGalleryPlacardTexture(), 2.2, 1.35);
+	placard.position.set(sMax - 0.13, 2.75, 2.3);
+	placard.rotation.y = -Math.PI / 2;
+	ctx.group.add(placard);
+	['twentythirteen', 'twentyfourteen'].forEach((k, i) => {
+		const fr = createOrnateFramedPanel(createThemeTexture(k), 1.5, 1.2);
+		fr.position.set(sMax - 0.13, 2.5, 5.4 + i * 2.4);
+		fr.rotation.y = -Math.PI / 2;
+		ctx.group.add(fr);
+	});
+
+	// Central viewing bench.
+	ctx.place(createGalleryBench(2.4), sMid, depth * 0.5, 0, 0);
+}
+
+function createGalleryBench(len) {
+	const g = new THREE.Group();
+	const wood = new THREE.MeshStandardMaterial({ color: 0x4a3318, roughness: 0.5, metalness: 0.1 });
+	const leather = new THREE.MeshStandardMaterial({ color: 0x7a2f38, roughness: 0.6 });
+	const frame = new THREE.Mesh(new THREE.BoxGeometry(len, 0.1, 0.62), wood);
+	frame.position.y = 0.42;
+	g.add(frame);
+	const cushion = new THREE.Mesh(new THREE.BoxGeometry(len - 0.12, 0.12, 0.52), leather);
+	cushion.position.y = 0.53;
+	g.add(cushion);
+	for (const x of [-(len / 2 - 0.2), len / 2 - 0.2]) {
+		for (const z of [-0.22, 0.22]) {
+			const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.4, 0.08), wood);
+			leg.position.set(x, 0.2, z);
+			g.add(leg);
+		}
+	}
+	return g;
+}
+
+// A stylised homepage of a WordPress default theme, with a baked nameplate.
+function createThemeTexture(key) {
+	const cv = document.createElement('canvas');
+	cv.width = 400;
+	cv.height = 320;
+	const x = cv.getContext('2d');
+	const W = 400;
+	const top = 250;
+	const lines = (cx, cy, w, n, col, gap = 16) => {
+		x.fillStyle = col;
+		for (let i = 0; i < n; i++) x.fillRect(cx, cy + i * gap, w - (i % 2) * 30, 5);
+	};
+	if (key === 'kubrick') {
+		x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, top);
+		const g = x.createLinearGradient(0, 12, 0, 86);
+		g.addColorStop(0, '#86b4da'); g.addColorStop(1, '#3a6ea5');
+		x.fillStyle = g; x.fillRect(16, 12, W - 32, 74);
+		x.fillStyle = '#fff'; x.textAlign = 'left'; x.font = '700 24px Georgia, serif';
+		x.fillText('WordPress', 32, 48);
+		x.font = '13px Georgia, serif'; x.fillText('Just another WordPress weblog', 32, 72);
+		lines(28, 108, 250, 7, '#c8c8c8');
+		x.fillStyle = '#eeeeee'; x.fillRect(296, 100, 80, 132);
+		lines(304, 110, 64, 6, '#cfcfcf');
+	} else if (key === 'twentyten') {
+		x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, top);
+		x.fillStyle = '#000000'; x.fillRect(0, 0, W, 18);
+		x.fillStyle = '#9fb0bd'; x.fillRect(16, 26, W - 32, 70);
+		x.fillStyle = '#fff'; x.font = '700 20px Georgia, serif'; x.textAlign = 'left';
+		x.fillText('Twenty Ten', 28, 64);
+		lines(28, 114, 240, 6, '#cfcfcf');
+		x.fillStyle = '#efefef'; x.fillRect(300, 108, 76, 122); lines(308, 116, 60, 6, '#d6d6d6', 15);
+	} else if (key === 'twentyeleven') {
+		x.fillStyle = '#f4f4f0'; x.fillRect(0, 0, W, top);
+		x.fillStyle = '#2b6c8f'; x.fillRect(16, 14, W - 32, 72);
+		x.fillStyle = '#fff'; x.font = '700 20px Helvetica, sans-serif'; x.textAlign = 'left';
+		x.fillText('Twenty Eleven', 28, 56);
+		x.fillStyle = '#1982d1'; x.fillRect(16, 92, W - 32, 6);
+		lines(28, 116, 250, 6, '#cdcdc8');
+		x.fillStyle = '#e9e9e4'; x.fillRect(300, 110, 76, 120); lines(308, 118, 60, 6, '#d4d4cf', 15);
+	} else if (key === 'twentytwelve') {
+		x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, top);
+		x.fillStyle = '#444444'; x.textAlign = 'center'; x.font = '700 26px "Open Sans", Helvetica, sans-serif';
+		x.fillText('Twenty Twelve', W / 2, 54);
+		x.fillStyle = '#9b9b9b'; x.font = '14px Helvetica, sans-serif';
+		x.fillText('a clean, minimal canvas', W / 2, 80);
+		x.fillStyle = '#dddddd'; x.fillRect(W / 2 - 60, 100, 120, 2);
+		x.textAlign = 'left'; lines(80, 132, 240, 5, '#e2e2e2', 18);
+	} else if (key === 'twentythirteen') {
+		x.fillStyle = '#f1f1e7'; x.fillRect(0, 0, W, top);
+		x.fillStyle = '#e05d22'; x.fillRect(0, 0, W, 88);
+		x.fillStyle = '#fff'; x.textAlign = 'left'; x.font = '700 22px Georgia, serif';
+		x.fillText('Twenty Thirteen', 28, 50);
+		x.font = '13px Georgia, serif'; x.fillText('bold colour, one column', 28, 74);
+		lines(40, 118, W - 80, 7, '#d8d3bf');
+	} else { // twentyfourteen
+		x.fillStyle = '#1a1a1a'; x.fillRect(0, 0, W, top);
+		x.fillStyle = '#000000'; x.fillRect(0, 0, W, 20);
+		x.fillStyle = '#fff'; x.textAlign = 'left'; x.font = '700 18px Helvetica, sans-serif';
+		x.fillText('Twenty Fourteen', 16, 50);
+		for (const gx of [16, 206]) {
+			for (const gy of [70, 162]) {
+				x.fillStyle = '#333333'; x.fillRect(gx, gy, 178, 80);
+				x.fillStyle = '#24890d'; x.fillRect(gx, gy, 178, 5);
+			}
+		}
+	}
+	const caps = {
+		kubrick: ['Kubrick', 'the default · 2005–2010'],
+		twentyten: ['Twenty Ten', '2010 · WP 3.0'],
+		twentyeleven: ['Twenty Eleven', '2011 · WP 3.2'],
+		twentytwelve: ['Twenty Twelve', '2012 · WP 3.5'],
+		twentythirteen: ['Twenty Thirteen', '2013'],
+		twentyfourteen: ['Twenty Fourteen', '2014'],
+	};
+	const [name, year] = caps[key];
+	x.fillStyle = '#1a1208'; x.fillRect(0, top, W, 320 - top);
+	x.textAlign = 'center';
+	x.fillStyle = '#e0bd62'; x.font = '700 26px Georgia, serif'; x.fillText(name, W / 2, top + 34);
+	x.fillStyle = '#b9a47a'; x.font = '17px Georgia, serif'; x.fillText(year, W / 2, top + 60);
+	const t = new THREE.CanvasTexture(cv);
+	t.colorSpace = THREE.SRGBColorSpace;
+	t.anisotropy = 4;
+	return t;
+}
+
+function createThemeGalleryPlacardTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 900;
+	canvas.height = 560;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#f4ead0';
+	ctx.fillRect(0, 0, 900, 560);
+	ctx.fillStyle = '#1a1208';
+	ctx.fillRect(0, 0, 900, 12);
+	ctx.fillRect(0, 548, 900, 12);
+	ctx.textAlign = 'center';
+	ctx.fillStyle = '#241a0c';
+	ctx.font = '900 54px "Arial Black", Impact, sans-serif';
+	ctx.fillText('DEFAULT THEMES', 450, 90);
+	ctx.fillStyle = '#7a5a1c';
+	ctx.font = 'italic 600 28px Georgia, serif';
+	ctx.fillText('a new dress, every year', 450, 134);
+	ctx.textAlign = 'left';
+	ctx.fillStyle = '#33271a';
+	ctx.font = '26px Georgia, serif';
+	const lines = [
+		'Kubrick clothed WordPress from 2005 — the blue',
+		'header a whole generation recognised on sight.',
+		'',
+		'With 3.0 (June 2010) the project began shipping a',
+		'fresh default theme each year: Twenty Ten, Eleven,',
+		'Twelve… each a snapshot of the web’s taste that',
+		'season, and proof WordPress was now a full CMS.',
+	];
+	lines.forEach((l, i) => ctx.fillText(l, 70, 198 + i * 40));
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
