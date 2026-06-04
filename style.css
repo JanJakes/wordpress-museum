@@ -1347,3 +1347,27 @@ body[data-variant='current'] .release-panel.is-collapsed .panel-toggle-tab {
 		font-size: 0.56rem;
 	}
 }
+
+/* Developer overlay: live FPS / draw-call / light stats, toggled with the
+   backtick (`) key. Hidden by default. */
+.debug-panel {
+	position: fixed;
+	top: 12px;
+	left: 12px;
+	z-index: 60;
+	display: none;
+	white-space: pre;
+	padding: 8px 11px;
+	font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+	font-size: 12px;
+	line-height: 1.5;
+	color: #c6f7c0;
+	background: rgba(8, 12, 18, 0.82);
+	border: 1px solid rgba(150, 230, 150, 0.35);
+	border-radius: 6px;
+	pointer-events: none;
+	tab-size: 2;
+}
+.debug-panel.is-visible {
+	display: block;
+}

@@ -95,6 +95,24 @@ const floorTileSpan = 5.2;
 // as light, airy limestone that harmonises with the light polished marble
 // floor for a bright, monumental interior.
 const wallWarmTint = 0xf4eede;
+// The official WordPress logotype mark (the filled ring + W of the real logo),
+// reused for the carpet emblem and the Wapuu's held medallion.
+const WP_LOGO_SVG_PATH =
+	'M8.708 61.26c0 20.802 12.089 38.779 29.619 47.298L13.258 39.872c-2.916 6.501-4.55 13.704-4.55 21.388zm88.736-2.673c0-6.496-2.333-10.993-4.333-14.494-2.664-4.329-5.161-7.995-5.161-12.324 0-4.832 3.664-9.331 8.829-9.331.233 0 .454.029.681.042-9.350-8.567-21.807-13.796-35.489-13.796-18.36 0-34.513 9.421-43.91 23.688 1.233.037 2.395.063 3.382.063 5.496 0 14.006-.667 14.006-.667 2.833-.167 3.167 3.994.337 4.329 0 0-2.847.335-6.015.501l19.138 56.925 11.501-34.493-8.188-22.434c-2.83-.166-5.511-.501-5.511-.501-2.83-.166-2.498-4.496.332-4.329 0 0 8.679.667 13.843.667 5.496 0 14.006-.667 14.006-.667 2.835-.167 3.168 3.994.337 4.329 0 0-2.853.335-6.015.501l18.991 56.494 5.242-17.517c2.272-7.269 4.001-12.49 4.001-16.989zM62.184 65.857l-15.768 45.819c4.708 1.384 9.687 2.141 14.846 2.141 6.12 0 11.989-1.058 17.452-2.979-.141-.225-.269-.464-.374-.724L62.184 65.857zM108.74 35.214c.375 2.777.586 5.756.586 8.962 0 8.844-1.651 18.788-6.625 31.229l-26.612 76.926c25.91-15.102 43.337-43.169 43.337-75.311 0-15.152-3.87-29.399-10.686-41.806zM61.262 0C27.483 0 0 27.481 0 61.26c0 33.783 27.483 61.263 61.262 61.263 33.778 0 61.265-27.48 61.265-61.263C122.526 27.481 95.04 0 61.262 0zm0 119.715c-32.23 0-58.453-26.223-58.453-58.455 0-32.229 26.222-58.451 58.453-58.451 32.229 0 58.45 26.222 58.45 58.451 0 32.232-26.221 58.455-58.45 58.455z';
+
+function wpLogoSvgDataUrl(fill) {
+	return (
+		'data:image/svg+xml,' +
+		encodeURIComponent(
+			"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 122.52 122.523'><path fill='" +
+				fill +
+				"' d='" +
+				WP_LOGO_SVG_PATH +
+				"'/></svg>"
+		)
+	);
+}
+
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(68, 1, 0.1, 420);
 const clock = new THREE.Clock();
@@ -424,6 +442,11 @@ let eraYearRangeMap = null;
 const MAX_ACTIVE_POINT_LIGHTS = 14;
 let cullablePointLights = null;
 const lightCullTmp = new THREE.Vector3();
+// Developer stats overlay (toggled with the backtick key).
+let debugPanelEl = null;
+let debugPanelVisible = false;
+let fpsSmoothed = 0;
+let debugPanelTimer = 0;
 
 camera.rotation.order = 'YXZ';
 camera.position.copy(atriumStartPosition);
@@ -1436,24 +1459,16 @@ function createPlaygroundAnnex() {
 	mat.position.set(cx + 0.6, 0.05, cz);
 	group.add(mat);
 
+	// All inner walls share a cheerful grass-green, like the other side rooms'
+	// coloured walls — the doored chamfer wall included.
 	const wallMaterial = createMuseumMaterial('roomWall', {
-		repeatX: playgroundDepth / 4.6,
-		repeatY: playgroundHeight / 2.4,
-		color: wallWarmTint,
-		roughness: 0.9,
-		metalness: 0.03,
-	});
-
-	// West wall = the doored chamfer. Give it a cheerful grass-green like the other
-	// side rooms' coloured entry walls, so it reads as a themed threshold.
-	const doorWallMaterial = createMuseumMaterial('roomWall', {
 		repeatX: playgroundDepth / 4.6,
 		repeatY: playgroundHeight / 2.4,
 		color: 0x6fae4e,
 		roughness: 0.9,
 		metalness: 0.03,
 	});
-	group.add(createPlaygroundDoorWall(doorWallMaterial));
+	group.add(createPlaygroundDoorWall(wallMaterial));
 
 	// East wall (far +x).
 	const eastWall = new THREE.Mesh(
@@ -5218,7 +5233,6 @@ function createCeilingDetails(bounds) {
 		group.add(createCathedralVaultSystem(hubBounds));
 		group.add(createCathedralRoseWindow(hubBounds));
 		group.add(createCathedralLightShafts(hubBounds));
-		group.add(createCathedralDustMotes(hubBounds));
 		group.add(createOpenSourceConstellation());
 	}
 
@@ -5920,44 +5934,6 @@ function createCathedralLightShafts(bounds) {
 	return group;
 }
 
-function createCathedralDustMotes(bounds) {
-	const group = new THREE.Group();
-	const centerX = (bounds.minX + bounds.maxX) / 2;
-	const centerZ = (bounds.minZ + bounds.maxZ) / 2;
-	const material = new THREE.MeshBasicMaterial({
-		color: 0xfff2c8,
-		transparent: true,
-		opacity: 0.68,
-		depthWrite: false,
-		blending: THREE.AdditiveBlending,
-	});
-	const motes = 18;
-	for (let index = 0; index < motes; index++) {
-		const angle = (Math.PI * 2 * index) / motes + Math.random();
-		const radius = 3 + (index % 4) * 1.8;
-		const mote = new THREE.Mesh(
-			new THREE.SphereGeometry(0.04 + (index % 3) * 0.012, 6, 6),
-			material.clone()
-		);
-		mote.userData.base = {
-			x: centerX + Math.cos(angle) * radius,
-			z: centerZ + Math.sin(angle) * radius,
-			y: 2 + Math.random() * (shellHeight - 4),
-			speed: 0.25 + Math.random() * 0.35,
-			phase: Math.random() * Math.PI * 2,
-		};
-		mote.position.set(mote.userData.base.x, mote.userData.base.y, mote.userData.base.z);
-		registerAnimation(mote, (object, elapsed) => {
-			const base = object.userData.base;
-			object.position.y = base.y + Math.sin(elapsed * base.speed + base.phase) * 0.8;
-			object.position.x = base.x + Math.sin(elapsed * 0.32 + base.phase) * 0.3;
-			object.material.opacity = 0.32 + (Math.sin(elapsed * 0.7 + index) * 0.5 + 0.5) * 0.3;
-		});
-		group.add(mote);
-	}
-	return group;
-}
-
 function createOpenSourceConstellation() {
 	const group = new THREE.Group();
 	const center = new THREE.Vector3(0, shellHeight - 2.05, 0);
@@ -6390,35 +6366,14 @@ function createWpLogoMedallion(radius) {
 	ring.position.z = depth / 2 - 0.004;
 	group.add(ring);
 
-	// Crisp official mark on the front face.
+	// The real official WordPress mark (white logotype on the blue disc) on the
+	// front face.
 	const face = new THREE.Mesh(
 		new THREE.CircleGeometry(radius - 0.012, 64),
 		new THREE.MeshBasicMaterial({ map: createWpMedallionTexture(wpBlue) })
 	);
 	face.position.z = depth / 2 + 0.002;
 	group.add(face);
-
-	// Raised white "W" relief on top of the texture for genuine 3D depth.
-	const reliefMat = new THREE.MeshStandardMaterial({ color: 0xfdfdf4, roughness: 0.3 });
-	const r = radius - 0.012;
-	const strokes = [
-		[-0.62 * r, -0.42 * r, -0.34 * r, 0.6 * r],
-		[-0.34 * r, 0.6 * r, -0.04 * r, -0.34 * r],
-		[-0.04 * r, -0.34 * r, 0.26 * r, 0.6 * r],
-		[0.26 * r, 0.6 * r, 0.6 * r, -0.5 * r],
-	];
-	for (const [x1, y1, x2, y2] of strokes) {
-		const dx = x2 - x1;
-		const dy = y2 - y1;
-		const length = Math.hypot(dx, dy);
-		const bar = new THREE.Mesh(
-			new THREE.BoxGeometry(r * 0.155, length, depth * 0.4),
-			reliefMat
-		);
-		bar.position.set((x1 + x2) / 2, -(y1 + y2) / 2, depth / 2 + depth * 0.2);
-		bar.rotation.z = Math.atan2(-dx, -dy);
-		group.add(bar);
-	}
 	return group;
 }
 
@@ -6427,10 +6382,21 @@ function createWpMedallionTexture(color) {
 	canvas.width = 512;
 	canvas.height = 512;
 	const ctx = canvas.getContext('2d');
-	drawWordPressMark(ctx, 256, 256, 248, `#${new THREE.Color(color).getHexString()}`);
+	ctx.fillStyle = `#${new THREE.Color(color).getHexString()}`;
+	ctx.beginPath();
+	ctx.arc(256, 256, 252, 0, Math.PI * 2);
+	ctx.fill();
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 8;
+	const img = new Image();
+	img.onload = () => {
+		const dest = 392;
+		const off = (512 - dest) / 2;
+		ctx.drawImage(img, off, off, dest, dest);
+		texture.needsUpdate = true;
+	};
+	img.src = wpLogoSvgDataUrl('#fdfdf4');
 	return texture;
 }
 
@@ -8685,7 +8651,7 @@ function createMissionTablet() {
 	);
 	art.position.z = 0.035;
 	group.add(frame, art);
-	group.position.set(center.x, 2.1, center.z);
+	group.position.set(center.x, 2.9, center.z);
 	group.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
 	return group;
 }
@@ -8858,40 +8824,6 @@ function createLogoEvolutionTexture() {
 	return texture;
 }
 
-// The modern WordPress mark: a solid disc with the iconic W carved out of it as
-// white negative space — two zigzag strokes whose four points step up to the
-// right, giving the asymmetric, taller right arm of the official logo.
-function drawWordPressMark(ctx, cx, cy, r, color) {
-	ctx.save();
-	ctx.translate(cx, cy);
-	ctx.fillStyle = color;
-	ctx.beginPath();
-	ctx.arc(0, 0, r, 0, Math.PI * 2);
-	ctx.fill();
-
-	// The W is cut as white strokes. Coordinates are in units of r. The official
-	// mark's W is asymmetric: the right arm rises higher and runs out longer than
-	// the left, so the four points step gently upward to the right.
-	ctx.strokeStyle = '#ffffff';
-	ctx.lineWidth = r * 0.155;
-	ctx.lineCap = 'square';
-	ctx.lineJoin = 'round';
-	const v = 0.6 * r; // valley depth
-	// Left zig: top-left peak, down to valley, up to centre peak.
-	ctx.beginPath();
-	ctx.moveTo(-0.62 * r, -0.42 * r);
-	ctx.lineTo(-0.34 * r, v);
-	ctx.lineTo(-0.04 * r, -0.34 * r);
-	ctx.stroke();
-	// Right zig: centre peak, down to valley, up to the taller right arm.
-	ctx.beginPath();
-	ctx.moveTo(-0.04 * r, -0.34 * r);
-	ctx.lineTo(0.26 * r, v);
-	ctx.lineTo(0.6 * r, -0.5 * r);
-	ctx.stroke();
-	ctx.restore();
-}
-
 // A friendly low-poly PHP "elePHPant" greeting visitors in the rotunda — a nod to
 // the language WordPress has run on since day one. On a low plinth with a label,
 // in the open marble wedge between the Dashboard and CMS carpet arms.
@@ -8949,15 +8881,27 @@ function createPhpElephant() {
 	body.position.set(0, 1.2, -0.05);
 	g.add(body);
 
-	// Legs reach up into the body ellipsoid so they read as joined, not floating.
-	const legGeo = new THREE.CylinderGeometry(0.18, 0.22, 0.9, 16);
+	// Each leg is a tapered column topped by a rounded haunch that merges into the
+	// body ellipsoid, with a rounded foot at the bottom — so the joins read smooth
+	// rather than a cylinder jammed into a sphere.
+	const legGeo = new THREE.CylinderGeometry(0.19, 0.235, 0.86, 18);
+	const haunchGeo = new THREE.SphereGeometry(0.3, 18, 14);
+	const footGeo = new THREE.SphereGeometry(0.235, 16, 12);
 	for (const [lx, lz] of [[-0.36, 0.42], [0.36, 0.42], [-0.36, -0.6], [0.36, -0.6]]) {
 		const leg = new THREE.Mesh(legGeo, blue);
 		leg.position.set(lx, 0.45, lz);
 		g.add(leg);
+		const haunch = new THREE.Mesh(haunchGeo, blue);
+		haunch.scale.set(1, 0.82, 1);
+		haunch.position.set(lx, 0.84, lz);
+		g.add(haunch);
+		const foot = new THREE.Mesh(footGeo, blueDark);
+		foot.scale.set(1, 0.6, 1.12);
+		foot.position.set(lx, 0.07, lz + 0.04);
+		g.add(foot);
 		for (let i = -1; i <= 1; i++) {
 			const nail = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), white);
-			nail.position.set(lx + i * 0.08, 0.04, lz + 0.2);
+			nail.position.set(lx + i * 0.08, 0.05, lz + 0.22);
 			g.add(nail);
 		}
 	}
@@ -9031,6 +8975,10 @@ function createCarpetLogoTexture() {
 	const texture = new THREE.CanvasTexture(cv);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
+	// Spin the emblem 180° so the W reads upright to a visitor entering from the
+	// south and looking across the rotunda, rather than upside-down.
+	texture.center.set(0.5, 0.5);
+	texture.rotation = Math.PI;
 	const small = 48;
 	const sc = document.createElement('canvas');
 	sc.width = small;
@@ -9044,11 +8992,7 @@ function createCarpetLogoTexture() {
 		ctx.drawImage(sc, off, off, dest, dest);
 		texture.needsUpdate = true;
 	};
-	img.src =
-		'data:image/svg+xml,' +
-		encodeURIComponent(
-			"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 122.52 122.523'><path fill='#f0d9a8' d='M8.708 61.26c0 20.802 12.089 38.779 29.619 47.298L13.258 39.872c-2.916 6.501-4.55 13.704-4.55 21.388zm88.736-2.673c0-6.496-2.333-10.993-4.333-14.494-2.664-4.329-5.161-7.995-5.161-12.324 0-4.832 3.664-9.331 8.829-9.331.233 0 .454.029.681.042-9.350-8.567-21.807-13.796-35.489-13.796-18.36 0-34.513 9.421-43.91 23.688 1.233.037 2.395.063 3.382.063 5.496 0 14.006-.667 14.006-.667 2.833-.167 3.167 3.994.337 4.329 0 0-2.847.335-6.015.501l19.138 56.925 11.501-34.493-8.188-22.434c-2.83-.166-5.511-.501-5.511-.501-2.83-.166-2.498-4.496.332-4.329 0 0 8.679.667 13.843.667 5.496 0 14.006-.667 14.006-.667 2.835-.167 3.168 3.994.337 4.329 0 0-2.853.335-6.015.501l18.991 56.494 5.242-17.517c2.272-7.269 4.001-12.49 4.001-16.989zM62.184 65.857l-15.768 45.819c4.708 1.384 9.687 2.141 14.846 2.141 6.12 0 11.989-1.058 17.452-2.979-.141-.225-.269-.464-.374-.724L62.184 65.857zM108.74 35.214c.375 2.777.586 5.756.586 8.962 0 8.844-1.651 18.788-6.625 31.229l-26.612 76.926c25.91-15.102 43.337-43.169 43.337-75.311 0-15.152-3.87-29.399-10.686-41.806zM61.262 0C27.483 0 0 27.481 0 61.26c0 33.783 27.483 61.263 61.262 61.263 33.778 0 61.265-27.48 61.265-61.263C122.526 27.481 95.04 0 61.262 0zm0 119.715c-32.23 0-58.453-26.223-58.453-58.455 0-32.229 26.222-58.451 58.453-58.451 32.229 0 58.45 26.222 58.45 58.451 0 32.232-26.221 58.455-58.45 58.455z'/></svg>"
-		);
+	img.src = wpLogoSvgDataUrl('#f0d9a8');
 	return texture;
 }
 
@@ -9291,53 +9235,107 @@ function getGalleryDoorwayPoints(room, doorHalfW) {
 
 // An elegant standing torchère matching the rotunda: a stepped marble base, a
 // slender fluted brass stem, and a warm glowing alabaster uplighter bowl.
-function createMuseumFloorLamp() {
+// Varied ornamental flora for the rotunda's eight octagon corners: alternating
+// small flowering trees and flower beds, tinted from the active palette so each
+// corner reads a little differently.
+function createRotundaCornerFlora(index, color, secondary) {
+	const palette = activeVariant.eraColors;
+	const blossom = palette[(index * 3 + 1) % palette.length];
+	if (index % 2 === 0) {
+		return createFloweringTree(blossom, 2.5 + (index % 3) * 0.4);
+	}
+	return createFlowerBed(blossom, index % 4 === 1 ? secondary : color);
+}
+
+function createFloweringTree(blossomColor, height) {
 	const group = new THREE.Group();
-	const brass = new THREE.MeshStandardMaterial({
-		color: 0xc79b43,
-		emissive: 0x2a1c06,
-		emissiveIntensity: 0.08,
-		roughness: 0.32,
-		metalness: 0.62,
+	const planter = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.46, 0.54, 0.46, 18),
+		new THREE.MeshStandardMaterial({ color: 0xe9e0cb, roughness: 0.72 })
+	);
+	planter.position.y = 0.23;
+	group.add(planter);
+	const rim = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.5, 0.5, 0.08, 18),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	rim.position.y = 0.45;
+	group.add(rim);
+	const trunkH = height * 0.46;
+	const trunk = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.11, 0.16, trunkH, 12),
+		new THREE.MeshStandardMaterial({ color: 0x7c4a24, roughness: 0.85 })
+	);
+	trunk.position.y = 0.46 + trunkH / 2;
+	group.add(trunk);
+	const foliageMat = new THREE.MeshStandardMaterial({ color: 0x4f9a3e, roughness: 0.78 });
+	const crownY = 0.46 + trunkH + 0.2;
+	for (const [bx, by, bz, br] of [
+		[0, 0.18, 0, 0.62],
+		[-0.32, 0.0, 0.1, 0.42],
+		[0.3, 0.05, -0.12, 0.44],
+	]) {
+		const blob = new THREE.Mesh(new THREE.IcosahedronGeometry(br, 1), foliageMat);
+		blob.position.set(bx, crownY + by, bz);
+		group.add(blob);
+	}
+	const blossomMat = new THREE.MeshStandardMaterial({
+		color: blossomColor,
+		roughness: 0.6,
+		emissive: blossomColor,
+		emissiveIntensity: 0.12,
 	});
-	const marble = new THREE.MeshStandardMaterial({ color: 0xefe7d4, roughness: 0.7, metalness: 0.04 });
-	const glass = new THREE.MeshStandardMaterial({
-		color: 0xfff3d4,
-		emissive: 0xffd9a0,
-		emissiveIntensity: 0.7,
-		roughness: 0.5,
-		metalness: 0,
-		transparent: true,
-		opacity: 0.9,
-	});
+	for (let i = 0; i < 9; i++) {
+		const a = (Math.PI * 2 * i) / 9 + i;
+		const r = 0.36 + (i % 3) * 0.12;
+		const blossom = new THREE.Mesh(new THREE.SphereGeometry(0.065, 8, 6), blossomMat);
+		blossom.position.set(Math.cos(a) * r, crownY + Math.sin(i * 1.7) * 0.3, Math.sin(a) * r);
+		group.add(blossom);
+	}
+	return group;
+}
 
-	const base = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.12, 28), marble);
-	base.position.y = 0.06;
-	group.add(base);
-	const step = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.24, 0.07, 28), marble);
-	step.position.y = 0.155;
-	group.add(step);
-	const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.05, 24), brass);
-	ring.position.y = 0.2;
-	group.add(ring);
-
-	const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.055, 1.15, 18), brass);
-	stem.position.y = 0.775;
-	group.add(stem);
-
-	const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.06, 0.12, 18), brass);
-	collar.position.y = 1.41;
-	group.add(collar);
-	const bowlFloor = new THREE.Mesh(new THREE.CircleGeometry(0.12, 24), brass);
-	bowlFloor.rotation.x = -Math.PI / 2;
-	bowlFloor.position.y = 1.49;
-	group.add(bowlFloor);
-	const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.11, 0.26, 28, 1, true), glass);
-	bowl.position.y = 1.6;
-	registerAnimation(bowl, (object, elapsed) => {
-		object.material.emissiveIntensity = 0.62 + Math.sin(elapsed * 0.9) * 0.1;
-	});
-	group.add(bowl);
+function createFlowerBed(c1, c2) {
+	const group = new THREE.Group();
+	const planter = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.52, 0.58, 0.4, 18),
+		new THREE.MeshStandardMaterial({ color: 0xeae1cc, roughness: 0.74 })
+	);
+	planter.position.y = 0.2;
+	group.add(planter);
+	const rim = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.56, 0.56, 0.07, 18),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	rim.position.y = 0.4;
+	group.add(rim);
+	const mound = new THREE.Mesh(
+		new THREE.SphereGeometry(0.5, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+		new THREE.MeshStandardMaterial({ color: 0x3c6e2e, roughness: 0.85 })
+	);
+	mound.scale.set(1, 0.5, 1);
+	mound.position.y = 0.42;
+	group.add(mound);
+	const stemMat = new THREE.MeshStandardMaterial({ color: 0x3f7d34, roughness: 0.7 });
+	const colors = [c1, c2, 0xffd166, 0xff5da2];
+	for (let i = 0; i < 8; i++) {
+		const a = (Math.PI * 2 * i) / 8;
+		const r = 0.12 + (i % 3) * 0.13;
+		const x = Math.cos(a) * r;
+		const z = Math.sin(a) * r;
+		const stemH = 0.4 + (i % 3) * 0.18;
+		const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.024, stemH, 6), stemMat);
+		stem.position.set(x, 0.46 + stemH / 2, z);
+		group.add(stem);
+		const petalColor = colors[i % colors.length];
+		const blossom = new THREE.Mesh(
+			new THREE.SphereGeometry(0.08, 10, 8),
+			new THREE.MeshStandardMaterial({ color: petalColor, roughness: 0.55, emissive: petalColor, emissiveIntensity: 0.12 })
+		);
+		blossom.scale.set(1, 0.7, 1);
+		blossom.position.set(x, 0.46 + stemH, z);
+		group.add(blossom);
+	}
 	return group;
 }
 
@@ -9366,21 +9364,15 @@ function createAtriumMuseumArchitecture(color, secondary) {
 
 	group.add(createHubCornerPilasters());
 
+	// Ornamental flora in the eight octagon corners — alternating small flowering
+	// trees and flower beds, tinted from the palette — in place of the old
+	// floor-lamp ring (the lamps were the bulk of the rotunda's point lights).
 	for (let index = 0; index < 8; index++) {
 		const angle = (Math.PI * 2 * index) / 8 + Math.PI / 8;
-		const radius = hubApothem - 1.15;
-		const lamp = createMuseumFloorLamp();
-		lamp.position.set(Math.sin(angle) * radius, 0, -Math.cos(angle) * radius);
-		group.add(lamp);
-
-		if (index % 4 === 0) {
-			const glow = new THREE.PointLight(index % 2 ? secondary : color, 0.5, 8.5);
-			glow.position.set(lamp.position.x, 2.75, lamp.position.z);
-			registerAnimation(glow, (object, elapsed) => {
-				object.intensity = 0.42 + Math.sin(elapsed * 1.35 + index) * 0.06;
-			});
-			group.add(glow);
-		}
+		const radius = hubApothem - 1.0;
+		const flora = createRotundaCornerFlora(index, color, secondary);
+		flora.position.set(Math.sin(angle) * radius, 0, -Math.cos(angle) * radius);
+		group.add(flora);
 	}
 	return group;
 }
@@ -9673,11 +9665,8 @@ function addUltimateAtriumFeature(group, color, secondary) {
 	engineRoom.scale.setScalar(0.68);
 	addPlaced(group, engineRoom, 11.35, 5.52, -1.1);
 
-	// Tall potted trees, set well out toward the rotunda's side walls so they
-	// frame the room without crowding the centre.
-	for (const treeX of [-13.6, 13.6]) {
-		addPlaced(group, createPlantedTree(2.7), treeX, 0.4, 0);
-	}
+	// (Tall potted trees used to stand on the carpet here; the rotunda's greenery
+	// now lives in the eight octagon corners — see createRotundaCornerFlora.)
 
 	// A tidy visitor lounge nook on the right-front: two chairs angled
 	// around a coffee table with a small plant.
@@ -9687,26 +9676,6 @@ function addUltimateAtriumFeature(group, color, secondary) {
 	addPlaced(group, createLoadedModel('loungeDesignChair', { targetHeight: 0.82, fallback: 'bench' }), loungeX - 1.05, loungeZ + 0.2, Math.PI / 2 + 0.3);
 	addPlaced(group, createLoadedModel('loungeDesignChair', { targetHeight: 0.82, fallback: 'bench' }), loungeX + 1.05, loungeZ + 0.2, -Math.PI / 2 - 0.3);
 	addPlaced(group, createPlant(secondary, 0.9), loungeX, loungeZ - 1.5, 0);
-}
-
-function createPlantedTree(targetHeight) {
-	const group = new THREE.Group();
-	const planter = new THREE.Mesh(
-		new THREE.CylinderGeometry(0.46, 0.54, 0.46, 20),
-		new THREE.MeshStandardMaterial({ color: 0xe9e0cb, roughness: 0.72 })
-	);
-	planter.position.y = 0.23;
-	group.add(planter);
-	const rim = new THREE.Mesh(
-		new THREE.CylinderGeometry(0.5, 0.5, 0.08, 20),
-		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
-	);
-	rim.position.y = 0.45;
-	group.add(rim);
-	const tree = createLoadedModel('treeParkLarge', { targetHeight, fallback: 'plant', foliageColor: 0x4f9a3e });
-	tree.position.y = 0.42;
-	group.add(tree);
-	return group;
 }
 
 function createOpenSourceEngineRoom(color, secondary) {
@@ -17068,6 +17037,11 @@ function bindControls() {
 		if (event.code === 'Enter') {
 			document.querySelector('#open-playground').click();
 		}
+		// Backtick toggles the developer stats overlay (FPS, draw calls, lights).
+		if (event.code === 'Backquote') {
+			event.preventDefault();
+			toggleDebugPanel();
+		}
 	});
 	document.addEventListener('keyup', (event) => {
 		if (isMovementKey(event.code)) {
@@ -17385,6 +17359,48 @@ function updateLightCulling() {
 	}
 }
 
+function toggleDebugPanel() {
+	debugPanelVisible = !debugPanelVisible;
+	if (!debugPanelEl) {
+		debugPanelEl = document.getElementById('debug-panel');
+	}
+	if (debugPanelEl) {
+		debugPanelEl.classList.toggle('is-visible', debugPanelVisible);
+	}
+}
+
+function updateDebugPanel(delta) {
+	if (delta > 0) {
+		const instant = 1 / delta;
+		fpsSmoothed = fpsSmoothed ? fpsSmoothed + (instant - fpsSmoothed) * 0.1 : instant;
+	}
+	if (!debugPanelVisible || !debugPanelEl) {
+		return;
+	}
+	debugPanelTimer += delta;
+	if (debugPanelTimer < 0.25) {
+		return;
+	}
+	debugPanelTimer = 0;
+	const render = renderer.info.render;
+	const memory = renderer.info.memory;
+	let activeLights = 0;
+	const totalLights = cullablePointLights ? cullablePointLights.length : 0;
+	if (cullablePointLights) {
+		for (const light of cullablePointLights) {
+			if (light.visible) {
+				activeLights += 1;
+			}
+		}
+	}
+	debugPanelEl.textContent =
+		`FPS    ${Math.round(fpsSmoothed)}\n` +
+		`draws  ${render.calls}\n` +
+		`tris   ${(render.triangles / 1000).toFixed(0)}k\n` +
+		`lights ${activeLights}/${totalLights}\n` +
+		`geo ${memory.geometries}  tex ${memory.textures}`;
+}
+
 function animate(timestamp = 0) {
 	requestAnimationFrame(animate);
 	// The scene always has ambient motion, so render every frame for a
@@ -17393,6 +17409,7 @@ function animate(timestamp = 0) {
 	updateCamera(delta);
 	updateSceneAnimations(delta, clock.elapsedTime);
 	updateLightCulling();
+	updateDebugPanel(delta);
 	renderer.render(scene, camera);
 	renderedFrameCount += 1;
 	if (renderedFrameCount === 1) {
