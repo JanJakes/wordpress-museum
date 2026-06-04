@@ -291,6 +291,47 @@ const atriumCenterPosition = new THREE.Vector3(0, 1.65, 0);
 const atriumStartPosition = atriumCenterPosition
 	.clone()
 	.add(muralSide.normal.clone().multiplyScalar(-entryDistanceFromCenter));
+// ── Era side-room annexes ─────────────────────────────────────────────────
+// Every era gallery except Blocks Everywhere (which already opens onto the
+// Playground) gains a small enclosed themed side room, reached through a doorway
+// cut into its RIGHT back-corner chamfer — the same relative spot as the
+// Playground's door. Each annex is authored in a local frame whose +z points out
+// through the chamfer (away from the gallery) and +x runs along the chamfer, so a
+// single generic builder serves every wedge regardless of how it is rotated.
+const annexDoorHalfWidth = 1.0; // 2m clear opening, matching the Playground
+const annexDoorHeight = 3.0;
+const annexWallThickness = 0.3;
+const annexHeight = 5.4;
+const annexChamferHalfLen = (cornerBevel * Math.SQRT2) / 2; // ≈3.18, half the bevel
+// Local (room-frame) midpoint of the right chamfer = the doorway centre.
+const annexChamferLocalMid = new THREE.Vector3(
+	sideEndHalfWidth - cornerBevel / 2,
+	0,
+	spokeEndZ + cornerBevel / 2
+);
+// Each config: which gallery, the destination sign + accent, room palette, and
+// the forward depth + sideways span [sMin, sMax] (relative to the door centre,
+// which sits at local x = 0). sMin/sMax must bracket the chamfer (±annexChamferHalfLen)
+// so the doored wall fully backs the gallery's beveled corner. `build(ctx)` adds
+// the themed contents in the annex local frame. Configs are appended per room.
+const ERA_ANNEX_CONFIGS = [
+	{
+		era: eras[5], // VI · Block Editor → Classic Editor period room
+		title: 'CLASSIC EDITOR',
+		accent: '#d8b24a',
+		glow: 0xffcf6a,
+		floorColor: 0x7a5a32,
+		wallColor: 0x6f5740,
+		ceilingColor: 0x39291a,
+		light: 0xffe6b0,
+		depth: 10,
+		sMin: -5,
+		sMax: 5,
+		build: buildClassicEditorAnnex,
+	},
+];
+const eraAnnexes = computeEraAnnexes();
+const eraAnnexEras = new Set(eraAnnexes.map((annex) => annex.config.era));
 const museumBounds = getMuseumBounds();
 const cameraBounds = {
 	minX: museumBounds.minX - 1.5,
@@ -513,6 +554,7 @@ function createMuralPortals() {
 	group.add(createMercantileShop());
 	group.add(createShopGalleryPassages());
 	group.add(createPlaygroundAnnex());
+	group.add(createEraAnnexes());
 	return group;
 }
 
@@ -2075,6 +2117,633 @@ function createPlaygroundSignTexture() {
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
+}
+
+// ── Generic era side-room annexes ─────────────────────────────────────────
+// Resolve each configured annex to its world placement. The annex local frame
+// is: +z (forward) out through the gallery's right chamfer, +x (sideways) along
+// the chamfer, +y up. The doorway centre sits at the chamfer midpoint.
+function computeEraAnnexes() {
+	if (!isCurrentVariant) {
+		return [];
+	}
+	return ERA_ANNEX_CONFIGS.flatMap((config) => {
+		const room = roomLayout.get(config.era);
+		if (!room) {
+			return [];
+		}
+		const forward = room.tangent.clone().add(room.normal).normalize();
+		const sideways = getTangentForNormal(forward);
+		const center = roomLocalToWorld(room, annexChamferLocalMid.clone());
+		center.y = 0;
+		return [{
+			config,
+			room,
+			forward,
+			sideways,
+			center,
+			rotationY: getRotationForNormal(forward),
+		}];
+	});
+}
+
+function getEraAnnexForRoom(era) {
+	return eraAnnexes.find((annex) => annex.config.era === era) || null;
+}
+
+// True when a gallery's right chamfer has been replaced by an annex doorway (so
+// its chamfer wall is skipped and any exhibit slot there must move to the back).
+function roomChamferIsDoored(era) {
+	return isCurrentVariant && !!era && (era === eras[6] || eraAnnexEras.has(era));
+}
+
+function createEraAnnexes() {
+	const group = new THREE.Group();
+	for (const annex of eraAnnexes) {
+		group.add(createEraAnnex(annex));
+	}
+	return group;
+}
+
+function createEraAnnex(annex) {
+	const group = new THREE.Group();
+	group.position.copy(annex.center);
+	group.rotation.y = annex.rotationY;
+	const { config } = annex;
+	const wt = annexWallThickness;
+	const sMin = config.sMin;
+	const sMax = config.sMax;
+	const sMid = (sMin + sMax) / 2;
+	const width = sMax - sMin;
+	const depth = config.depth;
+
+	// Floor — marble-consistent but tinted to the room's palette.
+	const floor = new THREE.Mesh(
+		new THREE.PlaneGeometry(width, depth),
+		createMuseumMaterial('roomFloor', {
+			repeatX: width / floorTileSpan,
+			repeatY: depth / floorTileSpan,
+			color: config.floorColor ?? 0xffffff,
+			roughness: 0.32,
+			metalness: 0.2,
+		})
+	);
+	floor.rotation.x = -Math.PI / 2;
+	floor.position.set(sMid, 0.012, depth / 2);
+	group.add(floor);
+
+	const wallMaterial = createMuseumMaterial('roomWall', {
+		repeatX: width / 4.6,
+		repeatY: annexHeight / 2.4,
+		color: config.wallColor ?? wallWarmTint,
+		roughness: 0.9,
+		metalness: 0.04,
+	});
+
+	// Doored chamfer wall (gallery side, f = 0) with jambs, lintel and signs.
+	group.add(createEraAnnexDoorWall(annex, wallMaterial));
+
+	// Far wall (f = depth) and the two side walls (s = sMin / sMax). The width
+	// walls overrun the sides by wt so the four corners close with no slivers.
+	const farWall = new THREE.Mesh(
+		new THREE.BoxGeometry(width + wt * 2, annexHeight, wt),
+		wallMaterial
+	);
+	farWall.position.set(sMid, annexHeight / 2, depth + wt / 2);
+	group.add(farWall);
+	for (const s of [sMin, sMax]) {
+		const wall = new THREE.Mesh(
+			new THREE.BoxGeometry(wt, annexHeight, depth),
+			wallMaterial
+		);
+		wall.position.set(s, annexHeight / 2, depth / 2);
+		group.add(wall);
+	}
+
+	// Skirting around the three solid walls.
+	const trimMat = new THREE.MeshStandardMaterial({ color: 0xd9c8a6, roughness: 0.6, metalness: 0.1 });
+	const farTrim = new THREE.Mesh(new THREE.BoxGeometry(width, 0.22, 0.06), trimMat);
+	farTrim.position.set(sMid, 0.11, depth - 0.04);
+	group.add(farTrim);
+	for (const s of [sMin, sMax]) {
+		const trim = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.22, depth), trimMat);
+		trim.position.set(s + (s < sMid ? 0.04 : -0.04), 0.11, depth / 2);
+		group.add(trim);
+	}
+
+	// Solid ceiling with a cream cove, plus warm interior light.
+	const ceiling = new THREE.Mesh(
+		new THREE.PlaneGeometry(width + wt * 2, depth + wt * 2),
+		new THREE.MeshStandardMaterial({ color: config.ceilingColor ?? 0x2c2418, roughness: 0.92, metalness: 0.02 })
+	);
+	ceiling.rotation.x = Math.PI / 2;
+	ceiling.position.set(sMid, annexHeight - 0.02, depth / 2);
+	group.add(ceiling);
+	// Brass-and-cream cornice rim hugging the four wall tops (not a full slab).
+	const brassBand = new THREE.MeshStandardMaterial({ color: 0xf2cf86, emissive: 0x3a2710, emissiveIntensity: 0.12, roughness: 0.3, metalness: 0.5 });
+	const creamBand = new THREE.MeshStandardMaterial({ color: 0xf2e7c9, roughness: 0.6, metalness: 0.08 });
+	const railY = annexHeight - 0.16;
+	const coveY = annexHeight - 0.4;
+	const addBand = (geo, mat, y, s, f) => {
+		const band = new THREE.Mesh(geo, mat);
+		band.position.set(s, y, f);
+		group.add(band);
+	};
+	for (const f of [0.05, depth - 0.05]) {
+		addBand(new THREE.BoxGeometry(width, 0.16, 0.16), brassBand, railY, sMid, f);
+		addBand(new THREE.BoxGeometry(width, 0.3, 0.26), creamBand, coveY, sMid, f);
+	}
+	for (const s of [sMin + 0.05, sMax - 0.05]) {
+		addBand(new THREE.BoxGeometry(0.16, 0.16, depth), brassBand, railY, s, depth / 2);
+		addBand(new THREE.BoxGeometry(0.26, 0.3, depth), creamBand, coveY, s, depth / 2);
+	}
+	const light = new THREE.PointLight(config.light ?? 0xfff1d4, 1.35, 26);
+	light.position.set(sMid, annexHeight - 0.7, depth * 0.52);
+	group.add(light);
+	const fill = new THREE.PointLight(0xeaf0ff, 0.45, 18);
+	fill.position.set(sMid, annexHeight - 1.4, depth * 0.18);
+	group.add(fill);
+
+	// Themed contents, authored in the annex local frame.
+	if (config.build) {
+		config.build({
+			group,
+			annex,
+			config,
+			depth,
+			width,
+			sMin,
+			sMax,
+			sMid,
+			height: annexHeight,
+			accent: config.accent,
+			place(object, s, f, y = 0, rotY = 0) {
+				object.position.set(s, y, f);
+				object.rotation.y = rotY;
+				group.add(object);
+				return object;
+			},
+		});
+	}
+	return group;
+}
+
+// The doored chamfer wall: solid panels either side of the opening, a header
+// above it, a brass post-and-lintel frame and threshold on the annex face, a
+// destination sign on the gallery face and a return sign on the annex face.
+function createEraAnnexDoorWall(annex, wallMaterial) {
+	const group = new THREE.Group();
+	const { config } = annex;
+	const wt = annexWallThickness;
+	const dHalf = annexDoorHalfWidth;
+	const sLo = config.sMin - wt;
+	const sHi = config.sMax + wt;
+	const addSeg = (s0, s1, height, yCenter) => {
+		const len = s1 - s0;
+		if (len < 0.02) {
+			return;
+		}
+		const seg = new THREE.Mesh(new THREE.BoxGeometry(len, height, wt), wallMaterial);
+		seg.position.set((s0 + s1) / 2, yCenter, 0);
+		group.add(seg);
+	};
+	addSeg(sLo, -dHalf, annexHeight, annexHeight / 2); // -s of door
+	addSeg(dHalf, sHi, annexHeight, annexHeight / 2); // +s of door
+	const headerH = annexHeight - annexDoorHeight;
+	addSeg(-dHalf, dHalf, headerH, annexDoorHeight + headerH / 2); // header
+
+	// Brass post-and-lintel frame on the annex (interior, +f) face.
+	const brass = new THREE.MeshStandardMaterial({
+		color: 0xc79b43,
+		emissive: 0x2a1c06,
+		emissiveIntensity: 0.1,
+		roughness: 0.32,
+		metalness: 0.5,
+	});
+	const faceF = wt / 2 + 0.03;
+	const lintel = new THREE.Mesh(new THREE.BoxGeometry(dHalf * 2 + 0.36, 0.2, 0.2), brass);
+	lintel.position.set(0, annexDoorHeight + 0.06, faceF);
+	group.add(lintel);
+	for (const s of [-dHalf, dHalf]) {
+		const post = new THREE.Mesh(new THREE.BoxGeometry(0.2, annexDoorHeight + 0.16, 0.18), brass);
+		post.position.set(s + (s < 0 ? -0.09 : 0.09), (annexDoorHeight + 0.16) / 2, faceF);
+		group.add(post);
+	}
+	const threshold = new THREE.Mesh(new THREE.BoxGeometry(dHalf * 2, 0.05, wt + 0.24), brass);
+	threshold.position.set(0, 0.025, 0);
+	group.add(threshold);
+
+	// Destination sign on the gallery (-f) face; return sign on the annex (+f) face.
+	const destSign = createReadableLabel(createSmallSignTexture(config.title, config.accent), 1.95, 0.44);
+	destSign.position.set(0, annexDoorHeight + headerH * 0.42, -wt / 2 - 0.05);
+	destSign.rotation.y = Math.PI; // face the gallery
+	group.add(destSign);
+	const returnSign = createReadableLabel(createSmallSignTexture('← GALLERY', config.accent), 1.7, 0.4);
+	returnSign.position.set(0, annexDoorHeight + headerH * 0.42, faceF + 0.05);
+	group.add(returnSign);
+
+	const glow = new THREE.PointLight(config.glow ?? 0xffd8a0, 2.6, 6, 2);
+	glow.position.set(0, annexDoorHeight - 0.6, 0.2);
+	group.add(glow);
+	return group;
+}
+
+// Walkability for a generic annex: a doorway band straddling the chamfer plane
+// into the gallery, plus the annex interior rectangle. Mirrors isPointInsidePlayground.
+function isPointInsideEraAnnex(position, annex) {
+	const dx = position.x - annex.center.x;
+	const dz = position.z - annex.center.z;
+	const f = dx * annex.forward.x + dz * annex.forward.z;
+	const s = dx * annex.sideways.x + dz * annex.sideways.z;
+	const padding = 0.5;
+	if (Math.abs(s) <= annexDoorHalfWidth - 0.2 && f >= -1.2 && f <= padding + 0.3) {
+		return true;
+	}
+	return (
+		f >= padding &&
+		f <= annex.config.depth - padding &&
+		s >= annex.config.sMin + padding &&
+		s <= annex.config.sMax - padding
+	);
+}
+
+// VI · Block Editor → a velvet-roped Victorian period room preserving the classic
+// TinyMCE editor as a nostalgic foil to the block era next door.
+function buildClassicEditorAnnex(ctx) {
+	const { depth, sMid, sMin, sMax, height } = ctx;
+
+	// Persian-style rug anchoring the parlour in front of the bureau.
+	ctx.place(createParlorRug(3.8, 4.8), sMid, depth * 0.6, 0.02);
+
+	// The bureau: the classic TinyMCE editor on a beige CRT, against the far wall,
+	// turned to face the doorway so visitors meet the relic head-on.
+	ctx.place(createClassicEditorBureau(), sMid, depth - 1.0, 0, Math.PI);
+
+	// Velvet rope keeping visitors back from the precious relic.
+	ctx.group.add(createMuseumRopeLine(
+		[
+			{ x: sMid - 1.95, z: depth - 2.9 },
+			{ x: sMid - 0.95, z: depth - 3.15 },
+			{ x: sMid + 0.95, z: depth - 3.15 },
+			{ x: sMid + 1.95, z: depth - 2.9 },
+		],
+		0x8a1f2a,
+		{ postHeight: 0.8, ropeY: 0.82, capRadius: 0.07 }
+	));
+
+	// Ornate gold-framed museum placard high on the far wall.
+	const placard = createOrnateFramedPanel(createClassicEditorPlacardTexture(), 2.6, 1.5);
+	placard.position.set(sMid, 3.62, depth - 0.16);
+	placard.rotation.y = Math.PI;
+	ctx.group.add(placard);
+
+	// Side-wall gags: a one-star "bring back the old editor" review, and a framed
+	// TinyMCE toolbar "specimen", both ornately framed like prized portraits.
+	const review = createOrnateFramedPanel(createAngryReviewTexture(), 2.0, 1.4);
+	review.position.set(sMax - 0.16, 2.55, depth * 0.46);
+	review.rotation.y = -Math.PI / 2;
+	ctx.group.add(review);
+	const toolbar = createOrnateFramedPanel(createTinyMceSpecimenTexture(), 2.3, 1.05);
+	toolbar.position.set(sMin + 0.16, 2.7, depth * 0.46);
+	toolbar.rotation.y = Math.PI / 2;
+	ctx.group.add(toolbar);
+
+	// Warm parlour pendant overhead.
+	ctx.group.add(createParlorPendant(sMid, depth * 0.52, height));
+}
+
+function createParlorRug(w, d) {
+	const group = new THREE.Group();
+	const base = new THREE.Mesh(
+		new THREE.PlaneGeometry(w, d),
+		new THREE.MeshStandardMaterial({ color: 0x6e1f2a, roughness: 0.95, metalness: 0.02 })
+	);
+	base.rotation.x = -Math.PI / 2;
+	group.add(base);
+	const inner = new THREE.Mesh(
+		new THREE.PlaneGeometry(w - 0.5, d - 0.5),
+		new THREE.MeshStandardMaterial({ color: 0x9a3340, roughness: 0.95, metalness: 0.02 })
+	);
+	inner.rotation.x = -Math.PI / 2;
+	inner.position.y = 0.004;
+	group.add(inner);
+	const medallion = new THREE.Mesh(
+		new THREE.CircleGeometry(Math.min(w, d) * 0.26, 28),
+		new THREE.MeshStandardMaterial({ color: 0xd9b25a, roughness: 0.9, metalness: 0.05 })
+	);
+	medallion.rotation.x = -Math.PI / 2;
+	medallion.position.y = 0.006;
+	group.add(medallion);
+	return group;
+}
+
+// A beige period PC running the classic TinyMCE editor, on a carved writing
+// bureau with a green banker's lamp. Modelled facing +z (the caller turns it).
+function createClassicEditorBureau() {
+	const group = new THREE.Group();
+	const wood = new THREE.MeshStandardMaterial({ color: 0x5a3a1e, roughness: 0.55, metalness: 0.08 });
+	const woodDark = new THREE.MeshStandardMaterial({ color: 0x3f2814, roughness: 0.6, metalness: 0.06 });
+
+	// Bureau base + top.
+	const base = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.74, 0.74), wood);
+	base.position.set(0, 0.37, 0);
+	group.add(base);
+	const top = new THREE.Mesh(new THREE.BoxGeometry(2.06, 0.07, 0.86), woodDark);
+	top.position.set(0, 0.77, 0);
+	group.add(top);
+	for (const x of [-0.78, 0.78]) {
+		const drawer = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.5, 0.02), woodDark);
+		drawer.position.set(x, 0.4, 0.38);
+		group.add(drawer);
+		const knob = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 10), new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.3, metalness: 0.6 }));
+		knob.position.set(x, 0.4, 0.4);
+		group.add(knob);
+	}
+
+	// Beige CRT monitor with the classic editor on screen.
+	const beige = new THREE.MeshStandardMaterial({ color: 0xe6dcc2, roughness: 0.7, metalness: 0.05 });
+	const monitor = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.52, 0.56), beige);
+	monitor.position.set(0, 1.08, -0.02);
+	group.add(monitor);
+	const bezel = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.04), new THREE.MeshStandardMaterial({ color: 0x222018, roughness: 0.5 }));
+	bezel.position.set(0, 1.1, 0.27);
+	group.add(bezel);
+	const screen = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.44, 0.34),
+		new THREE.MeshBasicMaterial({ map: createClassicEditorScreenTexture() })
+	);
+	screen.position.set(0, 1.1, 0.295);
+	group.add(screen);
+	// Faint screen glow.
+	const glow = new THREE.PointLight(0xbfe0ff, 0.5, 2.2);
+	glow.position.set(0, 1.1, 0.6);
+	group.add(glow);
+
+	// Keyboard.
+	const keyboard = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.05, 0.24), beige);
+	keyboard.position.set(0, 0.82, 0.5);
+	keyboard.rotation.x = -0.08;
+	group.add(keyboard);
+
+	// Green banker's lamp.
+	const brass = new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.3, metalness: 0.6 });
+	const lampBase = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.04, 16), brass);
+	lampBase.position.set(0.72, 0.82, 0.2);
+	group.add(lampBase);
+	const lampStem = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.34, 10), brass);
+	lampStem.position.set(0.72, 0.99, 0.2);
+	group.add(lampStem);
+	const shade = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.13, 0.13, 0.1, 18, 1, true),
+		new THREE.MeshStandardMaterial({ color: 0x1f6b3a, roughness: 0.5, metalness: 0.2, side: THREE.DoubleSide, emissive: 0x0d3b1f, emissiveIntensity: 0.3 })
+	);
+	shade.rotation.z = Math.PI / 2;
+	shade.position.set(0.72, 1.14, 0.2);
+	group.add(shade);
+	const lampGlow = new THREE.PointLight(0xfff0c0, 0.6, 2.4);
+	lampGlow.position.set(0.72, 1.1, 0.25);
+	group.add(lampGlow);
+	return group;
+}
+
+function createClassicEditorScreenTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 400;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#f1f1f1';
+	ctx.fillRect(0, 0, 512, 400);
+	// Admin bar.
+	ctx.fillStyle = '#23282d';
+	ctx.fillRect(0, 0, 512, 26);
+	ctx.fillStyle = '#cdd';
+	ctx.font = '13px sans-serif';
+	ctx.textAlign = 'left';
+	ctx.fillText('My WordPress  ·  + New', 10, 18);
+	// Page heading.
+	ctx.fillStyle = '#23282d';
+	ctx.font = '700 22px Georgia, serif';
+	ctx.fillText('Add New Post', 18, 56);
+	// Title field.
+	ctx.fillStyle = '#fff';
+	ctx.fillRect(18, 70, 476, 36);
+	ctx.strokeStyle = '#ddd';
+	ctx.strokeRect(18, 70, 476, 36);
+	ctx.fillStyle = '#a0a5aa';
+	ctx.font = 'italic 17px sans-serif';
+	ctx.fillText('Enter title here', 28, 94);
+	// Editor box: Add Media + tabs.
+	ctx.fillStyle = '#fff';
+	ctx.fillRect(18, 118, 476, 260);
+	ctx.strokeStyle = '#ddd';
+	ctx.strokeRect(18, 118, 476, 260);
+	ctx.fillStyle = '#f3f3f3';
+	ctx.fillRect(18, 118, 476, 34);
+	// Add Media button.
+	ctx.fillStyle = '#f7f7f7';
+	ctx.strokeStyle = '#ccc';
+	ctx.fillRect(28, 124, 96, 22);
+	ctx.strokeRect(28, 124, 96, 22);
+	ctx.fillStyle = '#444';
+	ctx.font = '12px sans-serif';
+	ctx.fillText('▣ Add Media', 34, 139);
+	// Visual / Text tabs.
+	ctx.fillStyle = '#fff';
+	ctx.fillRect(404, 122, 44, 24);
+	ctx.fillStyle = '#f1f1f1';
+	ctx.fillRect(448, 122, 38, 24);
+	ctx.fillStyle = '#444';
+	ctx.fillText('Visual', 408, 138);
+	ctx.fillText('Text', 454, 138);
+	// Formatting toolbar row.
+	ctx.fillStyle = '#fafafa';
+	ctx.fillRect(18, 152, 476, 30);
+	ctx.fillStyle = '#333';
+	ctx.font = '700 15px Georgia, serif';
+	const tools = ['B', 'I', 'U', '“', '☰', '⟝', '🔗', 'A'];
+	tools.forEach((t, i) => ctx.fillText(t, 30 + i * 30, 173));
+	// Body text lines + blinking caret.
+	ctx.fillStyle = '#2b2b2b';
+	ctx.font = '15px Georgia, serif';
+	ctx.fillText('Hello world. Just write — no blocks,', 30, 214);
+	ctx.fillText('no slash commands, no sidebars.', 30, 238);
+	ctx.fillText('A text box and a blinking cursor.', 30, 262);
+	ctx.fillStyle = '#222';
+	ctx.fillRect(322, 250, 2, 16); // caret
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
+}
+
+// A gilt picture frame around a flat panel; the art faces +z (single-sided).
+function createOrnateFramedPanel(texture, w, h) {
+	const group = new THREE.Group();
+	const gold = new THREE.MeshStandardMaterial({ color: 0xcB9a3a, roughness: 0.34, metalness: 0.6, emissive: 0x2a1d06, emissiveIntensity: 0.12 });
+	const frame = new THREE.Mesh(new THREE.BoxGeometry(w + 0.22, h + 0.22, 0.1), gold);
+	group.add(frame);
+	const matte = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.04, h + 0.04), new THREE.MeshStandardMaterial({ color: 0x14100a, roughness: 0.8 }));
+	matte.position.z = 0.052;
+	group.add(matte);
+	const art = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: texture }));
+	art.position.z = 0.056;
+	group.add(art);
+	// Corner finials.
+	for (const sx of [-1, 1]) {
+		for (const sy of [-1, 1]) {
+			const knob = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 10), gold);
+			knob.position.set(sx * (w + 0.22) / 2, sy * (h + 0.22) / 2, 0.06);
+			group.add(knob);
+		}
+	}
+	return group;
+}
+
+function createClassicEditorPlacardTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 900;
+	canvas.height = 520;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#f4ead0';
+	ctx.fillRect(0, 0, 900, 520);
+	ctx.fillStyle = '#1a1208';
+	ctx.fillRect(0, 0, 900, 12);
+	ctx.fillRect(0, 508, 900, 12);
+	ctx.textAlign = 'center';
+	ctx.fillStyle = '#241a0c';
+	ctx.font = '900 56px "Arial Black", Impact, sans-serif';
+	ctx.fillText('THE CLASSIC EDITOR', 450, 92);
+	ctx.fillStyle = '#7a5a1c';
+	ctx.font = 'italic 600 30px Georgia, serif';
+	ctx.fillText('TinyMCE · "What You See Is What You Get"', 450, 138);
+	ctx.fillStyle = '#33271a';
+	ctx.font = '26px Georgia, serif';
+	ctx.textAlign = 'left';
+	const lines = [
+		'The writing screen WordPress knew from the rich',
+		'editor of 2.0 (2005) to the eve of Gutenberg.',
+		'Retired as the default in 5.0 (December 2018) when',
+		'blocks took the stage next door.',
+		'',
+		'Preserved by the Classic Editor plugin — five million',
+		'installs strong, with core support pledged through 2024.',
+	];
+	lines.forEach((l, i) => ctx.fillText(l, 70, 196 + i * 40));
+	ctx.textAlign = 'center';
+	ctx.fillStyle = '#7a1c22';
+	ctx.font = 'italic 700 26px Georgia, serif';
+	ctx.fillText('Please do not touch the keyboard.', 450, 492);
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
+}
+
+function createAngryReviewTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 700;
+	canvas.height = 500;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#ffffff';
+	ctx.fillRect(0, 0, 700, 500);
+	ctx.fillStyle = '#f6f7f7';
+	ctx.fillRect(0, 0, 700, 70);
+	ctx.fillStyle = '#1d2327';
+	ctx.font = '700 30px sans-serif';
+	ctx.textAlign = 'left';
+	ctx.fillText('Plugin Reviews', 30, 46);
+	// Stars: 1 filled, 4 empty.
+	ctx.font = '40px sans-serif';
+	ctx.fillStyle = '#ffb900';
+	ctx.fillText('★', 30, 130);
+	ctx.fillStyle = '#dcdcde';
+	ctx.fillText('★★★★', 72, 130);
+	ctx.fillStyle = '#1d2327';
+	ctx.font = '700 30px Georgia, serif';
+	ctx.fillText('Bring back the old editor!!!', 30, 184);
+	ctx.fillStyle = '#3c434a';
+	ctx.font = '24px Georgia, serif';
+	const body = [
+		'I just want to write. Why is everything a',
+		'block now? Where did my text box go?',
+		'Installing Classic Editor immediately.',
+	];
+	body.forEach((l, i) => ctx.fillText(l, 30, 232 + i * 34));
+	ctx.fillStyle = '#787c82';
+	ctx.font = 'italic 22px Georgia, serif';
+	ctx.fillText('— a beloved user, December 2018', 30, 360);
+	ctx.strokeStyle = '#dcdcde';
+	ctx.beginPath();
+	ctx.moveTo(30, 392);
+	ctx.lineTo(670, 392);
+	ctx.stroke();
+	ctx.fillStyle = '#2271b1';
+	ctx.font = '700 24px sans-serif';
+	ctx.fillText('Classic Editor', 30, 430);
+	ctx.fillStyle = '#50575e';
+	ctx.font = '22px sans-serif';
+	ctx.fillText('5+ million active installations', 30, 462);
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
+}
+
+function createTinyMceSpecimenTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 760;
+	canvas.height = 340;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#fbf7ec';
+	ctx.fillRect(0, 0, 760, 340);
+	ctx.fillStyle = '#241a0c';
+	ctx.textAlign = 'center';
+	ctx.font = '900 34px "Arial Black", Impact, sans-serif';
+	ctx.fillText('TINYMCE TOOLBAR — SPECIMEN', 380, 56);
+	// Toolbar mock.
+	ctx.fillStyle = '#f3f3f3';
+	ctx.fillRect(60, 92, 640, 64);
+	ctx.strokeStyle = '#ccc';
+	ctx.strokeRect(60, 92, 640, 64);
+	ctx.fillStyle = '#333';
+	ctx.font = '700 28px Georgia, serif';
+	const tools = ['B', 'I', 'U', '"', '☰', '≣', '⟝', '🔗', 'A'];
+	tools.forEach((t, i) => {
+		ctx.strokeRect(74 + i * 68, 104, 56, 40);
+		ctx.fillText(t, 102 + i * 68, 132);
+	});
+	ctx.fillStyle = '#7a5a1c';
+	ctx.font = 'italic 600 24px Georgia, serif';
+	ctx.fillText('Bold, italics, a link, a list. That was the whole inserter.', 380, 220);
+	ctx.fillStyle = '#33271a';
+	ctx.font = '22px Georgia, serif';
+	ctx.fillText('No slash commands. No block library. No sidebars.', 380, 264);
+	ctx.fillText('Just the keys, and the cursor, and you.', 380, 300);
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
+}
+
+function createParlorPendant(s, f, height) {
+	const group = new THREE.Group();
+	const brass = new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.3, metalness: 0.6 });
+	const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.0, 8), brass);
+	cord.position.set(s, height - 0.5, f);
+	group.add(cord);
+	const shade = new THREE.Mesh(
+		new THREE.ConeGeometry(0.42, 0.34, 20, 1, true),
+		new THREE.MeshStandardMaterial({ color: 0x2a1c10, roughness: 0.5, metalness: 0.3, side: THREE.DoubleSide, emissive: 0x2a1c08, emissiveIntensity: 0.3 })
+	);
+	shade.position.set(s, height - 1.05, f);
+	group.add(shade);
+	const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.1, 14, 10), new THREE.MeshBasicMaterial({ color: 0xfff0c0 }));
+	bulb.position.set(s, height - 1.14, f);
+	group.add(bulb);
+	const light = new THREE.PointLight(0xffe6b0, 0.8, 7);
+	light.position.set(s, height - 1.2, f);
+	group.add(light);
+	return group;
 }
 
 // Big "MERCANTILE" wall sign mounted high on the back wall. The brass frame
@@ -5692,9 +6361,10 @@ function createRoomWall(side) {
 function createRoomBackChamfers(room) {
 	const group = new THREE.Group();
 	const mat = createRoomWallMaterial(cornerBevel * 1.6);
-	// The Playground annex opens through Blocks Everywhere's right (+x) chamfer; that
-	// chamfer is rebuilt with a doorway in world space by createPlaygroundAnnex.
-	const skipRight = isCurrentVariant && room && room.era === eras[6];
+	// Galleries with a side-room annex open through their right chamfer; that
+	// chamfer is rebuilt with a doorway by the annex (the Playground for Blocks
+	// Everywhere, createEraAnnex for the rest), so skip the solid wall here.
+	const skipRight = roomChamferIsDoored(room && room.era);
 	for (const s of [-1, 1]) {
 		if (s === 1 && skipRight) {
 			continue;
@@ -6486,9 +7156,9 @@ function createRoomAccentWashes(room) {
 
 function createRoomRopeBarriers(color, room) {
 	const group = new THREE.Group();
-	// The Playground annex opens through Blocks Everywhere's right (+x) chamfer,
-	// so that chamfer must not be roped off (matches createRoomBackChamfers).
-	const skipRightChamfer = isCurrentVariant && room && room.era === eras[6];
+	// Galleries with a side-room annex open through their right chamfer, so that
+	// chamfer must not be roped off (matches createRoomBackChamfers).
+	const skipRightChamfer = roomChamferIsDoored(room && room.era);
 	// Low rope-and-post railings guard every picture wall: the flat back wall,
 	// both 45deg chamfers, and both angled side walls. Each rope sits a short
 	// distance in front of its wall, inside the room; the side rails break at
@@ -14264,9 +14934,9 @@ function createExhibitSlots(room, releaseCount) {
 		{ side: 'left', reverse: true },
 	];
 	const wallCounts = distributeWallCounts(releaseCount);
-	// The Playground annex doorway is cut into this room's right chamfer, so that
-	// chamfer can no longer carry an exhibit; move its slot onto the flat back wall.
-	if (isCurrentVariant && room.era === eras[6] && wallCounts[1] > 0) {
+	// An annex doorway is cut into this room's right chamfer, so that chamfer can
+	// no longer carry an exhibit; move its slot onto the flat back wall.
+	if (roomChamferIsDoored(room.era) && wallCounts[1] > 0) {
 		wallCounts[2] += wallCounts[1];
 		wallCounts[1] = 0;
 	}
@@ -14511,6 +15181,22 @@ function getMuseumFootprintPoints() {
 			new THREE.Vector3(playgroundMinX, 0, playgroundMaxZ + pwt),
 			new THREE.Vector3(playgroundMinX, 0, playgroundMinZ - pwt)
 		);
+		// Each era side-room annex bulges outward past its gallery's chamfer; add
+		// its four outer corners so the building shell and camera bounds enclose it.
+		for (const annex of eraAnnexes) {
+			const awt = annexWallThickness;
+			const corner = (f, s) =>
+				annex.center
+					.clone()
+					.add(annex.forward.clone().multiplyScalar(f))
+					.add(annex.sideways.clone().multiplyScalar(s));
+			points.push(
+				corner(annex.config.depth + awt, annex.config.sMin - awt),
+				corner(annex.config.depth + awt, annex.config.sMax + awt),
+				corner(0, annex.config.sMin - awt),
+				corner(0, annex.config.sMax + awt)
+			);
+		}
 	}
 	return points;
 }
@@ -15784,6 +16470,7 @@ function isPointInsideClosedMuseum(position) {
 		isPointInsideShop(position) ||
 		isPointInsideShopPassage(position) ||
 		isPointInsidePlayground(position) ||
+		eraAnnexes.some((annex) => isPointInsideEraAnnex(position, annex)) ||
 		movementZones.some(
 			(room) =>
 				isPointInsideRoom(position, room) ||

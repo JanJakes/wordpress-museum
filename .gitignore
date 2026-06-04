@@ -2,3 +2,6 @@ node_modules/
 .DS_Store
 .tmp/
 .playwright-mcp/
+
+# scratch screenshot dumps from the verify loop
+*.b64
