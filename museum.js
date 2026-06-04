@@ -367,6 +367,19 @@ const ERA_ANNEX_CONFIGS = [
 		width: 10,
 		build: buildThemeGalleryAnnex,
 	},
+	{
+		era: eras[1], // II · Dashboard Foundations → WordCamp community hall
+		title: 'WORDCAMP',
+		accent: '#3a9bc8',
+		glow: 0x3a9bc8,
+		floorColor: 0x70522f,
+		wallColor: 0xcdc0a2,
+		ceilingColor: 0x2f2a22,
+		light: 0xfff1d6,
+		depth: 10.5,
+		width: 10,
+		build: buildWordCampAnnex,
+	},
 ];
 const eraAnnexes = computeEraAnnexes();
 const eraAnnexEras = new Set(eraAnnexes.map((annex) => annex.config.era));
@@ -3392,6 +3405,198 @@ function createThemeGalleryPlacardTexture() {
 		'season, and proof WordPress was now a full CMS.',
 	];
 	lines.forEach((l, i) => ctx.fillText(l, 70, 198 + i * 40));
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
+}
+
+// II · Dashboard Foundations → a small community hall for the first WordCamp
+// (San Francisco, 2006): a stage and lectern, a projected slide, rows of
+// folding chairs, bunting and a registration table. "Just write" → "just meet".
+function buildWordCampAnnex(ctx) {
+	const { depth, sMid, sMin, sMax } = ctx;
+	const span = sMax - sMin;
+
+	// Stage across the far wall, with a lectern and a projected slide.
+	ctx.place(createStage(span - 0.8), sMid, depth - 0.9, 0, 0);
+	ctx.place(createLectern(), sMid + 1.7, depth - 1.35, 0.28, Math.PI);
+	const slide = createWallScreen(createWordCampSlideTexture(), 3.1, 1.9);
+	slide.position.set(sMid - 0.7, 3.4, depth - 0.14);
+	slide.rotation.y = Math.PI;
+	ctx.group.add(slide);
+
+	// Rows of folding chairs facing the stage, with a centre aisle.
+	const rowF = [3.1, 4.25, 5.4];
+	const seatS = [sMid - 3.3, sMid - 2.3, sMid - 1.3, sMid + 1.3, sMid + 2.3, sMid + 3.3];
+	rowF.forEach((f) => seatS.forEach((s) => ctx.place(createFoldingChair(), s, f, 0, 0)));
+
+	// Bunting strung across the hall, and a registration table by the door.
+	ctx.group.add(createBunting(sMin + 0.4, 2.4, sMax - 0.4, 2.4, 4.0));
+	ctx.group.add(createBunting(sMin + 0.4, 6.4, sMax - 0.4, 6.4, 4.0));
+	ctx.place(createRegistrationTable(), sMin + 1.2, 1.7, 0, 0.5);
+
+	// Placard on the open side wall.
+	const placard = createWallScreen(createWordCampPlacardTexture(), 2.3, 1.45);
+	placard.position.set(sMax - 0.12, 2.7, 3.0);
+	placard.rotation.y = -Math.PI / 2;
+	ctx.group.add(placard);
+}
+
+function createStage(w) {
+	const g = new THREE.Group();
+	const top = new THREE.Mesh(new THREE.BoxGeometry(w, 0.28, 1.6), new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.6 }));
+	top.position.y = 0.14;
+	g.add(top);
+	const skirt = new THREE.Mesh(new THREE.BoxGeometry(w, 0.26, 0.04), new THREE.MeshStandardMaterial({ color: 0x21759b, roughness: 0.7, metalness: 0.1 }));
+	skirt.position.set(0, 0.14, -0.8);
+	g.add(skirt);
+	return g;
+}
+
+function createLectern() {
+	const g = new THREE.Group();
+	const wood = new THREE.MeshStandardMaterial({ color: 0x5a3a1e, roughness: 0.5 });
+	const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.05, 0.4), wood);
+	body.position.y = 0.52;
+	g.add(body);
+	const plate = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.04, 0.44), wood);
+	plate.position.y = 1.08; plate.rotation.x = -0.2;
+	g.add(plate);
+	const sign = createReadableLabel(createSmallSignTexture('WordPress', '#21759b'), 0.44, 0.14);
+	sign.position.set(0, 0.66, 0.21);
+	g.add(sign);
+	const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.42, 8), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+	stem.position.set(-0.12, 1.28, 0.06); stem.rotation.x = 0.3;
+	g.add(stem);
+	const mic = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 10), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+	mic.position.set(-0.12, 1.45, 0.12);
+	g.add(mic);
+	return g;
+}
+
+function createFoldingChair() {
+	const g = new THREE.Group();
+	const seatMat = new THREE.MeshStandardMaterial({ color: 0x2b4a6f, roughness: 0.6 });
+	const frame = new THREE.MeshStandardMaterial({ color: 0x8a8f96, roughness: 0.4, metalness: 0.6 });
+	const seat = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.04, 0.4), seatMat);
+	seat.position.y = 0.45; g.add(seat);
+	const back = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.42, 0.04), seatMat);
+	back.position.set(0, 0.67, -0.18); g.add(back);
+	for (const sx of [-0.17, 0.17]) {
+		for (const sz of [0.15, -0.15]) {
+			const leg = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.45, 0.03), frame);
+			leg.position.set(sx, 0.225, sz); g.add(leg);
+		}
+	}
+	return g;
+}
+
+function createBunting(sA, fA, sB, fB, y) {
+	const g = new THREE.Group();
+	const colors = [0x21759b, 0xd54e21, 0xffb900, 0x46b450, 0x826eb4];
+	const n = 12;
+	const cord = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.01, 0.01, Math.hypot(sB - sA, fB - fA), 6),
+		new THREE.MeshStandardMaterial({ color: 0x3a3a3a })
+	);
+	cord.position.set((sA + sB) / 2, y, (fA + fB) / 2);
+	cord.rotation.z = Math.PI / 2;
+	cord.rotation.y = Math.atan2(fB - fA, sB - sA);
+	g.add(cord);
+	for (let i = 0; i <= n; i++) {
+		const t = i / n;
+		const flag = new THREE.Mesh(
+			new THREE.ConeGeometry(0.12, 0.24, 3),
+			new THREE.MeshStandardMaterial({ color: colors[i % colors.length], roughness: 0.7 })
+		);
+		flag.position.set(sA + (sB - sA) * t, y - 0.14, fA + (fB - fA) * t);
+		flag.rotation.x = Math.PI; // point down
+		g.add(flag);
+	}
+	return g;
+}
+
+function createRegistrationTable() {
+	const g = new THREE.Group();
+	const cloth = new THREE.MeshStandardMaterial({ color: 0x21759b, roughness: 0.7 });
+	const top = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.06, 0.6), new THREE.MeshStandardMaterial({ color: 0xede6d2, roughness: 0.6 }));
+	top.position.y = 0.72; g.add(top);
+	const drape = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.66, 0.04), cloth);
+	drape.position.set(0, 0.36, 0.3); g.add(drape);
+	const sign = createReadableLabel(createSmallSignTexture('REGISTRATION', '#21759b'), 1.0, 0.26);
+	sign.position.set(0, 1.05, 0.0);
+	g.add(sign);
+	// Lanyard badges laid out on the table.
+	const badgeColors = [0xffb900, 0xd54e21, 0x46b450, 0x826eb4, 0x3a9bc8];
+	for (let i = 0; i < 5; i++) {
+		const badge = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.01, 0.12), new THREE.MeshStandardMaterial({ color: badgeColors[i], roughness: 0.5 }));
+		badge.position.set(-0.5 + i * 0.25, 0.76, -0.05);
+		badge.rotation.y = (i - 2) * 0.2;
+		g.add(badge);
+	}
+	return g;
+}
+
+function createWordCampSlideTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 640;
+	canvas.height = 400;
+	const ctx = canvas.getContext('2d');
+	const g = ctx.createLinearGradient(0, 0, 0, 400);
+	g.addColorStop(0, '#1f6a92'); g.addColorStop(1, '#0d4763');
+	ctx.fillStyle = g; ctx.fillRect(0, 0, 640, 400);
+	// White WordPress "W" badge.
+	ctx.fillStyle = '#ffffff';
+	ctx.beginPath(); ctx.arc(120, 130, 56, 0, Math.PI * 2); ctx.fill();
+	ctx.fillStyle = '#1f6a92'; ctx.font = '900 64px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+	ctx.fillText('W', 120, 134);
+	ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+	ctx.fillStyle = '#ffffff'; ctx.font = '900 64px "Arial Black", Impact, sans-serif';
+	ctx.fillText('WordCamp', 200, 120);
+	ctx.fillStyle = '#bfe3f2'; ctx.font = '600 34px Georgia, serif';
+	ctx.fillText('San Francisco · 2006', 200, 168);
+	ctx.fillStyle = '#ffffff'; ctx.font = 'italic 30px Georgia, serif';
+	ctx.fillText('The first WordCamp', 60, 270);
+	ctx.fillStyle = '#cfe7f3'; ctx.font = '24px Georgia, serif';
+	ctx.fillText('A casual gathering of WordPress users —', 60, 312);
+	ctx.fillText('now hundreds of events, all over the world.', 60, 346);
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
+}
+
+function createWordCampPlacardTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 900;
+	canvas.height = 560;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#f4efe2';
+	ctx.fillRect(0, 0, 900, 560);
+	ctx.fillStyle = '#21759b';
+	ctx.fillRect(0, 0, 900, 12);
+	ctx.fillRect(0, 548, 900, 12);
+	ctx.textAlign = 'center';
+	ctx.fillStyle = '#143b4e';
+	ctx.font = '900 56px "Arial Black", Impact, sans-serif';
+	ctx.fillText('WORDCAMP', 450, 92);
+	ctx.fillStyle = '#3a7c9b';
+	ctx.font = 'italic 600 28px Georgia, serif';
+	ctx.fillText('where the community meets', 450, 136);
+	ctx.textAlign = 'left';
+	ctx.fillStyle = '#26323a';
+	ctx.font = '26px Georgia, serif';
+	const lines = [
+		'The first WordCamp was thrown together in San',
+		'Francisco in August 2006 — a cheap, friendly',
+		'gathering of people who loved WordPress.',
+		'',
+		'It became a global tradition: hundreds of locally',
+		'run, low-cost events where users, designers and',
+		'developers meet, speak and contribute together.',
+	];
+	lines.forEach((l, i) => ctx.fillText(l, 70, 196 + i * 40));
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
