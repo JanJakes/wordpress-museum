@@ -1318,4 +1318,32 @@ body[data-variant='current'] .release-panel.is-collapsed .panel-toggle-tab {
 	.help-card {
 		display: none;
 	}
+
+	/* Fit the whole room rail (Center · I … VII) across the phone width instead of
+	   letting the later numbers run off the right edge. */
+	.release-rail {
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: 6px;
+		padding: 10px 10px 14px;
+	}
+	.release-rail::after {
+		display: none;
+	}
+	#release-rail-track {
+		gap: 5px;
+		overflow: hidden;
+	}
+	#release-rail-track button.is-room {
+		flex: 1 1 0;
+		min-width: 0;
+		margin: 0;
+		padding: 0 2px;
+	}
+	body[data-variant='current'] .rail-center-button {
+		font-size: 0.5rem;
+		padding: 0 9px;
+	}
+	body[data-variant='current'] #release-rail-track button {
+		font-size: 0.56rem;
+	}
 }
