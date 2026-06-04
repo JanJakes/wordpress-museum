@@ -167,7 +167,7 @@ const exhibitWallMargin = 0.7;
 const entryDistanceFromCenter = 5.2;
 const shellPadding = 1.4;
 const shellHeight = 12.4;
-const portalDoorHeight = 3.2;
+const portalDoorHeight = 4.2;
 const portalDoorHalfWidth = 1.55;
 const portalCenterOffset = 3.1;
 const portalAlcoveHalfWidth = 1.55;
@@ -8697,7 +8697,7 @@ function createAtriumWayfindingSigns() {
 		const near = candA.z > candB.z ? candA : candB; // segment nearer the entrance (+z)
 		const center = near.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.06));
 		const sign = createWayfindingPlaque(spec.label);
-		sign.position.set(center.x, 3.1, center.z);
+		sign.position.set(center.x, 2.9, center.z);
 		sign.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
 		group.add(sign);
 	}
@@ -8925,8 +8925,11 @@ function drawWordPressMark(ctx, cx, cy, r, color) {
 // in the open marble wedge between the Dashboard and CMS carpet arms.
 function createPhpElephantExhibit() {
 	const group = new THREE.Group();
-	const spot = new THREE.Vector3(-6.0, 0, -2.5);
-	const facing = 0.6; // turn toward the rotunda centre / entrance
+	// East-side marble wedge — the visitor's left as they enter facing the mural,
+	// mirroring the Wapuu docent that greets on the right, clear of the carpet star,
+	// lounge nook and info desk.
+	const spot = new THREE.Vector3(5.5, 0, 3.0);
+	const facing = -2.05; // turn toward the rotunda centre to greet arrivals
 
 	const plinth = new THREE.Mesh(
 		new THREE.CylinderGeometry(1.5, 1.6, 0.22, 40),
@@ -8975,14 +8978,15 @@ function createPhpElephant() {
 	body.position.set(0, 1.2, -0.05);
 	g.add(body);
 
-	const legGeo = new THREE.CylinderGeometry(0.17, 0.21, 0.66, 14);
-	for (const [lx, lz] of [[-0.42, 0.55], [0.42, 0.55], [-0.42, -0.62], [0.42, -0.62]]) {
+	// Legs reach up into the body ellipsoid so they read as joined, not floating.
+	const legGeo = new THREE.CylinderGeometry(0.18, 0.22, 0.9, 16);
+	for (const [lx, lz] of [[-0.36, 0.42], [0.36, 0.42], [-0.36, -0.6], [0.36, -0.6]]) {
 		const leg = new THREE.Mesh(legGeo, blue);
-		leg.position.set(lx, 0.33, lz);
+		leg.position.set(lx, 0.45, lz);
 		g.add(leg);
 		for (let i = -1; i <= 1; i++) {
 			const nail = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), white);
-			nail.position.set(lx + i * 0.08, 0.05, lz + 0.18);
+			nail.position.set(lx + i * 0.08, 0.04, lz + 0.2);
 			g.add(nail);
 		}
 	}
@@ -9028,12 +9032,13 @@ function createPhpElephant() {
 		g.add(hl);
 	}
 
-	const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.038, 0.62, 8), blue);
-	tail.position.set(0, 1.02, -1.0);
-	tail.rotation.x = -0.5;
+	// Tail: rooted well inside the body rear, hanging almost straight down to a tuft.
+	const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.035, 0.7, 8), blue);
+	tail.position.set(0, 0.92, -0.82);
+	tail.rotation.x = -0.12;
 	g.add(tail);
-	const tuft = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), blueDark);
-	tuft.position.set(0, 0.72, -1.18);
+	const tuft = new THREE.Mesh(new THREE.SphereGeometry(0.075, 8, 6), blueDark);
+	tuft.position.set(0, 0.57, -0.78);
 	g.add(tuft);
 
 	return g;
