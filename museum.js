@@ -380,6 +380,19 @@ const ERA_ANNEX_CONFIGS = [
 		width: 10,
 		build: buildWordCampAnnex,
 	},
+	{
+		era: eras[0], // I · Blogging Roots → the origins / forge room
+		title: 'THE FORGE',
+		accent: '#e0913f',
+		glow: 0xff9a3a,
+		floorColor: 0x6b5236,
+		wallColor: 0x5a4632,
+		ceilingColor: 0x281e14,
+		light: 0xffd9a0,
+		depth: 10,
+		width: 10,
+		build: buildForgeAnnex,
+	},
 ];
 const eraAnnexes = computeEraAnnexes();
 const eraAnnexEras = new Set(eraAnnexes.map((annex) => annex.config.era));
@@ -3601,6 +3614,238 @@ function createWordCampPlacardTexture() {
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
+}
+
+// I · Blogging Roots → the origins room: where WordPress was forged from
+// b2/cafelog in 2003. A fork-in-the-road signpost, a workbench with the old b2
+// blog on a CRT beside an anvil and a glowing forge, the first "Hello world!"
+// post under glass, and a founding cornerstone.
+function buildForgeAnnex(ctx) {
+	const { depth, sMid, sMin, sMax } = ctx;
+
+	// Workbench against the far wall with the b2/cafelog blog on a CRT, the anvil
+	// and the glowing forge brazier beside it (the "fork" → forge pun).
+	ctx.place(createOriginsWorkbench(), sMid + 0.6, depth - 0.95, 0, Math.PI);
+	ctx.place(createForgeBrazier(), sMid + 3.0, depth - 1.4, 0, 0);
+
+	// The fork in the road, centred: b2/cafelog one way, WordPress the other.
+	ctx.place(createForkSignpost(), sMid, depth * 0.52, 0, Math.PI);
+
+	// The first post, under glass, on a pedestal off to one side.
+	ctx.place(createFirstPostCase(), sMin + 1.9, depth * 0.42, 0, Math.PI);
+
+	// Founding cornerstone near the door, the other side.
+	ctx.place(createCornerstone(), sMax - 1.3, 2.2, 0, -0.4);
+
+	// Placard on the open side wall.
+	const placard = createWallScreen(createForgePlacardTexture(), 2.3, 1.5);
+	placard.position.set(sMax - 0.12, 2.7, 3.2);
+	placard.rotation.y = -Math.PI / 2;
+	ctx.group.add(placard);
+}
+
+// A workbench carrying a beige CRT that shows the old b2/cafelog blog, with an
+// anvil and a few tools — modelled facing +z (the caller turns it).
+function createOriginsWorkbench() {
+	const g = new THREE.Group();
+	const wood = new THREE.MeshStandardMaterial({ color: 0x4a3318, roughness: 0.6 });
+	const woodDark = new THREE.MeshStandardMaterial({ color: 0x33240f, roughness: 0.65 });
+	const top = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, 0.8), wood);
+	top.position.y = 0.86; g.add(top);
+	for (const x of [-1.05, 1.05]) {
+		for (const z of [-0.3, 0.3]) {
+			const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.82, 0.1), woodDark);
+			leg.position.set(x, 0.41, z); g.add(leg);
+		}
+	}
+	// Beige CRT showing the b2/cafelog blog.
+	const beige = new THREE.MeshStandardMaterial({ color: 0xe6dcc2, roughness: 0.7 });
+	const crt = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.52, 0.56), beige);
+	crt.position.set(-0.7, 1.18, -0.02); g.add(crt);
+	const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.34), new THREE.MeshBasicMaterial({ map: createB2Texture() }));
+	screen.position.set(-0.7, 1.2, 0.27); g.add(screen);
+	const glow = new THREE.PointLight(0xbfe0ff, 0.4, 2);
+	glow.position.set(-0.7, 1.2, 0.5); g.add(glow);
+	const keyboard = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.04, 0.18), beige);
+	keyboard.position.set(-0.7, 0.93, 0.42); g.add(keyboard);
+
+	// Anvil (the forge pun): a stump + iron body with a horn.
+	const stump = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.5, 14), woodDark);
+	stump.position.set(0.85, 0.25, 0.05); g.add(stump);
+	const iron = new THREE.MeshStandardMaterial({ color: 0x2a2c30, roughness: 0.5, metalness: 0.7 });
+	const anvilBody = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.24), iron);
+	anvilBody.position.set(0.85, 0.6, 0.05); g.add(anvilBody);
+	const anvilWaist = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.16), iron);
+	anvilWaist.position.set(0.85, 0.5, 0.05); g.add(anvilWaist);
+	const horn = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.26, 12), iron);
+	horn.rotation.z = -Math.PI / 2; horn.position.set(1.18, 0.62, 0.05); g.add(horn);
+	// A hammer resting on the bench.
+	const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.34, 8), wood);
+	handle.rotation.z = Math.PI / 2; handle.position.set(0.2, 0.93, -0.1); g.add(handle);
+	const head = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.07, 0.07), iron);
+	head.position.set(0.38, 0.93, -0.1); g.add(head);
+	return g;
+}
+
+// A glowing forge brazier: an iron bowl of embers on legs, with a warm flicker.
+function createForgeBrazier() {
+	const g = new THREE.Group();
+	const iron = new THREE.MeshStandardMaterial({ color: 0x2a2c30, roughness: 0.6, metalness: 0.6 });
+	const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.22, 0.26, 18), iron);
+	bowl.position.y = 0.62; g.add(bowl);
+	for (let i = 0; i < 3; i++) {
+		const a = i / 3 * Math.PI * 2;
+		const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.62, 8), iron);
+		leg.position.set(Math.sin(a) * 0.22, 0.31, Math.cos(a) * 0.22);
+		leg.rotation.x = Math.cos(a) * 0.18; leg.rotation.z = -Math.sin(a) * 0.18;
+		g.add(leg);
+	}
+	const embers = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.06, 18), new THREE.MeshBasicMaterial({ color: 0xff7a1a }));
+	embers.position.y = 0.74; g.add(embers);
+	const fire = new THREE.PointLight(0xff8a2a, 1.4, 6);
+	fire.position.set(0, 0.95, 0);
+	registerAnimation(fire, (object, elapsed) => {
+		object.intensity = 1.2 + Math.sin(elapsed * 7) * 0.18 + Math.sin(elapsed * 13) * 0.08;
+	});
+	g.add(fire);
+	return g;
+}
+
+// The fork in the road: a post that splits into two arms — b2/cafelog behind,
+// WordPress ahead. Modelled facing +z.
+function createForkSignpost() {
+	const g = new THREE.Group();
+	const wood = new THREE.MeshStandardMaterial({ color: 0x6b4a28, roughness: 0.6 });
+	const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.5, 0.12), wood);
+	post.position.y = 0.75; g.add(post);
+	const arm = (dir) => {
+		const a = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.7, 0.1), wood);
+		a.position.set(dir * 0.28, 1.62, 0); a.rotation.z = dir * 0.7; g.add(a);
+	};
+	arm(-1); arm(1);
+	// Old, weathered b2/cafelog arrow pointing back (-z, toward the gallery).
+	const oldSign = createReadableLabel(createSmallSignTexture('b2/cafelog ', '#8a8f86'), 1.0, 0.3);
+	oldSign.position.set(-0.62, 1.95, 0); oldSign.rotation.y = Math.PI; oldSign.rotation.z = 0.18;
+	g.add(oldSign);
+	// Bright WordPress arrow pointing ahead (+z, into the museum).
+	const newSign = createReadableLabel(createSmallSignTexture('WordPress ', '#2b6c8f'), 1.05, 0.3);
+	newSign.position.set(0.62, 1.95, 0); newSign.rotation.z = -0.18;
+	g.add(newSign);
+	const tag = createReadableLabel(createSmallSignTexture('the fork · 2003', '#e0913f'), 0.9, 0.22);
+	tag.position.set(0, 1.05, 0.07);
+	g.add(tag);
+	return g;
+}
+
+// The first "Hello world!" post under a glass dome on a plinth.
+function createFirstPostCase() {
+	const g = new THREE.Group();
+	const stone = new THREE.MeshStandardMaterial({ color: 0x6f6258, roughness: 0.8 });
+	const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.95, 0.5), stone);
+	plinth.position.y = 0.475; g.add(plinth);
+	const post = createReadableLabel(createFirstPostTexture(), 0.42, 0.34);
+	post.position.set(0, 1.16, 0); g.add(post);
+	const glass = new THREE.Mesh(
+		new THREE.BoxGeometry(0.5, 0.5, 0.4),
+		new THREE.MeshStandardMaterial({ color: 0xbfe0ff, transparent: true, opacity: 0.16, roughness: 0.1, metalness: 0.2 })
+	);
+	glass.position.set(0, 1.18, 0); g.add(glass);
+	const plate = createReadableLabel(createSmallSignTexture('The First Post', '#e0913f'), 0.56, 0.14);
+	plate.position.set(0, 0.78, 0.26); g.add(plate);
+	const spot = new THREE.PointLight(0xfff0d0, 0.5, 3);
+	spot.position.set(0, 1.7, 0.3); g.add(spot);
+	return g;
+}
+
+// An engraved founding cornerstone.
+function createCornerstone() {
+	const g = new THREE.Group();
+	const stone = new THREE.Mesh(
+		new THREE.BoxGeometry(1.3, 0.9, 0.7),
+		new THREE.MeshStandardMaterial({ color: 0x7a6e60, roughness: 0.85 })
+	);
+	stone.position.y = 0.45; g.add(stone);
+	const face = createReadableLabel(createCornerstoneTexture(), 1.16, 0.78);
+	face.position.set(0, 0.5, 0.36); g.add(face);
+	return g;
+}
+
+function createB2Texture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 460; canvas.height = 340;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#dfe6e2'; ctx.fillRect(0, 0, 460, 340);
+	ctx.fillStyle = '#5b7b6a'; ctx.fillRect(0, 0, 460, 60);
+	ctx.fillStyle = '#eef3ef'; ctx.textAlign = 'left'; ctx.font = '700 30px Georgia, serif';
+	ctx.fillText('b2 › cafelog', 18, 40);
+	ctx.fillStyle = '#33403a'; ctx.font = '700 18px Georgia, serif';
+	ctx.fillText('the weblog tool from before', 20, 88);
+	ctx.fillStyle = '#566'; ctx.font = '13px Georgia, serif';
+	const body = ['Posted by Michel · 2002', 'A little PHP/MySQL weblog tool,', 'humming along quietly…', '', 'Development has gone quiet.'];
+	body.forEach((l, i) => ctx.fillText(l, 20, 118 + i * 22));
+	ctx.fillStyle = '#cdd8d2'; ctx.fillRect(330, 80, 110, 220);
+	ctx.fillStyle = '#778'; ctx.font = '12px Georgia, serif';
+	ctx.fillText('Links', 344, 104); ctx.fillText('Archives', 344, 126);
+	const t = new THREE.CanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+
+function createFirstPostTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 460; canvas.height = 360;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 460, 360);
+	ctx.fillStyle = '#cab27a'; ctx.fillRect(0, 0, 460, 12);
+	ctx.fillStyle = '#222'; ctx.textAlign = 'left'; ctx.font = '700 34px Georgia, serif';
+	ctx.fillText('Hello world!', 28, 70);
+	ctx.fillStyle = '#888'; ctx.font = 'italic 16px Georgia, serif';
+	ctx.fillText('Posted on May 27, 2003', 28, 100);
+	ctx.fillStyle = '#333'; ctx.font = '20px Georgia, serif';
+	const body = ['Welcome to WordPress. This is', 'your first post. Edit or delete it,', 'then start blogging!'];
+	body.forEach((l, i) => ctx.fillText(l, 28, 150 + i * 32));
+	const t = new THREE.CanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+
+function createCornerstoneTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 580; canvas.height = 390;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#7a6e60'; ctx.fillRect(0, 0, 580, 390);
+	ctx.strokeStyle = '#4f463b'; ctx.lineWidth = 8; ctx.strokeRect(20, 20, 540, 350);
+	ctx.fillStyle = '#2e2820'; ctx.textAlign = 'center';
+	ctx.font = '900 52px Georgia, serif'; ctx.fillText('WORDPRESS', 290, 96);
+	ctx.font = 'italic 26px Georgia, serif';
+	ctx.fillText('forked from b2/cafelog', 290, 150);
+	ctx.font = '700 34px Georgia, serif'; ctx.fillText('27 MAY 2003', 290, 214);
+	ctx.font = '22px Georgia, serif';
+	ctx.fillText('Matt Mullenweg & Mike Little', 290, 264);
+	ctx.fillText('named by Christine Tremoulet', 290, 300);
+	ctx.font = '700 24px Georgia, serif'; ctx.fillText('· released under the GPL ·', 290, 344);
+	const t = new THREE.CanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+
+function createForgePlacardTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 900; canvas.height = 560;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#f1e4cf'; ctx.fillRect(0, 0, 900, 560);
+	ctx.fillStyle = '#5a3a1a'; ctx.fillRect(0, 0, 900, 12); ctx.fillRect(0, 548, 900, 12);
+	ctx.textAlign = 'center';
+	ctx.fillStyle = '#3a2410'; ctx.font = '900 56px "Arial Black", Impact, sans-serif';
+	ctx.fillText('THE FORGE', 450, 92);
+	ctx.fillStyle = '#9a6a2a'; ctx.font = 'italic 600 28px Georgia, serif';
+	ctx.fillText('where it all began', 450, 136);
+	ctx.textAlign = 'left'; ctx.fillStyle = '#33271a'; ctx.font = '26px Georgia, serif';
+	const lines = [
+		'In 2003 the little blog tool b2/cafelog had gone',
+		'quiet. Matt Mullenweg and Mike Little forked it into',
+		'something new; Christine Tremoulet suggested a name:',
+		'WordPress.',
+		'',
+		'The first release shipped on 27 May 2003 under the',
+		'GPL. Everything in this museum grew from that fork.',
+	];
+	lines.forEach((l, i) => ctx.fillText(l, 70, 196 + i * 40));
+	const t = new THREE.CanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 
 // Big "MERCANTILE" wall sign mounted high on the back wall. The brass frame
