@@ -17110,6 +17110,10 @@ function animate(timestamp = 0) {
 	updateSceneAnimations(delta, clock.elapsedTime);
 	renderer.render(scene, camera);
 	renderedFrameCount += 1;
+	if (renderedFrameCount === 1) {
+		// The first frame is on the canvas — fade the loading curtain away.
+		document.body.classList.add('museum-ready');
+	}
 }
 
 function registerAnimation(object, update) {

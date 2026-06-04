@@ -68,6 +68,124 @@ a:hover {
 	background: #151a2a;
 }
 
+/* Loading curtain: painted instantly from static markup, then faded out by
+   museum.js once the first frame renders, so the cold-load (blank canvas,
+   scene pop-in, panel) happens behind a themed screen. */
+#museum-loader {
+	position: fixed;
+	inset: 0;
+	z-index: 9999;
+	display: grid;
+	place-items: center;
+	background: radial-gradient(circle at 50% 38%, #1c2438 0%, #151a2a 58%, #0f1320 100%);
+	color: var(--paper);
+	transition: opacity 0.7s ease, visibility 0.7s ease;
+}
+body.museum-ready #museum-loader {
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+}
+.loader-inner {
+	display: grid;
+	gap: 1.15rem;
+	justify-items: center;
+	padding: 2rem;
+	text-align: center;
+}
+.loader-mark {
+	position: relative;
+	display: grid;
+	place-items: center;
+	width: 124px;
+	height: 124px;
+}
+.loader-mark svg {
+	width: 84px;
+	height: 84px;
+	filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.45));
+	animation: loader-pulse 2.4s ease-in-out infinite;
+}
+.loader-ring {
+	position: absolute;
+	inset: 0;
+	border-radius: 50%;
+	border: 3px dashed rgba(255, 209, 102, 0.5);
+	border-top-color: var(--accent);
+	animation: loader-spin 3.6s linear infinite;
+}
+.loader-title {
+	margin: 0;
+	font-family: 'Press Start 2P', monospace;
+	font-size: clamp(15px, 4.4vw, 26px);
+	line-height: 1.55;
+	letter-spacing: 0.06em;
+	text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+}
+.loader-bar {
+	width: min(260px, 70vw);
+	height: 14px;
+	border: 2px solid rgba(255, 245, 223, 0.5);
+	border-radius: 3px;
+	background: rgba(255, 245, 223, 0.06);
+	overflow: hidden;
+}
+.loader-bar span {
+	display: block;
+	width: 40%;
+	height: 100%;
+	background: linear-gradient(90deg, transparent, var(--accent), transparent);
+	animation: loader-sweep 1.25s ease-in-out infinite;
+}
+.loader-caption {
+	margin: 0;
+	font-family: 'Special Elite', 'VT323', monospace;
+	font-size: clamp(13px, 3vw, 17px);
+	letter-spacing: 0.04em;
+	color: var(--muted);
+}
+.loader-kicker {
+	margin: 0;
+	font-family: 'VT323', monospace;
+	font-size: 15px;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: rgba(255, 209, 102, 0.82);
+}
+@keyframes loader-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+@keyframes loader-pulse {
+	0%,
+	100% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(1.06);
+	}
+}
+@keyframes loader-sweep {
+	0% {
+		transform: translateX(-120%);
+	}
+	100% {
+		transform: translateX(320%);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.loader-mark svg,
+	.loader-ring,
+	.loader-bar span {
+		animation: none;
+	}
+	.loader-bar span {
+		width: 100%;
+		background: var(--accent);
+	}
+}
+
 .museum-stage::after {
 	position: fixed;
 	inset: 0;

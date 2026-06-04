@@ -14,9 +14,27 @@
 			href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Special+Elite&display=swap"
 			rel="stylesheet"
 		/>
-		<link rel="stylesheet" href="./style.css?v=94cdf399" />
+		<link rel="stylesheet" href="./style.css?v=c359ec01" />
 	</head>
 	<body data-variant="current" data-ui="glass">
+		<div id="museum-loader" role="status" aria-live="polite">
+			<div class="loader-inner">
+				<div class="loader-mark">
+					<svg viewBox="0 0 64 64" aria-hidden="true">
+						<circle cx="32" cy="32" r="25" fill="#ffd166" />
+						<path
+							fill="#151a2a"
+							d="M18 20h7l4 18 5-18h6l5 18 4-18h7l-8 28h-6l-5-17-5 17h-6z"
+						/>
+					</svg>
+					<span class="loader-ring" aria-hidden="true"></span>
+				</div>
+				<p class="loader-title">WordPress<br />Museum</p>
+				<div class="loader-bar" aria-hidden="true"><span></span></div>
+				<p class="loader-caption">Unlocking the doors…</p>
+				<p class="loader-kicker">Est. 2003 · Free Admission</p>
+			</div>
+		</div>
 		<div class="museum-stage">
 			<canvas
 				id="museum-canvas"
@@ -120,6 +138,13 @@
 				}
 			}
 		</script>
-		<script type="module" src="./museum.js?v=f616a095"></script>
+		<script>
+			// Safety net: reveal the museum even if the 3D module fails to load
+			// (e.g. the CDN import never resolves) so the loader can't trap a visitor.
+			window.setTimeout(function () {
+				document.body.classList.add('museum-ready');
+			}, 12000);
+		</script>
+		<script type="module" src="./museum.js?v=7c22bb09"></script>
 	</body>
 </html>
