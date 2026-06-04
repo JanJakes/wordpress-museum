@@ -325,9 +325,21 @@ const ERA_ANNEX_CONFIGS = [
 		ceilingColor: 0x39291a,
 		light: 0xffe6b0,
 		depth: 10,
-		sMin: -5,
-		sMax: 5,
+		width: 10,
 		build: buildClassicEditorAnnex,
+	},
+	{
+		era: eras[4], // V · API & Customizer → REST API server room
+		title: '/WP-JSON',
+		accent: '#46e0d2',
+		glow: 0x46e0d2,
+		floorColor: 0x2b3037,
+		wallColor: 0x3b434c,
+		ceilingColor: 0x12161b,
+		light: 0xbfe6ff,
+		depth: 10,
+		width: 10,
+		build: buildServerRoomAnnex,
 	},
 ];
 const eraAnnexes = computeEraAnnexes();
@@ -2136,6 +2148,13 @@ function computeEraAnnexes() {
 		const sideways = getTangentForNormal(forward);
 		const center = roomLocalToWorld(room, annexChamferLocalMid.clone());
 		center.y = 0;
+		// Corner A (the chamfer's +s end) is the octagon vertex shared with the
+		// next gallery, whose own chamfer emanates from there. Hold the +s wall
+		// right at that vertex so the neighbour's bevel never pokes inside, and
+		// grow the room toward the open -s side to reach the configured width.
+		const depth = config.depth ?? 10;
+		const sMax = annexChamferHalfLen;
+		const sMin = sMax - (config.width ?? 10);
 		return [{
 			config,
 			room,
@@ -2143,6 +2162,9 @@ function computeEraAnnexes() {
 			sideways,
 			center,
 			rotationY: getRotationForNormal(forward),
+			depth,
+			sMin,
+			sMax,
 		}];
 	});
 }
@@ -2171,11 +2193,11 @@ function createEraAnnex(annex) {
 	group.rotation.y = annex.rotationY;
 	const { config } = annex;
 	const wt = annexWallThickness;
-	const sMin = config.sMin;
-	const sMax = config.sMax;
+	const sMin = annex.sMin;
+	const sMax = annex.sMax;
 	const sMid = (sMin + sMax) / 2;
 	const width = sMax - sMin;
-	const depth = config.depth;
+	const depth = annex.depth;
 
 	// Floor — marble-consistent but tinted to the room's palette.
 	const floor = new THREE.Mesh(
@@ -2296,8 +2318,8 @@ function createEraAnnexDoorWall(annex, wallMaterial) {
 	const { config } = annex;
 	const wt = annexWallThickness;
 	const dHalf = annexDoorHalfWidth;
-	const sLo = config.sMin - wt;
-	const sHi = config.sMax + wt;
+	const sLo = annex.sMin - wt;
+	const sHi = annex.sMax + wt;
 	const addSeg = (s0, s1, height, yCenter) => {
 		const len = s1 - s0;
 		if (len < 0.02) {
@@ -2361,9 +2383,9 @@ function isPointInsideEraAnnex(position, annex) {
 	}
 	return (
 		f >= padding &&
-		f <= annex.config.depth - padding &&
-		s >= annex.config.sMin + padding &&
-		s <= annex.config.sMax - padding
+		f <= annex.depth - padding &&
+		s >= annex.sMin + padding &&
+		s <= annex.sMax - padding
 	);
 }
 
@@ -2744,6 +2766,238 @@ function createParlorPendant(s, f, height) {
 	light.position.set(s, height - 1.2, f);
 	group.add(light);
 	return group;
+}
+
+// V · API & Customizer → a humming server room behind the glowing /wp-json door:
+// racks of blinking gear, patch cables and JSON readouts — the CMS as a backend.
+function buildServerRoomAnnex(ctx) {
+	const { depth, sMid, sMin, sMax } = ctx;
+
+	// Raised-floor cable tray glowing down the central aisle.
+	const tray = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.9, depth - 1.6),
+		new THREE.MeshBasicMaterial({ color: 0x0d2b33 })
+	);
+	tray.rotation.x = -Math.PI / 2;
+	tray.position.set(sMid, 0.02, depth / 2);
+	ctx.group.add(tray);
+	const trayGlow = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.16, depth - 2.0),
+		new THREE.MeshBasicMaterial({ color: 0x46e0d2 })
+	);
+	trayGlow.rotation.x = -Math.PI / 2;
+	trayGlow.position.set(sMid, 0.03, depth / 2);
+	ctx.group.add(trayGlow);
+
+	// Server racks lining both side walls, fronts facing the aisle.
+	[2.2, 4.2, 6.3].forEach((f, i) => {
+		ctx.place(createServerRack(i), sMin + 0.5, f, 0, Math.PI / 2); // left wall, faces +s
+		ctx.place(createServerRack(i + 3), sMax - 0.5, f, 0, -Math.PI / 2); // right wall, faces -s
+	});
+
+	// Far-wall glowing /wp-json console with a JSON readout.
+	ctx.place(createWpJsonConsole(), sMid, depth - 0.55, 0, Math.PI);
+
+	// Catenary patch cables strung above the aisle for flavour.
+	const cable = (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.1 });
+	ctx.group.add(createRopeSegment({ x: sMin + 0.8, z: 2.2 }, { x: sMin + 0.8, z: 6.3 }, 2.05, 0.03, cable(0xff7043)));
+	ctx.group.add(createRopeSegment({ x: sMax - 0.8, z: 2.2 }, { x: sMax - 0.8, z: 6.3 }, 2.05, 0.03, cable(0x46e0d2)));
+	ctx.group.add(createRopeSegment({ x: sMin + 0.8, z: 6.3 }, { x: sMax - 0.8, z: 6.3 }, 2.0, 0.03, cable(0xffd23f)));
+
+	// Wall placard (door side) + a JSON terminal opposite, both visible on entry.
+	const placard = createWallScreen(createServerRoomPlacardTexture(), 2.5, 1.45);
+	placard.position.set(sMax - 0.12, 3.3, 2.2);
+	placard.rotation.y = -Math.PI / 2;
+	ctx.group.add(placard);
+	const term = createWallScreen(createJsonScreenTexture(), 2.4, 1.7);
+	term.position.set(sMin + 0.12, 3.2, 2.2);
+	term.rotation.y = Math.PI / 2;
+	ctx.group.add(term);
+}
+
+// A 2.2m server cabinet, front (+z) lined with rack units and blinking LEDs.
+function createServerRack(seed) {
+	const group = new THREE.Group();
+	const cabinet = new THREE.Mesh(
+		new THREE.BoxGeometry(1.3, 2.2, 0.9),
+		new THREE.MeshStandardMaterial({ color: 0x14171c, roughness: 0.6, metalness: 0.4 })
+	);
+	cabinet.position.y = 1.1;
+	group.add(cabinet);
+	const unitMat = new THREE.MeshStandardMaterial({ color: 0x24292f, roughness: 0.5, metalness: 0.5 });
+	const ledColors = [0x49f06a, 0xffb000, 0x46e0d2, 0x4f9bff];
+	const units = 8;
+	for (let u = 0; u < units; u++) {
+		const y = 0.28 + u * 0.24;
+		const unit = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.18, 0.02), unitMat);
+		unit.position.set(0, y, 0.46);
+		group.add(unit);
+		// A vent slot.
+		const vent = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.07, 0.012), new THREE.MeshStandardMaterial({ color: 0x0c0e11 }));
+		vent.position.set(-0.12, y, 0.475);
+		group.add(vent);
+		// Blinking LEDs on the right of each unit.
+		for (let l = 0; l < 3; l++) {
+			const color = ledColors[(seed * 5 + u * 3 + l) % ledColors.length];
+			const led = new THREE.Mesh(
+				new THREE.BoxGeometry(0.035, 0.035, 0.02),
+				new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85 })
+			);
+			led.position.set(0.42 + l * 0.07, y, 0.475);
+			const phase = (seed * 11 + u * 7 + l * 13) * 0.37;
+			const speed = 1.4 + ((seed + u + l) % 3) * 0.7;
+			registerAnimation(led, (object, elapsed) => {
+				object.material.opacity = 0.25 + 0.7 * (0.5 + 0.5 * Math.sin(elapsed * speed + phase));
+			});
+			group.add(led);
+		}
+	}
+	return group;
+}
+
+// The far-wall mainframe: a dark console crowned by a glowing "/wp-json" panel
+// over a live JSON readout, flanked by LED strips.
+function createWpJsonConsole() {
+	const group = new THREE.Group();
+	const cabinet = new THREE.Mesh(
+		new THREE.BoxGeometry(3.2, 3.0, 0.5),
+		new THREE.MeshStandardMaterial({ color: 0x12161b, roughness: 0.55, metalness: 0.45 })
+	);
+	cabinet.position.set(0, 1.5, 0);
+	group.add(cabinet);
+	const sign = createWallScreen(createWpJsonSignTexture(), 2.6, 0.7);
+	sign.position.set(0, 2.4, 0.27);
+	group.add(sign);
+	const readout = createWallScreen(createJsonScreenTexture(), 2.3, 1.35);
+	readout.position.set(0, 1.2, 0.27);
+	group.add(readout);
+	const consoleGlow = new THREE.PointLight(0x46e0d2, 0.9, 6);
+	consoleGlow.position.set(0, 1.6, 1.0);
+	group.add(consoleGlow);
+	// LED strips up the sides.
+	for (const x of [-1.5, 1.5]) {
+		for (let i = 0; i < 8; i++) {
+			const led = new THREE.Mesh(
+				new THREE.BoxGeometry(0.05, 0.05, 0.02),
+				new THREE.MeshBasicMaterial({ color: 0x46e0d2, transparent: true, opacity: 0.8 })
+			);
+			led.position.set(x, 0.5 + i * 0.3, 0.26);
+			const phase = (x + i) * 0.6;
+			registerAnimation(led, (object, elapsed) => {
+				object.material.opacity = 0.2 + 0.7 * (0.5 + 0.5 * Math.sin(elapsed * 2.2 + phase));
+			});
+			group.add(led);
+		}
+	}
+	return group;
+}
+
+// A dark-bezel wall screen whose art reads as self-lit (MeshBasic). Art faces +z.
+function createWallScreen(texture, w, h) {
+	const group = new THREE.Group();
+	const bezel = new THREE.Mesh(
+		new THREE.BoxGeometry(w + 0.16, h + 0.16, 0.08),
+		new THREE.MeshStandardMaterial({ color: 0x0f1318, roughness: 0.5, metalness: 0.5 })
+	);
+	group.add(bezel);
+	const screen = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: texture }));
+	screen.position.z = 0.05;
+	group.add(screen);
+	return group;
+}
+
+function createWpJsonSignTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 768;
+	canvas.height = 200;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#06141a';
+	ctx.fillRect(0, 0, 768, 200);
+	ctx.strokeStyle = '#0e3b44';
+	ctx.lineWidth = 6;
+	ctx.strokeRect(8, 8, 752, 184);
+	ctx.fillStyle = '#46e0d2';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.font = '900 96px "Courier New", monospace';
+	ctx.shadowColor = '#46e0d2';
+	ctx.shadowBlur = 18;
+	ctx.fillText('/wp-json', 384, 104);
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
+}
+
+function createJsonScreenTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 560;
+	canvas.height = 400;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#071318';
+	ctx.fillRect(0, 0, 560, 400);
+	ctx.font = '20px "Courier New", monospace';
+	ctx.textAlign = 'left';
+	const line = (text, x, y, color) => { ctx.fillStyle = color; ctx.fillText(text, x, y); };
+	line('GET /wp-json/wp/v2/posts', 20, 36, '#7fdcff');
+	line('200 OK  ·  application/json', 20, 62, '#5b6b70');
+	const rows = [
+		['[', '#cdd6da'],
+		['  {', '#cdd6da'],
+		['    "id": 1,', '#9cdcfe'],
+		['    "slug": "hello-world",', '#9cdcfe'],
+		['    "title": {', '#9cdcfe'],
+		['      "rendered": "Hello world!"', '#ce9178'],
+		['    },', '#cdd6da'],
+		['    "status": "publish"', '#9cdcfe'],
+		['  }', '#cdd6da'],
+		[']', '#cdd6da'],
+	];
+	rows.forEach((r, i) => line(r[0], 20, 96 + i * 28, r[1]));
+	// Blinking-ish cursor block (static frame).
+	ctx.fillStyle = '#46e0d2';
+	ctx.fillRect(28, 372, 12, 18);
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
+}
+
+function createServerRoomPlacardTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 900;
+	canvas.height = 520;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#0a1c22';
+	ctx.fillRect(0, 0, 900, 520);
+	ctx.fillStyle = '#46e0d2';
+	ctx.fillRect(0, 0, 900, 10);
+	ctx.fillRect(0, 510, 900, 10);
+	ctx.textAlign = 'center';
+	ctx.fillStyle = '#9ff3ea';
+	ctx.font = '900 56px "Arial Black", Impact, sans-serif';
+	ctx.fillText('THE REST API', 450, 92);
+	ctx.fillStyle = '#5fb6c0';
+	ctx.font = '600 30px "Courier New", monospace';
+	ctx.fillText('a side door to your data', 450, 140);
+	ctx.textAlign = 'left';
+	ctx.fillStyle = '#cfe9ec';
+	ctx.font = '26px Georgia, serif';
+	const lines = [
+		'Content endpoints landed in WordPress 4.7',
+		'(December 2016). Behind /wp-json, posts, pages,',
+		'users and media all speak JSON — so apps, other',
+		'sites and scripts can read and write WordPress',
+		'from anywhere.',
+		'',
+		'The day WordPress became a backend as well as a',
+		'website. Mind the cables.',
+	];
+	lines.forEach((l, i) => ctx.fillText(l, 70, 196 + i * 38));
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
 }
 
 // Big "MERCANTILE" wall sign mounted high on the back wall. The brass frame
@@ -15191,10 +15445,10 @@ function getMuseumFootprintPoints() {
 					.add(annex.forward.clone().multiplyScalar(f))
 					.add(annex.sideways.clone().multiplyScalar(s));
 			points.push(
-				corner(annex.config.depth + awt, annex.config.sMin - awt),
-				corner(annex.config.depth + awt, annex.config.sMax + awt),
-				corner(0, annex.config.sMin - awt),
-				corner(0, annex.config.sMax + awt)
+				corner(annex.depth + awt, annex.sMin - awt),
+				corner(annex.depth + awt, annex.sMax + awt),
+				corner(0, annex.sMin - awt),
+				corner(0, annex.sMax + awt)
 			);
 		}
 	}
