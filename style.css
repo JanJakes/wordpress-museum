@@ -389,8 +389,9 @@ h1 {
 }
 
 #release-counter {
-	min-width: 70px;
+	min-width: 84px;
 	text-align: center;
+	white-space: nowrap;
 }
 
 .release-rail {
@@ -1004,11 +1005,6 @@ body[data-variant='current'] #release-counter {
 	box-shadow: 2px 2px 0 #2a1808;
 	border-radius: 2px;
 	cursor: pointer;
-}
-
-body[data-variant='current'] #release-counter::after {
-	content: ' ▸';
-	opacity: 0.7;
 }
 
 body[data-variant='current'] #release-counter:hover {
