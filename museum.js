@@ -405,6 +405,7 @@ const cameraBounds = {
 };
 const movementZones = roomSides;
 let activeIndex = 0;
+let atCenter = true; // true while parked at the rotunda centre, not on a release
 let guidedTarget = null;
 let guidedTour = false;
 let tourHoldUntil = 0;
@@ -1437,8 +1438,16 @@ function createPlaygroundAnnex() {
 		metalness: 0.03,
 	});
 
-	// West wall = the doored chamfer, rebuilt in world space with jambs/lintel.
-	group.add(createPlaygroundDoorWall(wallMaterial));
+	// West wall = the doored chamfer. Give it a cheerful grass-green like the other
+	// side rooms' coloured entry walls, so it reads as a themed threshold.
+	const doorWallMaterial = createMuseumMaterial('roomWall', {
+		repeatX: playgroundDepth / 4.6,
+		repeatY: playgroundHeight / 2.4,
+		color: 0x6fae4e,
+		roughness: 0.9,
+		metalness: 0.03,
+	});
+	group.add(createPlaygroundDoorWall(doorWallMaterial));
 
 	// East wall (far +x).
 	const eastWall = new THREE.Mesh(
@@ -8789,7 +8798,7 @@ function createLogoEvolutionTexture() {
 	ctx.textBaseline = 'middle';
 	fillFittedCanvasText(
 		ctx,
-		'THE WORDPRESS LOGO THROUGH THE YEARS',
+		'THE WORDPRESS LOGO',
 		canvas.width / 2,
 		88,
 		1900,
@@ -8799,17 +8808,22 @@ function createLogoEvolutionTexture() {
 	);
 	ctx.fillStyle = '#6b7280';
 	ctx.font = '700 30px system-ui, sans-serif';
-	ctx.fillText('an evolving mark, recreated by hand', canvas.width / 2, 150);
+	ctx.fillText('the official mark, lockup and logotype', canvas.width / 2, 150);
 
-	const stages = [
-		{ draw: drawLogoEarlyWordmark, title: 'early wordmark', year: '2003' },
-		{ draw: drawLogoTransitionalW, title: 'the mark formalizes', year: '~2005' },
-		{ draw: drawLogoCircularMark, title: 'the circular mark arrives', year: '~2008' },
-		{ draw: drawLogoModernLockup, title: 'the logo we know', year: 'today' },
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+
+	// The real, official WordPress logo assets (from the WordPress brand kit),
+	// loaded and drawn into three cells; the texture refreshes as each arrives.
+	const cells = [
+		{ src: './assets/logos/wp-mark-notext.png', title: 'the W mark', maxH: 360 },
+		{ src: './assets/logos/wp-logotype-wmark.png', title: 'the primary lockup', maxH: 410 },
+		{ src: './assets/logos/wp-logotype-standard.png', title: 'the logotype', maxH: 230 },
 	];
-	const cellW = canvas.width / stages.length;
-	const markCY = 460;
-	stages.forEach((stage, index) => {
+	const cellW = canvas.width / cells.length;
+	const markCY = 470;
+	cells.forEach((cell, index) => {
 		const cx = cellW * index + cellW / 2;
 		if (index > 0) {
 			ctx.strokeStyle = 'rgba(35, 40, 45, 0.14)';
@@ -8819,71 +8833,23 @@ function createLogoEvolutionTexture() {
 			ctx.lineTo(cellW * index, canvas.height - 70);
 			ctx.stroke();
 		}
-		stage.draw(ctx, cx, markCY, cellW - 130);
-
-		ctx.fillStyle = '#21759b';
-		roundRectPath(ctx, cx - 34, canvas.height - 224, 68, 8, 4);
-		ctx.fill();
 		ctx.fillStyle = '#23282d';
-		fillFittedCanvasText(ctx, stage.title, cx, canvas.height - 168, cellW - 70, 36, '700', 'system-ui, sans-serif');
-		ctx.fillStyle = '#6b7280';
-		ctx.font = '900 34px system-ui, sans-serif';
-		ctx.fillText(stage.year, cx, canvas.height - 118);
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'middle';
+		fillFittedCanvasText(ctx, cell.title, cx, canvas.height - 150, cellW - 80, 40, '700', 'system-ui, sans-serif');
+		const img = new Image();
+		img.onload = () => {
+			const maxW = cellW - 170;
+			const scale = Math.min(maxW / img.width, cell.maxH / img.height);
+			const w = img.width * scale;
+			const h = img.height * scale;
+			ctx.drawImage(img, cx - w / 2, markCY - h / 2, w, h);
+			texture.needsUpdate = true;
+		};
+		img.src = cell.src;
 	});
 
-	const texture = new THREE.CanvasTexture(canvas);
-	texture.colorSpace = THREE.SRGBColorSpace;
-	texture.anisotropy = 4;
 	return texture;
-}
-
-// 2003: the first releases shipped a plain lowercase "wordpress" wordmark — no
-// circle, no W mark yet — set in a simple serif.
-function drawLogoEarlyWordmark(ctx, cx, cy, maxWidth) {
-	ctx.fillStyle = '#23282d';
-	ctx.textAlign = 'center';
-	ctx.textBaseline = 'middle';
-	fillFittedCanvasText(ctx, 'wordpress', cx, cy, maxWidth, 96, '400', 'Georgia, "Times New Roman", serif');
-	ctx.strokeStyle = 'rgba(35, 40, 45, 0.35)';
-	ctx.lineWidth = 3;
-	ctx.beginPath();
-	ctx.moveTo(cx - maxWidth / 2 + 40, cy + 78);
-	ctx.lineTo(cx + maxWidth / 2 - 40, cy + 78);
-	ctx.stroke();
-}
-
-// ~2005: branding formalizes around a standalone "W" mark and bolder wordmark.
-function drawLogoTransitionalW(ctx, cx, cy, maxWidth) {
-	const r = Math.min(maxWidth * 0.32, 130);
-	ctx.fillStyle = '#21759b';
-	ctx.beginPath();
-	roundRectPath(ctx, cx - r, cy - r, r * 2, r * 2, r * 0.22);
-	ctx.fill();
-	ctx.fillStyle = '#ffffff';
-	ctx.textAlign = 'center';
-	ctx.textBaseline = 'middle';
-	ctx.font = `900 ${Math.round(r * 1.35)}px Georgia, "Times New Roman", serif`;
-	ctx.fillText('W', cx, cy + r * 0.06);
-	ctx.fillStyle = '#23282d';
-	fillFittedCanvasText(ctx, 'WordPress', cx, cy + r + 56, maxWidth, 44, '700', 'Georgia, serif');
-}
-
-// ~2008: the circular W mark is standardized — a ring with the stylized W
-// inside, drawn in dark charcoal.
-function drawLogoCircularMark(ctx, cx, cy, maxWidth) {
-	const r = Math.min(maxWidth * 0.36, 150);
-	drawWordPressMark(ctx, cx, cy, r, '#23282d');
-}
-
-// Today: the official lockup — the circular charcoal mark above the "WordPress"
-// wordmark in its clean style.
-function drawLogoModernLockup(ctx, cx, cy, maxWidth) {
-	const r = Math.min(maxWidth * 0.3, 124);
-	drawWordPressMark(ctx, cx, cy - 24, r, '#23282d');
-	ctx.fillStyle = '#23282d';
-	ctx.textAlign = 'center';
-	ctx.textBaseline = 'middle';
-	fillFittedCanvasText(ctx, 'WordPress', cx, cy + r + 56, maxWidth, 56, '600', 'Georgia, "Times New Roman", serif');
 }
 
 // The modern WordPress mark: a solid disc with the iconic W carved out of it as
@@ -8946,21 +8912,20 @@ function createPhpElephantExhibit() {
 	// A low, angled museum label block at the plinth's front edge — kept short so
 	// the elephant (and its trunk) stays fully in view above it.
 	const dir = new THREE.Vector3(Math.sin(facing), 0, Math.cos(facing));
-	const labelSpot = spot.clone().add(dir.clone().multiplyScalar(1.55));
-	const lectern = new THREE.Group();
-	lectern.position.set(labelSpot.x, 0, labelSpot.z);
-	lectern.rotation.y = facing;
-	const block = new THREE.Mesh(
-		new THREE.BoxGeometry(1.3, 0.46, 0.4),
-		new THREE.MeshStandardMaterial({ color: 0x6f6a63, roughness: 0.8, metalness: 0.06 })
+	// Out beyond the plinth edge and the trunk, so the label reads cleanly.
+	// An upright label sign on a brass post, well in front of the plinth and below
+	// the (now up-curled) trunk, so it reads cleanly head-on.
+	const labelSpot = spot.clone().add(dir.clone().multiplyScalar(2.1));
+	const post = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.055, 0.055, 0.92, 12),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
 	);
-	block.position.set(0, 0.23, 0);
-	lectern.add(block);
-	const plate = createExhibitPlate('THE elePHPant', 'PHP — the language WordPress runs on, since 2003', 1.18);
-	plate.position.set(0, 0.42, 0.12);
-	plate.rotation.x = -0.95; // slope the face up toward the viewer
-	lectern.add(plate);
-	group.add(lectern);
+	post.position.set(labelSpot.x, 0.46, labelSpot.z);
+	group.add(post);
+	const plate = createExhibitPlate('THE elePHPant', 'PHP — the language WordPress runs on, since 2003', 1.55);
+	plate.position.set(labelSpot.x, 1.04, labelSpot.z);
+	plate.rotation.y = facing;
+	group.add(plate);
 
 	return group;
 }
@@ -9006,17 +8971,19 @@ function createPhpElephant() {
 	}
 
 	// Curling trunk.
+	// A relaxed trunk that curls down then lifts back up at the tip, so it stays
+	// near the body rather than drooping forward onto the label.
 	const trunkCurve = new THREE.CatmullRomCurve3([
-		new THREE.Vector3(0, 1.2, 1.22),
-		new THREE.Vector3(0, 0.95, 1.6),
-		new THREE.Vector3(0, 0.6, 1.78),
-		new THREE.Vector3(0, 0.34, 1.66),
-		new THREE.Vector3(0, 0.27, 1.48),
+		new THREE.Vector3(0, 1.2, 1.2),
+		new THREE.Vector3(0, 0.92, 1.55),
+		new THREE.Vector3(0, 0.62, 1.72),
+		new THREE.Vector3(0, 0.5, 1.6),
+		new THREE.Vector3(0, 0.56, 1.42),
 	]);
-	const trunk = new THREE.Mesh(new THREE.TubeGeometry(trunkCurve, 28, 0.165, 12, false), blue);
+	const trunk = new THREE.Mesh(new THREE.TubeGeometry(trunkCurve, 30, 0.16, 12, false), blue);
 	g.add(trunk);
-	const trunkTip = new THREE.Mesh(new THREE.SphereGeometry(0.155, 12, 10), blue);
-	trunkTip.position.set(0, 0.27, 1.48);
+	const trunkTip = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 10), blue);
+	trunkTip.position.set(0, 0.56, 1.42);
 	g.add(trunkTip);
 
 	for (const s of [-1, 1]) {
@@ -9044,6 +9011,41 @@ function createPhpElephant() {
 	return g;
 }
 
+// The embroidered/pixelated WordPress logo for the rotunda carpet centre: a deep
+// carpet-red field with the official mark rendered tiny and scaled up nearest-
+// neighbour so it reads like a woven/cross-stitched emblem (same trick as the loader).
+function createCarpetLogoTexture() {
+	const size = 512;
+	const cv = document.createElement('canvas');
+	cv.width = size;
+	cv.height = size;
+	const ctx = cv.getContext('2d');
+	ctx.fillStyle = '#8b1a1a'; // matches the carpet disc
+	ctx.fillRect(0, 0, size, size);
+	const texture = new THREE.CanvasTexture(cv);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	const small = 48;
+	const sc = document.createElement('canvas');
+	sc.width = small;
+	sc.height = small;
+	const img = new Image();
+	img.onload = () => {
+		sc.getContext('2d').drawImage(img, 0, 0, small, small);
+		ctx.imageSmoothingEnabled = false;
+		const dest = size * 0.82;
+		const off = (size - dest) / 2;
+		ctx.drawImage(sc, off, off, dest, dest);
+		texture.needsUpdate = true;
+	};
+	img.src =
+		'data:image/svg+xml,' +
+		encodeURIComponent(
+			"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 122.52 122.523'><path fill='#f0d9a8' d='M8.708 61.26c0 20.802 12.089 38.779 29.619 47.298L13.258 39.872c-2.916 6.501-4.55 13.704-4.55 21.388zm88.736-2.673c0-6.496-2.333-10.993-4.333-14.494-2.664-4.329-5.161-7.995-5.161-12.324 0-4.832 3.664-9.331 8.829-9.331.233 0 .454.029.681.042-9.350-8.567-21.807-13.796-35.489-13.796-18.36 0-34.513 9.421-43.91 23.688 1.233.037 2.395.063 3.382.063 5.496 0 14.006-.667 14.006-.667 2.833-.167 3.167 3.994.337 4.329 0 0-2.847.335-6.015.501l19.138 56.925 11.501-34.493-8.188-22.434c-2.83-.166-5.511-.501-5.511-.501-2.83-.166-2.498-4.496.332-4.329 0 0 8.679.667 13.843.667 5.496 0 14.006-.667 14.006-.667 2.835-.167 3.168 3.994.337 4.329 0 0-2.853.335-6.015.501l18.991 56.494 5.242-17.517c2.272-7.269 4.001-12.49 4.001-16.989zM62.184 65.857l-15.768 45.819c4.708 1.384 9.687 2.141 14.846 2.141 6.12 0 11.989-1.058 17.452-2.979-.141-.225-.269-.464-.374-.724L62.184 65.857zM108.74 35.214c.375 2.777.586 5.756.586 8.962 0 8.844-1.651 18.788-6.625 31.229l-26.612 76.926c25.91-15.102 43.337-43.169 43.337-75.311 0-15.152-3.87-29.399-10.686-41.806zM61.262 0C27.483 0 0 27.481 0 61.26c0 33.783 27.483 61.263 61.262 61.263 33.778 0 61.265-27.48 61.265-61.263C122.526 27.481 95.04 0 61.262 0zm0 119.715c-32.23 0-58.453-26.223-58.453-58.455 0-32.229 26.222-58.451 58.453-58.451 32.229 0 58.45 26.222 58.45 58.451 0 32.232-26.221 58.455-58.45 58.455z'/></svg>"
+		);
+	return texture;
+}
+
 function createAtriumFloorMedallion(color, secondary) {
 	const group = new THREE.Group();
 	const ring = new THREE.Mesh(
@@ -9059,17 +9061,15 @@ function createAtriumFloorMedallion(color, secondary) {
 	ring.position.y = 0.055;
 	group.add(ring);
 
-	const lineMaterial = new THREE.MeshBasicMaterial({
-		color: secondary,
-		transparent: true,
-		opacity: 0.36,
-	});
-	for (let index = 0; index < 8; index++) {
-		const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.03, 3.9), lineMaterial);
-		spoke.rotation.y = (Math.PI * 2 * index) / 8;
-		spoke.position.y = 0.065;
-		group.add(spoke);
-	}
+	// A WordPress logo woven into the carpet centre — rendered small and upscaled
+	// hard so it reads embroidered/pixelated, in place of the old compass star.
+	const logo = new THREE.Mesh(
+		new THREE.CircleGeometry(2.2, 64),
+		new THREE.MeshBasicMaterial({ map: createCarpetLogoTexture() })
+	);
+	logo.rotation.x = -Math.PI / 2;
+	logo.position.y = 0.05;
+	group.add(logo);
 	return group;
 }
 
@@ -9659,15 +9659,18 @@ function addUltimateAtriumFeature(group, color, secondary) {
 	// Planters flank the Mercantile (gift-shop) doorway on the mural side.
 	addPlaced(group, createAtriumPlanter(color, secondary), -6.7, 14.62, 0);
 	addPlaced(group, createAtriumPlanter(secondary, color), 6.7, 14.62, 0);
-	addPlaced(group, createWapuuDocent(color, secondary), -6.18, -2.72, 0.48);
+	// Wapuu greets on the west side — the visitor's right as they enter — mirroring
+	// the elePHPant greeter on the east, both partly in the opening view.
+	addPlaced(group, createWapuuDocent(color, secondary), -5.5, 3.0, 2.05);
 	addPlaced(group, createMuseumInfoDesk(color, secondary), 0.2, -5.72, 0.03);
 	const engineRoom = createOpenSourceEngineRoom(color, secondary);
 	engineRoom.scale.setScalar(0.68);
 	addPlaced(group, engineRoom, 11.35, 5.52, -1.1);
 
-	// Tall potted trees stand symmetrically at the left/right of the rotunda.
-	for (const treeX of [-10.6, 10.6]) {
-		addPlaced(group, createPlantedTree(2.7), treeX, 1.6, 0);
+	// Tall potted trees, set well out toward the rotunda's side walls so they
+	// frame the room without crowding the centre.
+	for (const treeX of [-13.6, 13.6]) {
+		addPlaced(group, createPlantedTree(2.7), treeX, 0.4, 0);
 	}
 
 	// A tidy visitor lounge nook on the right-front: two chairs angled
@@ -9694,7 +9697,7 @@ function createPlantedTree(targetHeight) {
 	);
 	rim.position.y = 0.45;
 	group.add(rim);
-	const tree = createLoadedModel('treeParkLarge', { targetHeight, fallback: 'plant' });
+	const tree = createLoadedModel('treeParkLarge', { targetHeight, fallback: 'plant', foliageColor: 0x4f9a3e });
 	tree.position.y = 0.42;
 	group.add(tree);
 	return group;
@@ -10364,81 +10367,175 @@ function createExhibitPlateTexture(title, subtitle) {
 	return tex;
 }
 
-// II · Dashboard Foundations — a steel-and-brass cockpit "dashboard" with gauges
-// and a steering wheel (2.7's modern dashboard layout).
+// II · Dashboard Foundations — a steel-and-brass instrument cluster on a stand,
+// three real dial gauges over a small steering wheel (2.7's modern dashboard).
 function createDashboardCockpit() {
 	const g = new THREE.Group();
 	const steel = propStdMat(0x3c4654, 0.5, 0.55);
-	const brass = propStdMat(0xb08d3a, 0.42, 0.6);
-	const dark = propStdMat(0x14181f, 0.6);
+	const steelDark = propStdMat(0x2a313c, 0.55, 0.5);
+	const brass = propStdMat(0xc79b43, 0.36, 0.62);
 	g.add(createPropBase(0.5));
-	const col = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.18, 1.0, 16), steel);
-	col.position.y = 0.55;
+	const col = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.2, 0.92, 18), steel);
+	col.position.y = 0.5;
 	g.add(col);
-	const panel = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.62, 0.22), steel);
-	panel.position.set(0, 1.26, 0.04);
-	panel.rotation.x = -0.42;
-	g.add(panel);
-	for (const x of [-0.46, 0, 0.46]) {
-		const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.05, 22), brass);
-		rim.rotation.x = Math.PI / 2 - 0.42;
-		rim.position.set(x, 1.34, 0.18);
-		g.add(rim);
-		const face = new THREE.Mesh(new THREE.CircleGeometry(0.14, 22), propStdMat(0xf4ead0, 0.85));
-		face.position.set(x, 1.35, 0.2);
-		face.rotation.x = -0.42;
-		g.add(face);
-		const needle = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.12, 0.012), dark);
-		needle.position.set(x, 1.36, 0.21);
-		needle.rotation.set(-0.42, 0, x * 1.4);
-		g.add(needle);
+	// Instrument housing: a slab with a rounded brass surround, tilted to the viewer.
+	const housing = new THREE.Group();
+	housing.position.set(0, 1.18, 0.06);
+	housing.rotation.x = -0.36;
+	g.add(housing);
+	const panel = new THREE.Mesh(new THREE.BoxGeometry(1.46, 0.6, 0.16), steelDark);
+	housing.add(panel);
+	const trim = new THREE.Mesh(new THREE.BoxGeometry(1.54, 0.68, 0.06), brass);
+	trim.position.z = -0.04;
+	housing.add(trim);
+	const fracs = [0.3, 0.62, 0.88];
+	for (let i = 0; i < 3; i++) {
+		const x = -0.46 + i * 0.46;
+		const bezel = new THREE.Mesh(new THREE.TorusGeometry(0.165, 0.028, 14, 28), brass);
+		bezel.position.set(x, 0, 0.1);
+		housing.add(bezel);
+		const face = new THREE.Mesh(
+			new THREE.CircleGeometry(0.155, 30),
+			new THREE.MeshBasicMaterial({ map: createGaugeFaceTexture(fracs[i]) })
+		);
+		face.position.set(x, 0, 0.092);
+		housing.add(face);
 	}
-	const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.04, 12, 28), dark);
-	wheel.position.set(0, 0.96, 0.46);
-	wheel.rotation.x = 1.15;
+	// Steering wheel below, with a hub and three spokes.
+	const dark = propStdMat(0x14181f, 0.55);
+	const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.052, 16, 32), dark);
+	wheel.position.set(0, 0.9, 0.42);
+	wheel.rotation.x = 1.2;
 	g.add(wheel);
-	for (const a of [0, 2.094, 4.189]) {
-		const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.02, 0.02), steel);
-		spoke.position.set(0, 0.96, 0.46);
-		spoke.rotation.set(1.15, 0, a);
+	const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.07, 18), brass);
+	hub.position.set(0, 0.9, 0.42);
+	hub.rotation.x = 1.2 + Math.PI / 2;
+	g.add(hub);
+	for (const a of [Math.PI / 2, Math.PI * 7 / 6, Math.PI * 11 / 6]) {
+		const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.03, 0.03), dark);
+		spoke.position.set(0, 0.9, 0.42);
+		spoke.rotation.set(1.2, 0, a);
 		g.add(spoke);
 	}
 	const plate = createExhibitPlate('THE DASHBOARD', 'mind the gauges');
-	plate.position.set(0, 0.52, 0.66);
+	plate.position.set(0, 0.5, 0.66);
 	g.add(plate);
 	return g;
 }
 
-// II · Dashboard Foundations (right) — a giant circular UNDO arrow with a pull
-// lever (post revisions / trash / undo, 2.6 & 2.9).
+// A round instrument dial: cream face, tick ring, a red needle and a hub.
+function createGaugeFaceTexture(frac) {
+	const cv = document.createElement('canvas');
+	cv.width = 220;
+	cv.height = 220;
+	const x = cv.getContext('2d');
+	const cx = 110, cy = 110, r = 96;
+	x.fillStyle = '#f4ead0';
+	x.beginPath();
+	x.arc(cx, cy, r, 0, Math.PI * 2);
+	x.fill();
+	const a0 = Math.PI * 0.75;
+	const a1 = Math.PI * 2.25;
+	x.strokeStyle = '#241a0c';
+	for (let i = 0; i <= 8; i++) {
+		const a = a0 + (a1 - a0) * i / 8;
+		const c = Math.cos(a), s = Math.sin(a);
+		x.lineWidth = i % 2 ? 3 : 6;
+		x.beginPath();
+		x.moveTo(cx + c * (r - 10), cy + s * (r - 10));
+		x.lineTo(cx + c * (r - 26), cy + s * (r - 26));
+		x.stroke();
+	}
+	const na = a0 + (a1 - a0) * frac;
+	x.strokeStyle = '#c0392b';
+	x.lineWidth = 8;
+	x.lineCap = 'round';
+	x.beginPath();
+	x.moveTo(cx, cy);
+	x.lineTo(cx + Math.cos(na) * (r - 30), cy + Math.sin(na) * (r - 30));
+	x.stroke();
+	x.fillStyle = '#241a0c';
+	x.beginPath();
+	x.arc(cx, cy, 12, 0, Math.PI * 2);
+	x.fill();
+	const t = new THREE.CanvasTexture(cv);
+	t.colorSpace = THREE.SRGBColorSpace;
+	t.anisotropy = 4;
+	return t;
+}
+
+// II · Dashboard Foundations (right) — a big round UNDO button (a crisp circular
+// arrow) on a stand, with a tidy pull-lever on the side (revisions/trash/undo).
 function createUndoLever() {
 	const g = new THREE.Group();
-	const steel = propStdMat(0x6b7280, 0.5, 0.5);
-	const gold = propStdMat(0xffd166, 0.4, 0.3);
+	const steel = propStdMat(0x5b6472, 0.5, 0.5);
+	const gold = propStdMat(0xffd166, 0.4, 0.32);
 	const dark = propStdMat(0x14181f, 0.6);
-	g.add(createPropBase(0.42));
-	const housing = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.45, 0.42), steel);
-	housing.position.y = 0.82;
-	g.add(housing);
-	const ring = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.055, 12, 30, Math.PI * 1.55), gold);
-	ring.position.set(0, 1.45, 0.24);
-	ring.rotation.z = Math.PI * 0.25;
-	g.add(ring);
-	const head = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.24, 16), gold);
-	head.position.set(0.27, 1.74, 0.24);
-	head.rotation.z = -0.95;
-	g.add(head);
-	const lever = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.72, 12), dark);
-	lever.position.set(0.4, 0.96, 0.25);
-	lever.rotation.z = -0.75;
+	g.add(createPropBase(0.44));
+	const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 1.02, 18), steel);
+	pillar.position.y = 0.56;
+	g.add(pillar);
+	// Round "button" backing, facing the viewer (+z).
+	const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.12, 40), dark);
+	disc.rotation.x = Math.PI / 2;
+	disc.position.set(0, 1.45, 0.04);
+	g.add(disc);
+	const rim = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.04, 14, 44), gold);
+	rim.position.set(0, 1.45, 0.1);
+	g.add(rim);
+	// Crisp circular undo arrow on the button face.
+	const glyph = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.82, 0.82),
+		new THREE.MeshBasicMaterial({ map: createUndoGlyphTexture(), transparent: true })
+	);
+	glyph.position.set(0, 1.45, 0.11);
+	g.add(glyph);
+	// A tidy pull-lever on the side, clearly separate from the arrow.
+	const lever = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.5, 12), steel);
+	lever.position.set(0.34, 0.82, 0.0);
+	lever.rotation.z = -0.5;
 	g.add(lever);
-	const knob = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 12), gold);
-	knob.position.set(0.83, 1.18, 0.25);
+	const knob = new THREE.Mesh(new THREE.SphereGeometry(0.085, 16, 12), gold);
+	knob.position.set(0.56, 0.96, 0.0);
 	g.add(knob);
 	const plate = createExhibitPlate('UNDO', 'revisions · trash · undo');
-	plate.position.set(0, 0.5, 0.46);
+	plate.position.set(0, 0.52, 0.5);
 	g.add(plate);
 	return g;
+}
+
+function createUndoGlyphTexture() {
+	const cv = document.createElement('canvas');
+	cv.width = 256;
+	cv.height = 256;
+	const x = cv.getContext('2d');
+	const cx = 128, cy = 134, r = 76;
+	x.strokeStyle = '#ffd166';
+	x.lineWidth = 30;
+	x.lineCap = 'butt';
+	// A near-full circle, open at the top-right where the arrowhead sits.
+	const start = -Math.PI * 0.12;
+	const end = Math.PI * 1.62;
+	x.beginPath();
+	x.arc(cx, cy, r, start, end, false);
+	x.stroke();
+	// Arrowhead at the start of the arc, pointing along the (clockwise) tangent.
+	const ax = cx + Math.cos(start) * r;
+	const ay = cy + Math.sin(start) * r;
+	const tang = start - Math.PI / 2; // clockwise tangent
+	const back = start + Math.PI / 2;
+	const h = 46;
+	x.fillStyle = '#ffd166';
+	x.beginPath();
+	x.moveTo(ax + Math.cos(tang) * h * 0.6, ay + Math.sin(tang) * h * 0.6);
+	x.lineTo(ax + Math.cos(back) * h * 0.55 + Math.cos(start) * 8, ay + Math.sin(back) * h * 0.55 + Math.sin(start) * 8);
+	x.lineTo(ax - Math.cos(start) * h * 0.7, ay - Math.sin(start) * h * 0.7);
+	x.closePath();
+	x.fill();
+	const t = new THREE.CanvasTexture(cv);
+	t.colorSpace = THREE.SRGBColorSpace;
+	t.anisotropy = 4;
+	return t;
 }
 
 // III · CMS Toolkit (left) — an open toolbox of tools, the "toolkit" that turned
@@ -14532,6 +14629,16 @@ function createLoadedModel(modelKey, options = {}) {
 						if (child.material?.isMeshStandardMaterial) {
 							child.material.roughness = Math.max(child.material.roughness, 0.52);
 						}
+						// Recolour the brighter (foliage) materials, leaving the darker
+						// trunk/bark alone — used to green an autumn-toned tree model.
+						if (options.foliageColor && child.material?.color) {
+							const c = child.material.color;
+							const lum = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+							if (lum > 0.3) {
+								child.material = child.material.clone();
+								child.material.color.set(options.foliageColor);
+							}
+						}
 					}
 				});
 				normalizeModel(instance, options.targetHeight || 0.7, options.targetLength);
@@ -15393,6 +15500,13 @@ function createMuseumLamp(color) {
 		object.material.opacity = 0.84 + Math.sin(elapsed * 1.4) * 0.08;
 	});
 	group.add(shade);
+	// Cast a soft warm pool of light so the lamp actually lights its corner.
+	const glow = new THREE.PointLight(0xffe0b0, 0.7, 7, 2);
+	glow.position.y = 1.08;
+	registerAnimation(glow, (object, elapsed) => {
+		object.intensity = 0.62 + Math.sin(elapsed * 1.4) * 0.08;
+	});
+	group.add(glow);
 	return group;
 }
 
@@ -16908,6 +17022,10 @@ function bindControls() {
 	document
 		.querySelector('#next-release')
 		.addEventListener('click', () => focusRelease(activeIndex + 1));
+	// The middle "WP x.y" pill is a go-to button: jump to that release's exhibit.
+	document
+		.querySelector('#release-counter')
+		.addEventListener('click', () => focusRelease(activeIndex));
 
 	const panelToggle = document.querySelector('#panel-toggle');
 	const releasePanel = document.querySelector('.release-panel');
@@ -17132,6 +17250,8 @@ function returnToMuseumCenter() {
 		yaw: view.yaw,
 		pitch: 0,
 	};
+	atCenter = true;
+	updateRail();
 }
 
 function buildRail() {
@@ -17393,6 +17513,7 @@ function stopGuidedTour() {
 
 function startAtMuseumCenter() {
 	activeIndex = 0;
+	atCenter = true;
 	camera.position.copy(atriumStartPosition);
 
 	const view = getViewAngles(
@@ -17440,6 +17561,7 @@ function getRoomLookPoint(era) {
 }
 
 function focusRelease(index, immediate = false, options = {}) {
+	atCenter = false;
 	const previousEra = releases[activeIndex]?.era;
 	activeIndex = wrapIndex(index);
 	const release = releases[activeIndex];
@@ -17489,6 +17611,7 @@ function updateRail(syncRail = true) {
 	railButtons.forEach((button, index) => {
 		button.classList.toggle('is-active', isRailItemActive(railItems[index]));
 	});
+	document.querySelector('#center-button')?.classList.toggle('is-active', atCenter);
 	if (!syncRail) {
 		return;
 	}
@@ -17512,16 +17635,14 @@ function renderRailForCurrentContext() {
 }
 
 function getRailContext() {
-	const roomEra = getCameraNavigationEra();
-	return roomEra
-		? {
-			mode: 'releases',
-			era: roomEra,
-		}
-		: {
-			mode: 'rooms',
-			era: '',
-		};
+	// The bottom rail is a simple room navigator: Center · I · II · … · VII,
+	// each in its era colour. Release-level navigation is handled by the
+	// Previous/Next controls and the clickable "WP x.y" pill.
+	return { mode: 'rooms', era: '' };
+}
+
+function romanForEra(era) {
+	return ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][eras.indexOf(era)] || '';
 }
 
 function getCameraNavigationEra() {
@@ -17544,8 +17665,8 @@ function getRoomRailItems() {
 	return getEraReleaseGroups().map(({ era, items }) => ({
 		kind: 'room',
 		era,
-		label: era,
-		title: `${era}: ${getReleaseYearRange(items)}`,
+		label: romanForEra(era),
+		title: `${romanForEra(era)} · ${era} (${getReleaseYearRange(items)})`,
 	}));
 }
 
@@ -17574,7 +17695,7 @@ function isRailItemActive(item) {
 		return false;
 	}
 	return item.kind === 'room'
-		? item.era === releases[activeIndex].era
+		? !atCenter && item.era === releases[activeIndex].era
 		: item.index === activeIndex;
 }
 

@@ -14,7 +14,7 @@
 			href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Special+Elite&display=swap"
 			rel="stylesheet"
 		/>
-		<link rel="stylesheet" href="./style.css?v=77a5d811" />
+		<link rel="stylesheet" href="./style.css?v=7c7344e6" />
 	</head>
 	<body data-variant="current" data-ui="glass">
 		<div id="museum-loader" role="status" aria-live="polite">
@@ -93,7 +93,14 @@
 
 		<nav class="tour-controls" aria-label="Release tour controls">
 			<button type="button" id="previous-release">Previous</button>
-			<strong id="release-counter">WP 0.7</strong>
+			<button
+				type="button"
+				id="release-counter"
+				title="Go to this release"
+				aria-label="Go to this release"
+			>
+				WP 0.7
+			</button>
 			<button type="button" id="next-release">Next</button>
 		</nav>
 
@@ -167,6 +174,6 @@
 				document.body.classList.add('museum-ready');
 			}, 12000);
 		</script>
-		<script type="module" src="./museum.js?v=96efb753"></script>
+		<script type="module" src="./museum.js?v=d70bc389"></script>
 	</body>
 </html>
