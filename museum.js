@@ -167,7 +167,7 @@ const exhibitWallMargin = 0.7;
 const entryDistanceFromCenter = 5.2;
 const shellPadding = 1.4;
 const shellHeight = 12.4;
-const portalDoorHeight = 4.45;
+const portalDoorHeight = 3.2;
 const portalDoorHalfWidth = 1.55;
 const portalCenterOffset = 3.1;
 const portalAlcoveHalfWidth = 1.55;
@@ -8696,7 +8696,7 @@ function createAtriumWayfindingSigns() {
 		const near = candA.z > candB.z ? candA : candB; // segment nearer the entrance (+z)
 		const center = near.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.06));
 		const sign = createWayfindingPlaque(spec.label);
-		sign.position.set(center.x, 3.7, center.z);
+		sign.position.set(center.x, 3.1, center.z);
 		sign.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
 		group.add(sign);
 	}
