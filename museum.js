@@ -419,6 +419,11 @@ let programmaticRailScrollTimer = 0;
 let railScrollFrame = 0;
 let renderedFrameCount = 0;
 let eraYearRangeMap = null;
+// Light culling state (declared before the init/animate call below to avoid a
+// temporal-dead-zone error on the first frame).
+const MAX_ACTIVE_POINT_LIGHTS = 14;
+let cullablePointLights = null;
+const lightCullTmp = new THREE.Vector3();
 
 camera.rotation.order = 'YXZ';
 camera.position.copy(atriumStartPosition);
@@ -17351,6 +17356,35 @@ function getActiveRailItemIndex() {
 	return railItems.findIndex(isRailItemActive);
 }
 
+// The scene carries dozens of decorative point lights (gallery lamps, the side
+// rooms, prop glows). Three.js forward-renders every light for every pixel with
+// no distance culling, so keeping them all live tanks the frame rate. Instead we
+// keep only the nearest few active each frame: distant lights you can't see go
+// dark (the ambient/hemisphere lights keep everything base-lit), and holding the
+// active count constant avoids per-frame shader recompiles.
+function updateLightCulling() {
+	if (!cullablePointLights) {
+		cullablePointLights = [];
+		scene.traverse((object) => {
+			if (object.isPointLight) {
+				cullablePointLights.push(object);
+			}
+		});
+	}
+	const lights = cullablePointLights;
+	if (lights.length <= MAX_ACTIVE_POINT_LIGHTS) {
+		return;
+	}
+	for (const light of lights) {
+		light.getWorldPosition(lightCullTmp);
+		light.userData.cullDistance = lightCullTmp.distanceToSquared(camera.position);
+	}
+	const ranked = lights.slice().sort((a, b) => a.userData.cullDistance - b.userData.cullDistance);
+	for (let index = 0; index < ranked.length; index++) {
+		ranked[index].visible = index < MAX_ACTIVE_POINT_LIGHTS;
+	}
+}
+
 function animate(timestamp = 0) {
 	requestAnimationFrame(animate);
 	// The scene always has ambient motion, so render every frame for a
@@ -17358,6 +17392,7 @@ function animate(timestamp = 0) {
 	const delta = Math.min(clock.getDelta(), 0.05);
 	updateCamera(delta);
 	updateSceneAnimations(delta, clock.elapsedTime);
+	updateLightCulling();
 	renderer.render(scene, camera);
 	renderedFrameCount += 1;
 	if (renderedFrameCount === 1) {
