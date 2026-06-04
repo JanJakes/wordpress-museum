@@ -341,6 +341,19 @@ const ERA_ANNEX_CONFIGS = [
 		width: 10,
 		build: buildServerRoomAnnex,
 	},
+	{
+		era: eras[3], // IV · Modern Admin → responsive device lab
+		title: 'RESPONSIVE',
+		accent: '#00a0d2',
+		glow: 0x35c0f0,
+		floorColor: 0x9aa2ab,
+		wallColor: 0xd4dade,
+		ceilingColor: 0x3a4047,
+		light: 0xffffff,
+		depth: 10,
+		width: 10,
+		build: buildDeviceLabAnnex,
+	},
 ];
 const eraAnnexes = computeEraAnnexes();
 const eraAnnexEras = new Set(eraAnnexes.map((annex) => annex.config.era));
@@ -2994,6 +3007,193 @@ function createServerRoomPlacardTexture() {
 		'website. Mind the cables.',
 	];
 	lines.forEach((l, i) => ctx.fillText(l, 70, 196 + i * 38));
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
+}
+
+// IV · Modern Admin → a bright responsive lab: one flat MP6 dashboard shown at
+// every size, from phone to wall display, with a full-size screen behind.
+function buildDeviceLabAnnex(ctx) {
+	const { depth, sMid, sMin, sMax } = ctx;
+	const span = sMax - sMin;
+
+	// MP6-blue runner under the test bench.
+	const runner = new THREE.Mesh(
+		new THREE.PlaneGeometry(Math.min(9, span - 0.6), 3.2),
+		new THREE.MeshStandardMaterial({ color: 0x0a4f6b, roughness: 0.85 })
+	);
+	runner.rotation.x = -Math.PI / 2;
+	runner.position.set(sMid, 0.02, depth * 0.56);
+	ctx.group.add(runner);
+
+	// The test bench.
+	const bench = new THREE.Mesh(
+		new THREE.BoxGeometry(span - 1.2, 0.72, 1.0),
+		new THREE.MeshStandardMaterial({ color: 0xeef1f4, roughness: 0.5, metalness: 0.1 })
+	);
+	bench.position.set(sMid, 0.36, depth * 0.56);
+	ctx.group.add(bench);
+
+	// One dashboard, five screens, smallest → largest, all facing the door.
+	const desktopTex = createMp6AdminTexture('desktop');
+	const mobileTex = createMp6AdminTexture('mobile');
+	const lineup = [
+		['phone', mobileTex],
+		['tablet', mobileTex],
+		['laptop', desktopTex],
+		['monitor', desktopTex],
+		['tv', desktopTex],
+	];
+	const lo = sMin + 1.4;
+	const hi = sMax - 1.1;
+	lineup.forEach(([kind, tex], i) => {
+		const s = lo + (hi - lo) * i / (lineup.length - 1);
+		ctx.place(createMp6Device(kind, tex), s, depth * 0.56, 0.74, Math.PI);
+	});
+
+	// Far wall: a full-size dashboard, with the placard on a side wall.
+	const display = createWallScreen(desktopTex, 3.0, 1.9);
+	display.position.set(sMid, 3.15, depth - 0.14);
+	display.rotation.y = Math.PI;
+	ctx.group.add(display);
+	const placard = createWallScreen(createDeviceLabPlacardTexture(), 2.4, 1.5);
+	placard.position.set(sMax - 0.14, 2.7, depth * 0.4);
+	placard.rotation.y = -Math.PI / 2;
+	ctx.group.add(placard);
+}
+
+// A device showing the flat MP6 admin, modelled facing +z (the caller turns it).
+function createMp6Device(kind, tex) {
+	const g = new THREE.Group();
+	const body = new THREE.MeshStandardMaterial({ color: 0x26292d, roughness: 0.4, metalness: 0.5 });
+	const silver = new THREE.MeshStandardMaterial({ color: 0xc7ccd2, roughness: 0.4, metalness: 0.6 });
+	const dark = new THREE.MeshStandardMaterial({ color: 0x1a1d20, roughness: 0.5 });
+	const screen = (w, h) => new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex }));
+	if (kind === 'phone') {
+		const b = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.46, 0.03), body); b.position.y = 0.27; g.add(b);
+		const sc = screen(0.2, 0.4); sc.position.set(0, 0.27, 0.018); g.add(sc);
+		const foot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.02, 0.14), silver); foot.position.set(0, 0.01, 0.02); g.add(foot);
+		const prop = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.24, 0.02), silver); prop.position.set(0, 0.16, -0.06); prop.rotation.x = 0.3; g.add(prop);
+	} else if (kind === 'tablet') {
+		const b = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.58, 0.035), body); b.position.y = 0.33; g.add(b);
+		const sc = screen(0.37, 0.5); sc.position.set(0, 0.33, 0.02); g.add(sc);
+		const prop = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.3, 0.02), silver); prop.position.set(0, 0.18, -0.08); prop.rotation.x = 0.35; g.add(prop);
+	} else if (kind === 'laptop') {
+		const base = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.04, 0.46), silver); base.position.y = 0.02; g.add(base);
+		const kb = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.006, 0.28), dark); kb.position.set(0, 0.045, 0.05); g.add(kb);
+		const lid = new THREE.Group();
+		const panel = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.42, 0.02), body); panel.position.y = 0.21; lid.add(panel);
+		const sc = screen(0.57, 0.35); sc.position.set(0, 0.21, 0.012); lid.add(sc);
+		lid.position.set(0, 0.04, -0.22); lid.rotation.x = -0.42; g.add(lid);
+	} else if (kind === 'monitor') {
+		const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.17, 0.03, 18), silver); foot.position.y = 0.015; g.add(foot);
+		const neck = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.36, 0.05), silver); neck.position.y = 0.21; g.add(neck);
+		const panel = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.48, 0.04), body); panel.position.y = 0.64; g.add(panel);
+		const sc = screen(0.67, 0.41); sc.position.set(0, 0.64, 0.022); g.add(sc);
+	} else { // tv
+		const panel = new THREE.Mesh(new THREE.BoxGeometry(1.18, 0.74, 0.05), body); panel.position.y = 0.52; g.add(panel);
+		const sc = screen(1.1, 0.66); sc.position.set(0, 0.52, 0.028); g.add(sc);
+		for (const x of [-0.42, 0.42]) {
+			const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.12), silver); leg.position.set(x, 0.08, 0); g.add(leg);
+		}
+	}
+	return g;
+}
+
+function createMp6AdminTexture(mode) {
+	const canvas = document.createElement('canvas');
+	const C = canvas.getContext('2d');
+	const blue = '#0073aa';
+	const blue2 = '#00a0d2';
+	if (mode === 'mobile') {
+		canvas.width = 300; canvas.height = 600;
+		C.fillStyle = '#f1f1f1'; C.fillRect(0, 0, 300, 600);
+		C.fillStyle = '#23282d'; C.fillRect(0, 0, 300, 46);
+		C.fillStyle = '#fff'; C.font = '700 22px sans-serif'; C.textAlign = 'left';
+		C.fillText('☰', 14, 32);
+		C.fillText('WordPress', 48, 32);
+		C.fillStyle = '#1d2327'; C.font = '700 26px sans-serif';
+		C.fillText('Dashboard', 16, 86);
+		const card = (y, h, title) => {
+			C.fillStyle = '#fff'; C.fillRect(14, y, 272, h);
+			C.strokeStyle = '#dcdcde'; C.strokeRect(14, y, 272, h);
+			C.fillStyle = blue; C.fillRect(14, y, 272, 30);
+			C.fillStyle = '#fff'; C.font = '700 16px sans-serif'; C.fillText(title, 24, y + 21);
+			C.fillStyle = '#a7aaad';
+			for (let i = 0; i < 3; i++) C.fillRect(24, y + 46 + i * 18, 220 - i * 40, 8);
+		};
+		card(110, 110, 'At a Glance');
+		card(236, 110, 'Activity');
+		card(362, 150, 'Quick Draft');
+		C.fillStyle = blue2; C.fillRect(24, 470, 120, 34);
+		C.fillStyle = '#fff'; C.font = '700 15px sans-serif'; C.fillText('Publish', 54, 492);
+	} else {
+		canvas.width = 660; canvas.height = 420;
+		C.fillStyle = '#f1f1f1'; C.fillRect(0, 0, 660, 420);
+		C.fillStyle = '#23282d'; C.fillRect(0, 0, 660, 26); // admin bar
+		C.fillStyle = '#23282d'; C.fillRect(0, 26, 150, 394); // sidebar
+		const menu = ['Dashboard', 'Posts', 'Media', 'Pages', 'Comments', 'Appearance', 'Plugins', 'Users', 'Tools', 'Settings'];
+		C.font = '14px sans-serif'; C.textAlign = 'left';
+		menu.forEach((m, i) => {
+			const y = 44 + i * 30;
+			if (i === 0) { C.fillStyle = blue; C.fillRect(0, y - 20, 150, 28); }
+			C.fillStyle = i === 0 ? '#fff' : '#b4b9be';
+			C.fillText(m, 16, y);
+		});
+		C.fillStyle = '#cdd'; C.font = '13px sans-serif'; C.fillText('My Site', 12, 18);
+		C.fillStyle = '#1d2327'; C.font = '700 24px sans-serif'; C.fillText('Dashboard', 172, 60);
+		const card = (x, y, w, h, title) => {
+			C.fillStyle = '#fff'; C.fillRect(x, y, w, h);
+			C.strokeStyle = '#dcdcde'; C.strokeRect(x, y, w, h);
+			C.fillStyle = '#1d2327'; C.font = '700 15px sans-serif'; C.fillText(title, x + 12, y + 22);
+			C.fillStyle = '#c3c4c7';
+			for (let i = 0; i < 3; i++) C.fillRect(x + 12, y + 38 + i * 16, w - 24 - i * 30, 7);
+		};
+		card(172, 80, 230, 120, 'At a Glance');
+		card(418, 80, 220, 120, 'Activity');
+		card(172, 214, 230, 150, 'Quick Draft');
+		card(418, 214, 220, 150, 'WordPress News');
+		C.fillStyle = blue2; C.fillRect(184, 320, 110, 30);
+		C.fillStyle = '#fff'; C.font = '700 14px sans-serif'; C.fillText('Save Draft', 206, 340);
+	}
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
+}
+
+function createDeviceLabPlacardTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 900;
+	canvas.height = 540;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#f6f8fa';
+	ctx.fillRect(0, 0, 900, 540);
+	ctx.fillStyle = '#00a0d2';
+	ctx.fillRect(0, 0, 900, 12);
+	ctx.fillRect(0, 528, 900, 12);
+	ctx.textAlign = 'center';
+	ctx.fillStyle = '#0a2b39';
+	ctx.font = '900 56px "Arial Black", Impact, sans-serif';
+	ctx.fillText('RESPONSIVE', 450, 92);
+	ctx.fillStyle = '#0073aa';
+	ctx.font = '600 30px sans-serif';
+	ctx.fillText('one dashboard, every screen', 450, 138);
+	ctx.textAlign = 'left';
+	ctx.fillStyle = '#1d2327';
+	ctx.font = '26px Georgia, serif';
+	const lines = [
+		'MP6 reskinned wp-admin flat in WordPress 3.8',
+		'(December 2013): Open Sans, eight admin colour',
+		'schemes, sharp vector icons — and a dashboard',
+		'that finally folded down to fit a phone.',
+		'',
+		'The same screens you see on this bench, from the',
+		'handset to the wall. The admin learned to bend.',
+	];
+	lines.forEach((l, i) => ctx.fillText(l, 70, 198 + i * 38));
 	const texture = new THREE.CanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
