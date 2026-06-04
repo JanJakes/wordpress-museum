@@ -113,6 +113,64 @@ function wpLogoSvgDataUrl(fill) {
 	);
 }
 
+// Canvas textures (the ~400 procedural signs, plaques and artwork) dominate GPU
+// memory — at full resolution they totalled ~550MB, which blows iOS Safari's
+// budget and crashes the tab once enough rooms have rendered. Cap every canvas
+// texture's long edge so the resident set stays small. Drawing still happens at
+// full resolution and is downscaled into the texture, so text stays crisp.
+const MAX_TEXTURE_DIM = 448;
+
+// Loaded image textures (the marble/ceiling JPGs, re-loaded once per repeat
+// setting) ship at 1024² — cap them on load too. Drawing happens at full res
+// elsewhere; tiled wall/ceiling textures lose nothing at this size.
+function loadCappedTexture(source) {
+	return textureLoader.load(source, (texture) => {
+		const image = texture.image;
+		if (!image) {
+			return;
+		}
+		const longEdge = Math.max(image.width, image.height);
+		if (longEdge <= MAX_TEXTURE_DIM) {
+			return;
+		}
+		const scale = MAX_TEXTURE_DIM / longEdge;
+		const small = document.createElement('canvas');
+		small.width = Math.max(1, Math.round(image.width * scale));
+		small.height = Math.max(1, Math.round(image.height * scale));
+		small.getContext('2d').drawImage(image, 0, 0, small.width, small.height);
+		texture.image = small;
+		texture.needsUpdate = true;
+	});
+}
+
+function createCanvasTexture(canvas) {
+	const longEdge = Math.max(canvas.width, canvas.height);
+	if (longEdge <= MAX_TEXTURE_DIM) {
+		return new THREE.CanvasTexture(canvas);
+	}
+	const scale = MAX_TEXTURE_DIM / longEdge;
+	const small = document.createElement('canvas');
+	small.width = Math.max(1, Math.round(canvas.width * scale));
+	small.height = Math.max(1, Math.round(canvas.height * scale));
+	small.getContext('2d').drawImage(canvas, 0, 0, small.width, small.height);
+	const texture = new THREE.CanvasTexture(small);
+	texture.userData.sourceCanvas = canvas; // kept so async redraws can refresh
+	return texture;
+}
+
+// Re-run the downscale for textures whose source canvas is drawn asynchronously
+// (logo emblems, release plaques that composite a loaded screenshot), then flag
+// the upload. For small textures (image === the source canvas) it just flags.
+function refreshCanvasTexture(texture) {
+	const source = texture.userData && texture.userData.sourceCanvas;
+	if (source && texture.image && texture.image !== source) {
+		const ctx = texture.image.getContext('2d');
+		ctx.clearRect(0, 0, texture.image.width, texture.image.height);
+		ctx.drawImage(source, 0, 0, texture.image.width, texture.image.height);
+	}
+	texture.needsUpdate = true;
+}
+
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(68, 1, 0.1, 420);
 const clock = new THREE.Clock();
@@ -1223,7 +1281,7 @@ function createWordCampBannerTexture() {
 	ctx.fillStyle = '#fff5df';
 	ctx.font = '600 22px ui-monospace, Menlo, monospace';
 	ctx.fillText('contributor day', canvas.width / 2, 168);
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -1621,7 +1679,7 @@ function createPlaygroundSkyTexture() {
 		puff(x, y, r, 0.9);
 	}
 
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -2159,7 +2217,7 @@ function createPlaygroundBlueprintTexture() {
 	ctx.textAlign = 'right'; ctx.font = 'italic 700 20px "Courier New", monospace';
 	ctx.fillText('A REAL BLUEPRINT — NO JSON REQUIRED', W - 64, sby + 22);
 
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -2207,7 +2265,7 @@ function createPlaygroundSignTexture() {
 		'#6a5d3c'
 	);
 
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -2674,7 +2732,7 @@ function createClassicEditorScreenTexture() {
 	ctx.fillText('A text box and a blinking cursor.', 30, 262);
 	ctx.fillStyle = '#222';
 	ctx.fillRect(322, 250, 2, 16); // caret
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -2737,7 +2795,7 @@ function createClassicEditorPlacardTexture() {
 	ctx.fillStyle = '#7a1c22';
 	ctx.font = 'italic 700 26px Georgia, serif';
 	ctx.fillText('Please do not touch the keyboard.', 450, 492);
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -2787,7 +2845,7 @@ function createAngryReviewTexture() {
 	ctx.fillStyle = '#50575e';
 	ctx.font = '22px sans-serif';
 	ctx.fillText('5+ million active installations', 30, 462);
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -2823,7 +2881,7 @@ function createTinyMceSpecimenTexture() {
 	ctx.font = '22px Georgia, serif';
 	ctx.fillText('No slash commands. No block library. No sidebars.', 380, 264);
 	ctx.fillText('Just the keys, and the cursor, and you.', 380, 300);
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -3005,7 +3063,7 @@ function createWpJsonSignTexture() {
 	ctx.shadowColor = '#46e0d2';
 	ctx.shadowBlur = 18;
 	ctx.fillText('/wp-json', 384, 104);
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -3039,7 +3097,7 @@ function createJsonScreenTexture() {
 	// Blinking-ish cursor block (static frame).
 	ctx.fillStyle = '#46e0d2';
 	ctx.fillRect(28, 372, 12, 18);
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -3076,7 +3134,7 @@ function createServerRoomPlacardTexture() {
 		'website. Mind the cables.',
 	];
 	lines.forEach((l, i) => ctx.fillText(l, 70, 196 + i * 38));
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -3227,7 +3285,7 @@ function createMp6AdminTexture(mode) {
 		C.fillStyle = blue2; C.fillRect(184, 320, 110, 30);
 		C.fillStyle = '#fff'; C.font = '700 14px sans-serif'; C.fillText('Save Draft', 206, 340);
 	}
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -3263,7 +3321,7 @@ function createDeviceLabPlacardTexture() {
 		'handset to the wall. The admin learned to bend.',
 	];
 	lines.forEach((l, i) => ctx.fillText(l, 70, 198 + i * 38));
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -3412,7 +3470,7 @@ function createThemeTexture(key) {
 	x.textAlign = 'center';
 	x.fillStyle = '#e0bd62'; x.font = '700 26px Georgia, serif'; x.fillText(name, W / 2, top + 34);
 	x.fillStyle = '#b9a47a'; x.font = '17px Georgia, serif'; x.fillText(year, W / 2, top + 60);
-	const t = new THREE.CanvasTexture(cv);
+	const t = createCanvasTexture(cv);
 	t.colorSpace = THREE.SRGBColorSpace;
 	t.anisotropy = 4;
 	return t;
@@ -3448,7 +3506,7 @@ function createThemeGalleryPlacardTexture() {
 		'season, and proof WordPress was now a full CMS.',
 	];
 	lines.forEach((l, i) => ctx.fillText(l, 70, 198 + i * 40));
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -3604,7 +3662,7 @@ function createWordCampSlideTexture() {
 	ctx.fillStyle = '#cfe7f3'; ctx.font = '24px Georgia, serif';
 	ctx.fillText('A casual gathering of WordPress users —', 60, 312);
 	ctx.fillText('now hundreds of events, all over the world.', 60, 346);
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -3640,7 +3698,7 @@ function createWordCampPlacardTexture() {
 		'developers meet, speak and contribute together.',
 	];
 	lines.forEach((l, i) => ctx.fillText(l, 70, 196 + i * 40));
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -3816,7 +3874,7 @@ function createB2Texture() {
 	ctx.fillStyle = '#cdd8d2'; ctx.fillRect(330, 80, 110, 220);
 	ctx.fillStyle = '#778'; ctx.font = '12px Georgia, serif';
 	ctx.fillText('Links', 344, 104); ctx.fillText('Archives', 344, 126);
-	const t = new THREE.CanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+	const t = createCanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 
 function createFirstPostTexture() {
@@ -3832,7 +3890,7 @@ function createFirstPostTexture() {
 	ctx.fillStyle = '#333'; ctx.font = '20px Georgia, serif';
 	const body = ['Welcome to WordPress. This is', 'your first post. Edit or delete it,', 'then start blogging!'];
 	body.forEach((l, i) => ctx.fillText(l, 28, 150 + i * 32));
-	const t = new THREE.CanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+	const t = createCanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 
 function createCornerstoneTexture() {
@@ -3850,7 +3908,7 @@ function createCornerstoneTexture() {
 	ctx.fillText('Matt Mullenweg & Mike Little', 290, 264);
 	ctx.fillText('named by Christine Tremoulet', 290, 300);
 	ctx.font = '700 24px Georgia, serif'; ctx.fillText('· released under the GPL ·', 290, 344);
-	const t = new THREE.CanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+	const t = createCanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 
 function createForgePlacardTexture() {
@@ -3875,7 +3933,7 @@ function createForgePlacardTexture() {
 		'GPL. Everything in this museum grew from that fork.',
 	];
 	lines.forEach((l, i) => ctx.fillText(l, 70, 196 + i * 40));
-	const t = new THREE.CanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+	const t = createCanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 
 // Big "MERCANTILE" wall sign mounted high on the back wall. The brass frame
@@ -4091,7 +4149,7 @@ function createPluginStickerTexture() {
 	ctx.fillStyle = '#c24a2c';
 	ctx.font = '900 40px Arial Black, Impact, sans-serif';
 	ctx.fillText('FOR THAT', canvas.width / 2, 182);
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	// The box top face maps V toward −z; rotate 180° so the text reads upright for
@@ -4293,7 +4351,7 @@ function createMercantileSignTexture(title, sub) {
 	ctx.fillRect(w / 2 + half + ruleGap, subY - 2, ruleW, 3);
 	drawEngravedText(ctx, sub, w / 2, subY, w * 0.66, h * 0.13, '600', serif, bronze);
 
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -4317,7 +4375,7 @@ function createShopOnlineTexture() {
 	ctx.fillStyle = '#1b2740';
 	ctx.font = '700 40px system-ui, sans-serif';
 	ctx.fillText('mercantile.wordpress.org', canvas.width / 2, 162);
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -4343,7 +4401,7 @@ function createMercantilePosterTexture() {
 	ctx.fillStyle = '#fff5df';
 	ctx.font = '700 36px system-ui, sans-serif';
 	ctx.fillText('— WordPress —', canvas.width / 2, 560);
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -4394,7 +4452,7 @@ function createPortalDoorTexture(portal) {
 		ctx.font = '600 34px ui-monospace, Menlo, monospace';
 		ctx.fillText('↩  ' + portal.url.replace('https://', '').replace(/\/$/, ''), canvas.width / 2, 760);
 	}
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -4441,7 +4499,7 @@ function createPortalPosterTexture(portal) {
 		ctx.font = '600 26px ui-monospace, Menlo, monospace';
 		ctx.fillText('“Code is poetry.”', 512, 264);
 	}
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -4459,7 +4517,7 @@ function createSimpleTextTexture(text, color, bg) {
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
 	ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -4487,8 +4545,8 @@ function createMuseumTexture(name, repeatX, repeatY) {
 
 	const source = museumTextureSources[name];
 	const texture = source
-		? textureLoader.load(source)
-		: new THREE.CanvasTexture(getTextureCanvas(name));
+		? loadCappedTexture(source)
+		: createCanvasTexture(getTextureCanvas(name));
 	configureMuseumTexture(texture, repeatX, repeatY);
 	museumTextures.set(cacheKey, texture);
 	return texture;
@@ -4513,7 +4571,7 @@ function createWapuuTexture(source) {
 	const canvas = document.createElement('canvas');
 	canvas.width = 1024;
 	canvas.height = canvas.width;
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	const image = new Image();
 	image.decoding = 'async';
 	image.addEventListener(
@@ -4531,7 +4589,7 @@ function createWapuuTexture(source) {
 				width,
 				height
 			);
-			texture.needsUpdate = true;
+			refreshCanvasTexture(texture);
 		},
 		{ once: true }
 	);
@@ -5885,7 +5943,7 @@ function createRoseWindowTexture(inverted = false) {
 		ctx.stroke();
 	});
 
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -6133,7 +6191,7 @@ function createMissionTabletTexture() {
 	ctx.fillStyle = 'rgba(220, 230, 245, 0.66)';
 	ctx.font = '600 22px ui-monospace, Menlo, monospace';
 	ctx.fillText('the WordPress mission · est. 2003', canvas.width / 2, 314);
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -6386,7 +6444,7 @@ function createWpMedallionTexture(color) {
 	ctx.beginPath();
 	ctx.arc(256, 256, 252, 0, Math.PI * 2);
 	ctx.fill();
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 8;
 	const img = new Image();
@@ -6394,7 +6452,7 @@ function createWpMedallionTexture(color) {
 		const dest = 392;
 		const off = (512 - dest) / 2;
 		ctx.drawImage(img, off, off, dest, dest);
-		texture.needsUpdate = true;
+		refreshCanvasTexture(texture);
 	};
 	img.src = wpLogoSvgDataUrl('#fdfdf4');
 	return texture;
@@ -6484,7 +6542,7 @@ function createPortalSignTexture(portal) {
 	ctx.font = '700 40px system-ui, sans-serif';
 	ctx.fillText(portal.sub.toUpperCase(), 512, 216);
 
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -6624,14 +6682,14 @@ function createWordPressMuralTexture(aspect) {
 		canvas.width = 1280;
 		canvas.height = Math.round(canvas.width / aspect);
 		drawUltimateMural(ctx, canvas);
-		const texture = new THREE.CanvasTexture(canvas);
+		const texture = createCanvasTexture(canvas);
 		texture.colorSpace = THREE.SRGBColorSpace;
 		texture.anisotropy = 4;
 		return texture;
 	}
 	if (!isCurrentVariant) {
 		drawVariantMural(ctx, canvas);
-		const texture = new THREE.CanvasTexture(canvas);
+		const texture = createCanvasTexture(canvas);
 		texture.colorSpace = THREE.SRGBColorSpace;
 		texture.anisotropy = 4;
 		return texture;
@@ -6669,7 +6727,7 @@ function createWordPressMuralTexture(aspect) {
 		510
 	);
 
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -7188,7 +7246,7 @@ function createRoomMuralTexture(room, aspect) {
 		bronze
 	);
 
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -7280,7 +7338,7 @@ function createRoomStoryTexture(room, aspect) {
 	drawEngravedText(ctx, `${span}   ·   ${count}`, w / 2, h * 0.86, w * 0.78, h * 0.125,
 		'600', serif, ink);
 
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -7852,7 +7910,7 @@ function createDoorwaySignTexture(info) {
 	ctx.font = '800 30px system-ui, sans-serif';
 	ctx.fillText(info.yearRange, nameCX, 188);
 
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -8730,7 +8788,7 @@ function createWayfindingTexture(label, aspect) {
 	fillFittedCanvasText(ctx, label, w / 2, h * 0.52, w * 0.78, h * 0.42,
 		'700', 'Arial, "Helvetica Neue", sans-serif');
 
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -8782,7 +8840,7 @@ function createLogoEvolutionTexture() {
 	ctx.font = '700 30px system-ui, sans-serif';
 	ctx.fillText('the official mark, lockup and logotype', canvas.width / 2, 150);
 
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 
@@ -8816,7 +8874,7 @@ function createLogoEvolutionTexture() {
 			const w = img.width * scale;
 			const h = img.height * scale;
 			ctx.drawImage(img, cx - w / 2, markCY - h / 2, w, h);
-			texture.needsUpdate = true;
+			refreshCanvasTexture(texture);
 		};
 		img.src = cell.src;
 	});
@@ -8972,7 +9030,7 @@ function createCarpetLogoTexture() {
 	const ctx = cv.getContext('2d');
 	ctx.fillStyle = '#8b1a1a'; // matches the carpet disc
 	ctx.fillRect(0, 0, size, size);
-	const texture = new THREE.CanvasTexture(cv);
+	const texture = createCanvasTexture(cv);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	// Spin the emblem 180° so the W reads upright to a visitor entering from the
@@ -8990,7 +9048,7 @@ function createCarpetLogoTexture() {
 		const dest = size * 0.82;
 		const off = (size - dest) / 2;
 		ctx.drawImage(sc, off, off, dest, dest);
-		texture.needsUpdate = true;
+		refreshCanvasTexture(texture);
 	};
 	img.src = wpLogoSvgDataUrl('#f0d9a8');
 	return texture;
@@ -9942,7 +10000,7 @@ function createWapuuWordmarkTexture() {
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
 	ctx.fillText('W', 128, 150);
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	wapuuWordmarkTexture = texture;
 	return texture;
@@ -10077,7 +10135,7 @@ function createVisitorCounterTexture() {
 		ctx.font = '900 64px ui-monospace, Menlo, monospace';
 		ctx.fillText(digits[i], x + cellW / 2, 138);
 	}
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -10336,7 +10394,7 @@ function createExhibitPlateTexture(title, subtitle) {
 	ctx.fillStyle = '#7a5a1c';
 	ctx.font = 'italic 600 40px Georgia, serif';
 	ctx.fillText(subtitle, canvas.width / 2, 168);
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -10433,7 +10491,7 @@ function createGaugeFaceTexture(frac) {
 	x.beginPath();
 	x.arc(cx, cy, 12, 0, Math.PI * 2);
 	x.fill();
-	const t = new THREE.CanvasTexture(cv);
+	const t = createCanvasTexture(cv);
 	t.colorSpace = THREE.SRGBColorSpace;
 	t.anisotropy = 4;
 	return t;
@@ -10507,7 +10565,7 @@ function createUndoGlyphTexture() {
 	x.lineTo(ax - Math.cos(start) * h * 0.7, ay - Math.sin(start) * h * 0.7);
 	x.closePath();
 	x.fill();
-	const t = new THREE.CanvasTexture(cv);
+	const t = createCanvasTexture(cv);
 	t.colorSpace = THREE.SRGBColorSpace;
 	t.anisotropy = 4;
 	return t;
@@ -10865,7 +10923,7 @@ function createPrintingPressPlaqueTexture(color) {
 	ctx.font = '700 36px Georgia, serif';
 	ctx.fillText('Movable type, meet movable blocks.', canvas.width / 2, 274);
 
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 8;
 	return texture;
@@ -10981,7 +11039,7 @@ function createWebEraPosterTexture(era) {
 	ctx.font = '700 20px ui-monospace, Menlo, monospace';
 	ctx.fillText('webdesignmuseum.org', canvas.width / 2, canvas.height - 48);
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -11082,7 +11140,7 @@ function createLinkButtonBoardTexture() {
 		draw88x31Button(ctx, x, y, cellW, cellH, btn);
 	});
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -11224,7 +11282,7 @@ function createBrowserWarsTexture() {
 		ctx.fillText(cell.note, cx, cy + logoR + 52);
 	});
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -11391,7 +11449,7 @@ function createPoweredByPhpTexture() {
 	ctx.font = '700 24px system-ui, sans-serif';
 	ctx.fillText('WordPress runs on PHP since 2003', canvas.width / 2, 250);
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -11548,7 +11606,7 @@ function createGuestbookPagesTexture() {
 		ctx.fillText(e.date, x + 6, y + 78);
 	});
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -11570,7 +11628,7 @@ function createGuestbookPlacardTexture() {
 	ctx.fillStyle = '#274472';
 	fillFittedCanvasText(ctx, 'guestbook!', 256, 110, 440, 56, '900', '"Comic Sans MS", "Segoe Script", cursive');
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -11755,7 +11813,7 @@ function createRetroHomepageScreenTexture() {
 	ctx.font = '14px Verdana, Geneva, sans-serif';
 	ctx.fillText('© 2004 · made with Notepad · sign my guestbook!', W / 2, 528);
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -11834,7 +11892,7 @@ function createIE6RetirementTexture() {
 	ctx.font = 'italic 22px Georgia, serif';
 	ctx.fillText('2001 – 2011 · you will not be missed', cx, 364);
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -11928,7 +11986,7 @@ function createUnderConstructionTexture() {
 	ctx.font = '900 26px ui-monospace, Menlo, monospace';
 	ctx.fillText('000042', 304, 314);
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -12003,7 +12061,7 @@ function createMarqueeTexture() {
 	ctx.textBaseline = 'middle';
 	ctx.fillText(phrase, 0, canvas.height / 2 + 2);
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.wrapS = THREE.RepeatWrapping;
 	tex.anisotropy = 4;
@@ -12070,7 +12128,7 @@ function createWebSafePaletteTexture() {
 		}
 	}
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -12144,7 +12202,7 @@ function createSkeuomorphicTexture() {
 	ctx.fillText('Push notifications', 70, 295);
 	drawToggle(ctx, 372, 277, true);
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -12298,7 +12356,7 @@ function createFauxMaterialsTexture() {
 		ctx.fillText(s.label, cx + w / 2, cy + h + 14);
 	});
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -12611,7 +12669,7 @@ function createWeb2Texture() {
 	// The mandatory "Beta!" starburst.
 	drawStarburst(ctx, 446, 132, 46, '#ff3b30', 'Beta!');
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -12723,7 +12781,7 @@ function createHowdyAdminBarTexture(width, height) {
 	ctx.beginPath();
 	ctx.arc(canvas.width - h * 0.6, h / 2, h * 0.32, 0, Math.PI * 2);
 	ctx.fill();
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -12825,7 +12883,7 @@ function createWebStandLabelTexture() {
 	ctx.fillStyle = '#7a5a1c';
 	ctx.font = 'italic 600 40px Georgia, serif';
 	ctx.fillText('the original World Wide Web', canvas.width / 2, 158);
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -13004,7 +13062,7 @@ function createWpHooksLabelTexture() {
 	ctx.fillStyle = '#7a5a1c';
 	ctx.font = '700 42px ui-monospace, Menlo, monospace';
 	ctx.fillText('do_action()  ·  apply_filters()', canvas.width / 2, 156);
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -13093,7 +13151,7 @@ function createBrowserScreenshotTexture(spec) {
 	ctx.font = '700 22px ui-monospace, Menlo, monospace';
 	ctx.fillText(spec.url, canvas.width / 2, by + bh + 92);
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -13609,7 +13667,7 @@ function createFlatDesignTexture() {
 	ctx.font = '700 16px system-ui, sans-serif';
 	ctx.fillText('no gradients · no bevels · no drop shadows', 256, 352);
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -13719,7 +13777,7 @@ function createMaterialDesignTexture() {
 	ctx.lineTo(446, 322 + 14);
 	ctx.stroke();
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -13778,7 +13836,7 @@ function createBigTypeTexture() {
 	ctx.font = '400 17px Georgia, serif';
 	ctx.fillText('Generous margins. Thin rules. The content is the interface.', 52, 312);
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -13858,7 +13916,7 @@ function createDarkModeTexture() {
 	ctx.font = '700 15px system-ui, sans-serif';
 	ctx.fillText('one theme, two appearances', 256, 296);
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -13999,7 +14057,7 @@ function createFlyerTexture(fact, color) {
 	ctx.font = '900 60px Georgia, serif';
 	ctx.fillText('W', canvas.width / 2, 602);
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -14091,7 +14149,7 @@ function createNeonSignTexture(text, color, secondary) {
 	ctx.font = '900 92px Arial Black, Impact, sans-serif';
 	ctx.fillText(text, canvas.width / 2, canvas.height / 2);
 
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -14455,7 +14513,7 @@ function createRoomFloorLabel(room, roomIndex) {
 	ctx.fillStyle = 'rgba(255, 245, 223, 0.66)';
 	ctx.font = '700 16px system-ui, sans-serif';
 	ctx.fillText(`${room.yearRange} / gallery ${roomIndex + 1}`, 256, 92);
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	const label = new THREE.Mesh(
 		new THREE.PlaneGeometry(4.9, 1.2),
@@ -15241,7 +15299,7 @@ function createDeviceScreenTexture(kind) {
 			}
 		}
 	}
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	deviceScreenTextures.set(kind, texture);
 	return texture;
@@ -15317,7 +15375,7 @@ function createAdminScreenTexture(color, secondary) {
 	ctx.fillStyle = '#ffffff';
 	ctx.fillRect(204, 53, 54, 8);
 	ctx.fillRect(204, 69, 38, 6);
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -15430,7 +15488,7 @@ function createHelloDollyCardTexture(color) {
 	ctx.fillText('the first plugin —', canvas.width / 2, 118);
 	ctx.fillText('a Louis Armstrong lyric', canvas.width / 2, 148);
 	ctx.fillText('in your admin', canvas.width / 2, 178);
-	const tex = new THREE.CanvasTexture(canvas);
+	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
 	return tex;
@@ -15596,7 +15654,7 @@ function createSmallSignTexture(text, color) {
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
 	fillFittedCanvasText(ctx, text, 256, 84, 436, 52, '900', 'Arial Black, Impact, sans-serif');
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	return texture;
 }
@@ -15625,7 +15683,7 @@ function createOpenSourceSignTexture(title, note, color) {
 	for (let index = 0; index < 8; index++) {
 		ctx.fillRect(72 + index * 48, 172, 24, 8);
 	}
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -16575,7 +16633,7 @@ function createPlaqueTexture(release, color) {
 	canvas.height = 736;
 	const ctx = canvas.getContext('2d');
 	drawPlaqueTexture(ctx, canvas, release, color, {});
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 
@@ -16591,7 +16649,7 @@ function createPlaqueTexture(release, color) {
 					musicianImage,
 					screenshotImage,
 				});
-				texture.needsUpdate = true;
+				refreshCanvasTexture(texture);
 			});
 		});
 	}
@@ -16950,7 +17008,7 @@ function createEraTexture(text, color, yearRange, roomNumber) {
 	drawEngravedText(ctx, text.toUpperCase(), cx, h * 0.81, w * 0.82, Math.round(h * 0.165),
 		'900', '"Arial Black", Impact, sans-serif', ink);
 
-	const texture = new THREE.CanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
