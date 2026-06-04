@@ -670,7 +670,8 @@ body[data-variant='current'] #tour-button:hover {
 
 body[data-variant='current'] .release-panel {
 	position: fixed;
-	top: 168px;
+	top: auto;
+	bottom: 90px;
 	right: 24px;
 	width: min(380px, calc(100vw - 48px));
 	padding: 22px 22px 20px 56px;
@@ -911,6 +912,7 @@ body[data-variant='current'] #release-rail-track button.is-active {
 }
 
 body[data-variant='current'] .help-card {
+	bottom: 90px;
 	padding: 18px 14px 14px;
 	background:
 		repeating-linear-gradient(
@@ -1123,6 +1125,11 @@ body[data-variant='current'] .release-panel.is-collapsed .panel-toggle-tab {
 		max-height: 32vh;
 		overflow: auto;
 		padding: 12px;
+	}
+
+	/* Keep the bottom-anchored desktop panel clear of the mobile movement pad. */
+	body[data-variant='current'] .release-panel {
+		bottom: 168px;
 	}
 
 	.release-panel h2 {
