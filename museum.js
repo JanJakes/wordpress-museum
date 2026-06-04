@@ -8348,19 +8348,24 @@ function addEraVignette(group, room, roomIndex) {
 			addLocal(group, createSkeuomorphicPanel(), 3.95, frontWallZ);
 			addLocal(group, createFauxMaterialsPanel(), -3.95, frontWallZ);
 			group.add(createIE6RetirementCard());
+			addProminentPair(group, createToolboxStand(), createMultisiteVillage());
 		} else if (room.era === 'Dashboard Foundations') {
 			addLocal(group, createWeb2Panel(), 3.95, frontWallZ);
 			addDashboardScreenshots(group);
 			addLocal(group, createHowdyAdminBar(), -4.7, frontWallZ);
+			addProminentPair(group, createDashboardCockpit(), createUndoLever());
 		} else if (room.era === 'Modern Admin') {
 			addLocal(group, createFlatDesignPanel(), 3.95, frontWallZ);
+			addProminentPair(group, createEmojiStatue(), createResponsiveTotem());
 		} else if (room.era === 'API and Customizer') {
 			addLocal(group, createMaterialDesignPanel(), 3.95, frontWallZ);
+			addProminentPair(group, createRestSwitchboard(), createRestBench());
 		} else if (room.era === 'Block Editor') {
 			addLocal(group, createBigTypePanel(), 3.95, frontWallZ);
 			addBlockEditorPrintingPress(group, color);
 		} else if (room.era === 'Blocks Everywhere') {
 			addLocal(group, createDarkModePanel(), 3.95, frontWallZ);
+			addProminentPair(group, createBlockHouse(), createSlashMonolith());
 			addScatteredFloorBlocks(group, roomIndex);
 		}
 	}
@@ -8383,6 +8388,8 @@ function addScatteredFloorBlocks(group, roomIndex) {
 	const palette = activeVariant.eraColors;
 	const stations = getEraVignetteStations(roomIndex);
 	const clearOfStations = (x, z) => stations.every((s) => Math.hypot(x - s.x, z - s.z) > 1.05);
+	// keep clear of the two prominent props standing at (±3.5, 1.1)
+	const clearOfProps = (x, z) => Math.hypot(x - 3.5, z - 1.1) > 1.5 && Math.hypot(x + 3.5, z - 1.1) > 1.5;
 	let placed = 0;
 	for (let attempt = 0; placed < 52 && attempt < 600; attempt++) {
 		const z = -7 + Math.random() * 14;
@@ -8390,6 +8397,7 @@ function addScatteredFloorBlocks(group, roomIndex) {
 		const x = (Math.random() * 2 - 1) * half;
 		if (z < -6 && Math.abs(x) < 2.2) continue; // keep the entry doorway mouth clear
 		if (!clearOfStations(x, z)) continue;
+		if (!clearOfProps(x, z)) continue;
 		const size = 0.18 + Math.random() * 0.26;
 		const block = new THREE.Mesh(
 			new THREE.BoxGeometry(size, size, size),
@@ -8403,6 +8411,377 @@ function addScatteredFloorBlocks(group, roomIndex) {
 		group.add(block);
 		placed++;
 	}
+}
+
+// === Prominent era prop pairs ===========================================
+// Room I set the pattern (the WP HOOKS rack + "The Web" tree): every gallery
+// gets two big free-standing pun props mirrored across the central runner at
+// (±3.5, 1.1), both turned to face the entry doorway, each with a name plate.
+function addProminentPair(group, leftProp, rightProp) {
+	leftProp.position.set(-3.5, 0, 1.1);
+	leftProp.rotation.y = 2.78;
+	group.add(leftProp);
+	rightProp.position.set(3.5, 0, 1.1);
+	rightProp.rotation.y = -2.78;
+	group.add(rightProp);
+}
+
+function propStdMat(color, roughness = 0.62, metalness = 0) {
+	return new THREE.MeshStandardMaterial({ color, roughness, metalness });
+}
+
+// A weighted stone disc base shared by the standing props, for grounding.
+function createPropBase(radius = 0.38) {
+	const base = new THREE.Mesh(
+		new THREE.CylinderGeometry(radius * 0.86, radius, 0.1, 24),
+		propStdMat(0x9aa3ad, 0.9, 0.06)
+	);
+	base.position.y = 0.05;
+	return base;
+}
+
+// A museum name plate (title + witty subtitle), styled like the hooks/web plates.
+function createExhibitPlate(title, subtitle, width = 1.3) {
+	return createReadableLabel(createExhibitPlateTexture(title, subtitle), width, width * 0.26);
+}
+
+function createExhibitPlateTexture(title, subtitle) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 900;
+	canvas.height = 234;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#1a1208';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = '#f4ead0';
+	ctx.fillRect(14, 14, canvas.width - 28, canvas.height - 28);
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillStyle = '#241a0c';
+	fillFittedCanvasText(ctx, title, canvas.width / 2, 84, 770, 86, '900', 'Arial Black, Impact, sans-serif');
+	ctx.fillStyle = '#7a5a1c';
+	ctx.font = 'italic 600 40px Georgia, serif';
+	ctx.fillText(subtitle, canvas.width / 2, 168);
+	const tex = new THREE.CanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	tex.anisotropy = 4;
+	return tex;
+}
+
+// II · Dashboard Foundations — a steel-and-brass cockpit "dashboard" with gauges
+// and a steering wheel (2.7's modern dashboard layout).
+function createDashboardCockpit() {
+	const g = new THREE.Group();
+	const steel = propStdMat(0x3c4654, 0.5, 0.55);
+	const brass = propStdMat(0xb08d3a, 0.42, 0.6);
+	const dark = propStdMat(0x14181f, 0.6);
+	g.add(createPropBase(0.5));
+	const col = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.18, 1.0, 16), steel);
+	col.position.y = 0.55;
+	g.add(col);
+	const panel = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.62, 0.22), steel);
+	panel.position.set(0, 1.26, 0.04);
+	panel.rotation.x = -0.42;
+	g.add(panel);
+	for (const x of [-0.46, 0, 0.46]) {
+		const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.05, 22), brass);
+		rim.rotation.x = Math.PI / 2 - 0.42;
+		rim.position.set(x, 1.34, 0.18);
+		g.add(rim);
+		const face = new THREE.Mesh(new THREE.CircleGeometry(0.14, 22), propStdMat(0xf4ead0, 0.85));
+		face.position.set(x, 1.35, 0.2);
+		face.rotation.x = -0.42;
+		g.add(face);
+		const needle = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.12, 0.012), dark);
+		needle.position.set(x, 1.36, 0.21);
+		needle.rotation.set(-0.42, 0, x * 1.4);
+		g.add(needle);
+	}
+	const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.04, 12, 28), dark);
+	wheel.position.set(0, 0.96, 0.46);
+	wheel.rotation.x = 1.15;
+	g.add(wheel);
+	for (const a of [0, 2.094, 4.189]) {
+		const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.02, 0.02), steel);
+		spoke.position.set(0, 0.96, 0.46);
+		spoke.rotation.set(1.15, 0, a);
+		g.add(spoke);
+	}
+	const plate = createExhibitPlate('THE DASHBOARD', 'mind the gauges');
+	plate.position.set(0, 0.52, 0.66);
+	g.add(plate);
+	return g;
+}
+
+// II · Dashboard Foundations (right) — a giant circular UNDO arrow with a pull
+// lever (post revisions / trash / undo, 2.6 & 2.9).
+function createUndoLever() {
+	const g = new THREE.Group();
+	const steel = propStdMat(0x6b7280, 0.5, 0.5);
+	const gold = propStdMat(0xffd166, 0.4, 0.3);
+	const dark = propStdMat(0x14181f, 0.6);
+	g.add(createPropBase(0.42));
+	const housing = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.45, 0.42), steel);
+	housing.position.y = 0.82;
+	g.add(housing);
+	const ring = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.055, 12, 30, Math.PI * 1.55), gold);
+	ring.position.set(0, 1.45, 0.24);
+	ring.rotation.z = Math.PI * 0.25;
+	g.add(ring);
+	const head = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.24, 16), gold);
+	head.position.set(0.27, 1.74, 0.24);
+	head.rotation.z = -0.95;
+	g.add(head);
+	const lever = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.72, 12), dark);
+	lever.position.set(0.4, 0.96, 0.25);
+	lever.rotation.z = -0.75;
+	g.add(lever);
+	const knob = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 12), gold);
+	knob.position.set(0.83, 1.18, 0.25);
+	g.add(knob);
+	const plate = createExhibitPlate('UNDO', 'revisions · trash · undo');
+	plate.position.set(0, 0.5, 0.46);
+	g.add(plate);
+	return g;
+}
+
+// III · CMS Toolkit (left) — an open toolbox of tools, the "toolkit" that turned
+// WordPress into a CMS (custom post types, multisite, customizer).
+function createToolboxStand() {
+	const g = new THREE.Group();
+	const wood = propStdMat(0x7a4a22, 0.85);
+	const red = propStdMat(0xb23b32, 0.6);
+	const steel = propStdMat(0x9aa3ad, 0.45, 0.6);
+	g.add(createPropBase(0.46));
+	const stand = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.85, 0.6), wood);
+	stand.position.y = 0.52;
+	g.add(stand);
+	const box = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.4, 0.5), red);
+	box.position.y = 1.12;
+	g.add(box);
+	const handle = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.025, 10, 22, Math.PI), steel);
+	handle.position.set(0, 1.33, 0);
+	g.add(handle);
+	const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.5, 10), steel);
+	shaft.position.set(-0.28, 1.5, 0.06);
+	g.add(shaft);
+	const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.18, 10), red);
+	grip.position.set(-0.28, 1.34, 0.06);
+	g.add(grip);
+	const wrench = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.52, 0.04), steel);
+	wrench.position.set(0.28, 1.5, -0.04);
+	wrench.rotation.z = 0.16;
+	g.add(wrench);
+	const plate = createExhibitPlate('THE TOOLKIT', 'build anything');
+	plate.position.set(0, 0.5, 0.5);
+	g.add(plate);
+	return g;
+}
+
+// III · CMS Toolkit (right) — a little network of linked houses (multisite, 3.0:
+// one install serving many sites).
+function createMultisiteVillage() {
+	const g = new THREE.Group();
+	const wallC = [0xf4ead0, 0xd9b08c, 0xbcd4c4];
+	const roofC = [0xb23b32, 0x3a6ea5, 0x7a5a1c];
+	g.add(createPropBase(0.52));
+	const platform = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.12, 24), propStdMat(0x6b7280, 0.7, 0.2));
+	platform.position.y = 0.16;
+	g.add(platform);
+	const spots = [[0, 0.92, 0], [-0.34, 0.72, 0.28], [0.36, 0.64, -0.22]];
+	const hubs = [];
+	spots.forEach(([hx, hh, hz], i) => {
+		const bodyH = hh - 0.4;
+		const body = new THREE.Mesh(new THREE.BoxGeometry(0.34, bodyH, 0.34), propStdMat(wallC[i], 0.7));
+		body.position.set(hx, 0.22 + bodyH / 2, hz);
+		g.add(body);
+		const roof = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.26, 4), propStdMat(roofC[i], 0.7));
+		roof.position.set(hx, 0.22 + bodyH + 0.13, hz);
+		roof.rotation.y = Math.PI / 4;
+		g.add(roof);
+		hubs.push(new THREE.Vector3(hx, 0.22 + bodyH * 0.6, hz));
+	});
+	const link = propStdMat(0xffd166, 0.4, 0.3);
+	g.add(createCylinderBetween(hubs[0], hubs[1], 0.02, link, 6));
+	g.add(createCylinderBetween(hubs[0], hubs[2], 0.02, link, 6));
+	g.add(createCylinderBetween(hubs[1], hubs[2], 0.02, link, 6));
+	const plate = createExhibitPlate('MULTISITE', 'one install, many sites');
+	plate.position.set(0, 0.5, 0.66);
+	g.add(plate);
+	return g;
+}
+
+// IV · Modern Admin (left) — a big smiley emoji (WordPress 4.2 added emoji).
+function createEmojiStatue() {
+	const g = new THREE.Group();
+	g.add(createPropBase(0.44));
+	const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.3, 0.95, 20), propStdMat(0xf8efd9, 0.7));
+	pedestal.position.y = 0.55;
+	g.add(pedestal);
+	const face = new THREE.Mesh(new THREE.SphereGeometry(0.55, 28, 22), propStdMat(0xffd23f, 0.5));
+	face.position.y = 1.6;
+	g.add(face);
+	const eyeMat = propStdMat(0x2a1808, 0.6);
+	for (const x of [-0.2, 0.2]) {
+		const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 14, 12), eyeMat);
+		eye.position.set(x, 1.72, 0.46);
+		g.add(eye);
+	}
+	const smile = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.045, 12, 24, Math.PI), eyeMat);
+	smile.position.set(0, 1.5, 0.46);
+	smile.rotation.z = Math.PI;
+	g.add(smile);
+	const plate = createExhibitPlate('EMOJI', 'shipped in WordPress 4.2');
+	plate.position.set(0, 0.5, 0.5);
+	g.add(plate);
+	return g;
+}
+
+// IV · Modern Admin (right) — the same flat MP6 admin on nested screens (3.8's
+// responsive redesign: one site, every screen).
+function createResponsiveTotem() {
+	const g = new THREE.Group();
+	const frame = propStdMat(0x23282d, 0.5, 0.3);
+	const screen = propStdMat(0x2271b1, 0.4);
+	g.add(createPropBase(0.42));
+	const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 2.0, 12), propStdMat(0x6b7280, 0.5, 0.5));
+	post.position.y = 1.0;
+	g.add(post);
+	const devices = [[0.92, 0.62, 0.62], [0.6, 0.42, 1.26], [0.32, 0.5, 1.86]];
+	devices.forEach(([w, h, y]) => {
+		const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.07), frame);
+		body.position.set(0, y, 0.12);
+		g.add(body);
+		const scr = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.84, h * 0.78), screen);
+		scr.position.set(0, y, 0.16);
+		g.add(scr);
+	});
+	const plate = createExhibitPlate('RESPONSIVE', 'one site, every screen');
+	plate.position.set(0, 0.4, 0.5);
+	g.add(plate);
+	return g;
+}
+
+// V · API & Customizer (left) — an operator's patch panel routing JSON between
+// REST endpoints (4.7's REST API content endpoints).
+function createRestSwitchboard() {
+	const g = new THREE.Group();
+	const cabinet = propStdMat(0x2b2f36, 0.55, 0.3);
+	const socketMat = propStdMat(0x14181f, 0.5, 0.4);
+	g.add(createPropBase(0.46));
+	const stand = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.7, 0.4), cabinet);
+	stand.position.y = 0.45;
+	g.add(stand);
+	const board = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.95, 0.12), cabinet);
+	board.position.set(0, 1.25, 0.04);
+	board.rotation.x = -0.32;
+	g.add(board);
+	const cableC = [0x6ddcff, 0xffd166, 0xff7a90, 0x9be870];
+	const pts = [];
+	for (let r = 0; r < 3; r++) {
+		for (let c = 0; c < 3; c++) {
+			const x = -0.38 + c * 0.38;
+			const y = 1.5 - r * 0.26;
+			const sk = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.06, 16), socketMat);
+			sk.rotation.x = Math.PI / 2 - 0.32;
+			sk.position.set(x, y, 0.2 + r * 0.04);
+			g.add(sk);
+			pts.push(new THREE.Vector3(x, y, 0.27 + r * 0.04));
+		}
+	}
+	[[0, 5], [2, 7], [3, 8], [1, 6]].forEach((pair, i) => {
+		g.add(createCylinderBetween(pts[pair[0]], pts[pair[1]], 0.018, propStdMat(cableC[i % cableC.length], 0.4, 0.2), 6));
+	});
+	const plate = createExhibitPlate('REST API', 'GET · POST · /wp-json');
+	plate.position.set(0, 0.45, 0.5);
+	g.add(plate);
+	return g;
+}
+
+// V · API & Customizer (right) — a literal park bench (REST: a place to rest, and
+// REpresentational State Transfer).
+function createRestBench() {
+	const g = new THREE.Group();
+	const wood = propStdMat(0x6b4423, 0.85);
+	const iron = propStdMat(0x2b2b30, 0.5, 0.5);
+	const seatY = 0.46;
+	for (let i = 0; i < 3; i++) {
+		const slat = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.06, 0.13), wood);
+		slat.position.set(0, seatY, -0.18 + i * 0.16);
+		g.add(slat);
+	}
+	for (let i = 0; i < 3; i++) {
+		const slat = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.12, 0.05), wood);
+		slat.position.set(0, 0.7 + i * 0.17, -0.32);
+		g.add(slat);
+	}
+	for (const x of [-0.66, 0.66]) {
+		const leg = new THREE.Mesh(new THREE.BoxGeometry(0.07, seatY, 0.5), iron);
+		leg.position.set(x, seatY / 2, -0.05);
+		g.add(leg);
+		const back = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.62, 0.06), iron);
+		back.position.set(x, 0.75, -0.32);
+		g.add(back);
+		const arm = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.5), wood);
+		arm.position.set(x, seatY + 0.28, -0.05);
+		g.add(arm);
+	}
+	const plate = createExhibitPlate('REST', 'representational state transfer');
+	plate.position.set(0, 1.02, 0.36);
+	g.add(plate);
+	return g;
+}
+
+// VII · Blocks Everywhere (left) — a little house built from blocks (Full Site
+// Editing, 5.9: assemble the whole site out of blocks).
+function createBlockHouse() {
+	const g = new THREE.Group();
+	const pal = activeVariant.eraColors;
+	const cube = (i) => propStdMat(pal[i % pal.length], 0.5);
+	g.add(createPropBase(0.5));
+	const u = 0.32;
+	let idx = 0;
+	for (let level = 0; level < 2; level++) {
+		for (const dx of [-u / 2, u / 2]) {
+			for (const dz of [-u / 2, u / 2]) {
+				const block = new THREE.Mesh(new THREE.BoxGeometry(u * 0.98, u * 0.98, u * 0.98), cube(idx++));
+				block.position.set(dx, 0.2 + u / 2 + level * u, dz);
+				g.add(block);
+			}
+		}
+	}
+	const door = new THREE.Mesh(new THREE.BoxGeometry(u * 0.5, u * 0.8, 0.03), propStdMat(0x2a1808, 0.6));
+	door.position.set(0, 0.2 + u * 0.4, u + 0.01);
+	g.add(door);
+	const roof = new THREE.Mesh(new THREE.ConeGeometry(u * 1.05, u * 0.9, 4), cube(idx++));
+	roof.position.set(0, 0.2 + 2 * u + u * 0.45, 0);
+	roof.rotation.y = Math.PI / 4;
+	g.add(roof);
+	const plate = createExhibitPlate('FULL SITE EDITING', 'the whole site is blocks');
+	plate.position.set(0, 0.5, 0.66);
+	g.add(plate);
+	return g;
+}
+
+// VII · Blocks Everywhere (right) — a glowing "/" monolith (type "/" to insert a
+// block; echoes the room's "/ to add a block" sign).
+function createSlashMonolith() {
+	const g = new THREE.Group();
+	g.add(createPropBase(0.44));
+	const slab = new THREE.Mesh(new THREE.BoxGeometry(0.42, 2.1, 0.18), propStdMat(0x1c1306, 0.5));
+	slab.position.set(0, 1.2, 0);
+	slab.rotation.z = 0.42;
+	g.add(slab);
+	const glow = new THREE.Mesh(
+		new THREE.BoxGeometry(0.24, 1.9, 0.05),
+		new THREE.MeshStandardMaterial({ color: 0x6ddcff, emissive: 0x2bb7ff, emissiveIntensity: 0.7, roughness: 0.4 })
+	);
+	glow.position.set(0, 1.2, 0.1);
+	glow.rotation.z = 0.42;
+	g.add(glow);
+	const plate = createExhibitPlate('/ INSERT', 'type / to add a block');
+	plate.position.set(0, 0.5, 0.5);
+	g.add(plate);
+	return g;
 }
 
 // A procedural 15th–18th c. screw printing press: oak frame, central iron screw
@@ -11803,10 +12182,6 @@ function addEraModelProps(group, room, roomIndex, color, secondary) {
 	//   'plant'             — tucked into a back corner, out of the way.
 	const model = (key, height, fallback) =>
 		createLoadedModel(key, { targetHeight: height, fallback });
-	// A plush gallery viewing sofa, scaled by length (the dimension that reads as
-	// "size" in the large rooms) rather than its low height.
-	const sofa = (length) =>
-		createLoadedModel('loungeDesignSofa', { targetLength: length, fallback: 'bench' });
 	const propSets = {
 		'Blogging Roots': [
 			{ obj: model('radio', 0.46, 'radio'), side: 'left', z: -5.7, inset: 0.4 },
@@ -11826,7 +12201,6 @@ function addEraModelProps(group, room, roomIndex, color, secondary) {
 		],
 		'API and Customizer': [
 			{ obj: createRetroCRT(color, secondary), side: 'left', z: -5.6, inset: 0.55 },
-			{ obj: sofa(2.0), role: 'bench', side: 'right' },
 		],
 		'Block Editor': [
 			{ obj: model('laptop', 0.46, 'screen'), side: 'left', z: -5.7, inset: 0.45 },
