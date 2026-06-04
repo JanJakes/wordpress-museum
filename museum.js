@@ -412,6 +412,7 @@ let tourHoldUntil = 0;
 let yaw = Math.PI;
 let pitch = 0;
 let dragging = false;
+let dragMoved = false;
 let lastPointer = { x: 0, y: 0 };
 let programmaticRailScroll = false;
 let programmaticRailScrollTimer = 0;
@@ -17071,6 +17072,12 @@ function bindControls() {
 	});
 
 	canvas.addEventListener('click', (event) => {
+		// A touch look-drag ends in a synthetic click; ignore it so dragging to
+		// look around doesn't also inspect a plaque or attempt a pointer lock.
+		if (dragMoved) {
+			dragMoved = false;
+			return;
+		}
 		// Clicking anywhere in the scene enters walk mode; once walking, a click
 		// inspects whatever the centre reticle is pointed at. Clicking directly
 		// on a plaque still inspects it instead of locking the pointer.
@@ -17088,21 +17095,26 @@ function bindControls() {
 			return;
 		}
 		dragging = true;
+		dragMoved = false;
 		lastPointer = { x: event.clientX, y: event.clientY };
 	});
 	window.addEventListener('pointermove', (event) => {
 		if (!dragging) {
 			return;
 		}
-		turnCamera(
-			event.clientX - lastPointer.x,
-			event.clientY - lastPointer.y
-		);
+		const dx = event.clientX - lastPointer.x;
+		const dy = event.clientY - lastPointer.y;
+		if (Math.abs(dx) + Math.abs(dy) > 4) {
+			dragMoved = true;
+		}
+		turnCamera(dx, dy);
 		lastPointer = { x: event.clientX, y: event.clientY };
 	});
-	window.addEventListener('pointerup', () => {
+	const endDrag = () => {
 		dragging = false;
-	});
+	};
+	window.addEventListener('pointerup', endDrag);
+	window.addEventListener('pointercancel', endDrag);
 	document.addEventListener(
 		'wheel',
 		(event) => {
@@ -17116,34 +17128,27 @@ function bindControls() {
 		{ passive: false }
 	);
 
-	document.querySelectorAll('[data-mobile-move]').forEach((button) => {
-		const direction = button.dataset.mobileMove;
-		button.addEventListener('pointerdown', () => {
+	const bindHoldButton = (button, direction) => {
+		const press = (event) => {
+			event.preventDefault();
 			stopGuidedTour();
 			mobileMotion[direction] = true;
 			guidedTarget = null;
-		});
-		button.addEventListener('pointerup', () => {
+		};
+		const release = () => {
 			mobileMotion[direction] = false;
-		});
-		button.addEventListener('pointerleave', () => {
-			mobileMotion[direction] = false;
-		});
-	});
-	document.querySelectorAll('[data-mobile-turn]').forEach((button) => {
-		const direction = button.dataset.mobileTurn;
-		button.addEventListener('pointerdown', () => {
-			stopGuidedTour();
-			mobileMotion[direction] = true;
-			guidedTarget = null;
-		});
-		button.addEventListener('pointerup', () => {
-			mobileMotion[direction] = false;
-		});
-		button.addEventListener('pointerleave', () => {
-			mobileMotion[direction] = false;
-		});
-	});
+		};
+		button.addEventListener('pointerdown', press);
+		button.addEventListener('pointerup', release);
+		button.addEventListener('pointerleave', release);
+		button.addEventListener('pointercancel', release);
+	};
+	document
+		.querySelectorAll('[data-mobile-move]')
+		.forEach((button) => bindHoldButton(button, button.dataset.mobileMove));
+	document
+		.querySelectorAll('[data-mobile-turn]')
+		.forEach((button) => bindHoldButton(button, button.dataset.mobileTurn));
 }
 
 function enterWalkMode() {

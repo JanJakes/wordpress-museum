@@ -66,6 +66,13 @@ a:hover {
 #museum-canvas {
 	display: block;
 	background: #151a2a;
+	/* Own all touch gestures so dragging to look around works on phones instead
+	   of the browser panning/zooming the page; also suppress selection/callouts. */
+	touch-action: none;
+	-webkit-user-select: none;
+	user-select: none;
+	-webkit-touch-callout: none;
+	-webkit-tap-highlight-color: transparent;
 }
 
 /* Loading curtain: painted instantly from static markup, then faded out by
@@ -474,6 +481,7 @@ h1 {
 
 .mobile-pad button {
 	flex: 1;
+	min-height: 48px;
 	padding: 0 10px;
 	font-size: 1.3rem;
 	line-height: 1;
