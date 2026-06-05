@@ -936,16 +936,18 @@ function createNoExitTexture() {
 function createEntranceStanchions(cx, zStart) {
 	const mouthZ = zStart - 0.3;
 	// An L that guides someone entering through the door (facing the rotunda, −z)
-	// first FORWARD out of the alcove, then LEFT (−x): the forward leg runs along
-	// the visitor's right (+x) side, then the rope turns left across in front.
+	// first FORWARD out of the alcove, then LEFT, then angles along the Start Here
+	// wall (45°) toward Room I for a clearer lead-in.
 	const points = [
 		{ x: cx + 1.5, z: mouthZ },
 		{ x: cx + 1.5, z: mouthZ - 1.4 },
 		{ x: cx + 1.5, z: mouthZ - 2.8 },
 		{ x: cx + 0.1, z: mouthZ - 2.8 },
 		{ x: cx - 1.3, z: mouthZ - 2.8 },
+		{ x: cx - 2.36, z: mouthZ - 3.86 },
+		{ x: cx - 3.42, z: mouthZ - 4.92 },
 	];
-	return createMuseumRopeLine(points, 0xa01828, { postHeight: 0.92, ropeY: 0.86 });
+	return createMuseumRopeLine(points, 0xa01828, { postHeight: 0.92, ropeY: 0.86, sag: 0.2 });
 }
 
 // The back of the exit alcove: a brass-framed open doorway (lintel + posts, no
@@ -8349,6 +8351,7 @@ function createMuseumRopeLine(points, color, options = {}) {
 	const capRadius = options.capRadius ?? 0.075;
 	const ropeY = options.ropeY ?? 0.84;
 	const ropeRadius = options.ropeRadius ?? 0.026;
+	const ropeSag = options.sag ?? 0.08;
 	const postMaterial = new THREE.MeshStandardMaterial({
 		color: 0xc79b43,
 		roughness: 0.32,
@@ -8381,7 +8384,7 @@ function createMuseumRopeLine(points, color, options = {}) {
 		group.add(cap);
 
 		if (index > 0) {
-			const rope = createRopeSegment(points[index - 1], point, ropeY, ropeRadius, ropeMaterial);
+			const rope = createRopeSegment(points[index - 1], point, ropeY, ropeRadius, ropeMaterial, ropeSag);
 			ropeSegments.push(rope);
 			group.add(rope);
 		}
@@ -8396,14 +8399,23 @@ function createMuseumRopeLine(points, color, options = {}) {
 	return group;
 }
 
-function createRopeSegment(start, end, y, radius, material) {
-	return createCylinderBetween(
-		new THREE.Vector3(start.x, y, start.z),
-		new THREE.Vector3(end.x, y, end.z),
-		radius,
-		material,
-		12
-	);
+function createRopeSegment(start, end, y, radius, material, sag = 0) {
+	const a = new THREE.Vector3(start.x, y, start.z);
+	const b = new THREE.Vector3(end.x, y, end.z);
+	if (sag <= 0) {
+		return createCylinderBetween(a, b, radius, material, 12);
+	}
+	// A drooping rope: a tube along a curve that dips in the middle. Built in a
+	// frame centred on the span midpoint so the bob animation (position.y) still works.
+	const mid = a.clone().add(b).multiplyScalar(0.5);
+	const curve = new THREE.CatmullRomCurve3([
+		a.clone().sub(mid),
+		new THREE.Vector3(0, -sag, 0),
+		b.clone().sub(mid),
+	]);
+	const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 14, radius, 8, false), material);
+	mesh.position.copy(mid);
+	return mesh;
 }
 
 function createCylinderBetween(start, end, radius, material, radialSegments = 12) {
