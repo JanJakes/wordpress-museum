@@ -8711,6 +8711,14 @@ function createAtriumWayfindingSigns() {
 		sign.position.set(center.x, 2.9, center.z);
 		sign.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
 		group.add(sign);
+
+		if (spec.era === eras[0]) {
+			// A flower bed centred directly under the Start Here sign, against the wall.
+			const bed = createFlowerBed(activeVariant.eraColors[1], activeVariant.eraColors[3]);
+			const spot = center.clone().add(side.normal.clone().multiplyScalar(-0.62));
+			bed.position.set(spot.x, 0, spot.z);
+			group.add(bed);
+		}
 	}
 	return group;
 }
@@ -9401,6 +9409,10 @@ function createAtriumMuseumArchitecture(color, secondary) {
 	// trees and flower beds, tinted from the palette — in place of the old
 	// floor-lamp ring (the lamps were the bulk of the rotunda's point lights).
 	for (let index = 0; index < 8; index++) {
+		// Index 4's bed has moved under the Start Here sign (see createAtriumWayfindingSigns).
+		if (index === 4) {
+			continue;
+		}
 		const angle = (Math.PI * 2 * index) / 8 + Math.PI / 8;
 		const radius = hubApothem - 1.0;
 		const flora = createRotundaCornerFlora(index, color, secondary);
