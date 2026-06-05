@@ -9290,10 +9290,7 @@ function getGalleryDoorwayPoints(room, doorHalfW) {
 function createRotundaCornerFlora(index, color, secondary) {
 	const palette = activeVariant.eraColors;
 	const blossom = palette[(index * 3 + 1) % palette.length];
-	// Indices 3 (right, by Code is Poetry) and 4 (left, by Start Here) are swapped
-	// so the tree stands on the right and the flower bed on the left.
-	const isTree = index === 3 ? true : index === 4 ? false : index % 2 === 0;
-	if (isTree) {
+	if (index % 2 === 0) {
 		return createFloweringTree(blossom, 2.5 + (index % 3) * 0.4);
 	}
 	return createFlowerBed(blossom, index % 4 === 1 ? secondary : color);
@@ -9420,8 +9417,9 @@ function createAtriumMuseumArchitecture(color, secondary) {
 	// trees and flower beds, tinted from the palette — in place of the old
 	// floor-lamp ring (the lamps were the bulk of the rotunda's point lights).
 	for (let index = 0; index < 8; index++) {
-		// Index 4's bed has moved under the Start Here sign (see createAtriumWayfindingSigns).
-		if (index === 4) {
+		// Indices 3 and 4 are left empty — their flower beds sit under the Exit and
+		// Start Here signs instead (see createAtriumWayfindingSigns).
+		if (index === 3 || index === 4) {
 			continue;
 		}
 		const angle = (Math.PI * 2 * index) / 8 + Math.PI / 8;
