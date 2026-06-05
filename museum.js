@@ -104,7 +104,7 @@ function wpLogoSvgDataUrl(fill) {
 	return (
 		'data:image/svg+xml,' +
 		encodeURIComponent(
-			"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 122.52 122.523'><path fill='" +
+			"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 122.52 122.523'><path fill-rule='evenodd' fill='" +
 				fill +
 				"' d='" +
 				WP_LOGO_SVG_PATH +
@@ -9019,17 +9019,17 @@ function createPhpElephant() {
 	return g;
 }
 
-// The embroidered/pixelated WordPress logo for the rotunda carpet centre: a deep
-// carpet-red field with the official mark rendered tiny and scaled up nearest-
-// neighbour so it reads like a woven/cross-stitched emblem (same trick as the loader).
+// The embroidered/pixelated WordPress logo for the rotunda carpet centre: the
+// official mark rendered tiny and scaled up nearest-neighbour so it reads like a
+// woven/cross-stitched emblem. The background is left transparent so the lit
+// carpet disc shows through (an opaque red fill rendered flat/darker than the
+// surrounding lit carpet).
 function createCarpetLogoTexture() {
 	const size = 512;
 	const cv = document.createElement('canvas');
 	cv.width = size;
 	cv.height = size;
 	const ctx = cv.getContext('2d');
-	ctx.fillStyle = '#8b1a1a'; // matches the carpet disc
-	ctx.fillRect(0, 0, size, size);
 	const texture = createCanvasTexture(cv);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
@@ -9073,7 +9073,7 @@ function createAtriumFloorMedallion(color, secondary) {
 	// hard so it reads embroidered/pixelated, in place of the old compass star.
 	const logo = new THREE.Mesh(
 		new THREE.CircleGeometry(2.2, 64),
-		new THREE.MeshBasicMaterial({ map: createCarpetLogoTexture() })
+		new THREE.MeshBasicMaterial({ map: createCarpetLogoTexture(), transparent: true })
 	);
 	logo.rotation.x = -Math.PI / 2;
 	logo.position.y = 0.05;
@@ -17186,6 +17186,14 @@ function bindControls() {
 	document
 		.querySelectorAll('[data-mobile-turn]')
 		.forEach((button) => bindHoldButton(button, button.dataset.mobileTurn));
+
+	// The stats overlay also opens via ?stats (or ?debug) in the URL — handy on
+	// phones and keyboards without an easy backtick. The backtick toggle uses the
+	// physical key code, so it works regardless of keyboard language layout.
+	const params = new URLSearchParams(window.location.search);
+	if (params.has('stats') || params.has('debug')) {
+		toggleDebugPanel();
+	}
 }
 
 function enterWalkMode() {
