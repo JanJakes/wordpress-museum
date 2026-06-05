@@ -146,12 +146,12 @@ function loadCappedTexture(source) {
 	});
 }
 
-function createCanvasTexture(canvas) {
+function createCanvasTexture(canvas, maxDim = MAX_TEXTURE_DIM) {
 	const longEdge = Math.max(canvas.width, canvas.height);
-	if (longEdge <= MAX_TEXTURE_DIM) {
+	if (longEdge <= maxDim) {
 		return new THREE.CanvasTexture(canvas);
 	}
-	const scale = MAX_TEXTURE_DIM / longEdge;
+	const scale = maxDim / longEdge;
 	const small = document.createElement('canvas');
 	small.width = Math.max(1, Math.round(canvas.width * scale));
 	small.height = Math.max(1, Math.round(canvas.height * scale));
@@ -6635,7 +6635,7 @@ function createWordPressMuralTexture(aspect) {
 		canvas.width = 1280;
 		canvas.height = Math.round(canvas.width / aspect);
 		drawUltimateMural(ctx, canvas);
-		const texture = createCanvasTexture(canvas);
+		const texture = createCanvasTexture(canvas, 2048);
 		texture.colorSpace = THREE.SRGBColorSpace;
 		texture.anisotropy = 4;
 		// Overlay the real WordPress logo on the medallion (async SVG, then refresh).
@@ -7196,7 +7196,7 @@ function createRoomMuralTexture(room, aspect) {
 		bronze
 	);
 
-	const texture = createCanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas, 2048);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -7269,18 +7269,7 @@ function createRoomStoryTexture(room, aspect) {
 	const first = items[0]?.release;
 	const last = items[items.length - 1]?.release;
 	const serif = 'Georgia, "Times New Roman", serif';
-	const ink = '#2d2718';
-
-	// A soft, feathered marble-cream wash behind the lettering (no hard frame, edges
-	// blurred into the wall) lifts the engraved summary clear of the busy veining so
-	// it stays legible while still reading as part of the stone wall.
-	ctx.save();
-	ctx.shadowColor = 'rgba(245, 240, 227, 0.92)';
-	ctx.shadowBlur = Math.round(h * 0.16);
-	ctx.fillStyle = 'rgba(245, 240, 227, 0.84)';
-	roundRectPath(ctx, w * 0.08, h * 0.13, w * 0.84, h * 0.74, h * 0.18);
-	ctx.fill();
-	ctx.restore();
+	const ink = '#211a0b';
 
 	ctx.textAlign = 'center';
 	drawEngravedText(ctx, room.yearRange.replace('-', '–'), w / 2, h * 0.18, w * 0.7, h * 0.23,
@@ -7297,7 +7286,7 @@ function createRoomStoryTexture(room, aspect) {
 	drawEngravedText(ctx, `${span}   ·   ${count}`, w / 2, h * 0.86, w * 0.78, h * 0.125,
 		'600', serif, ink);
 
-	const texture = createCanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas, 2048);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
