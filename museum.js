@@ -380,7 +380,7 @@ const atriumStartPosition = atriumCenterPosition
 const annexDoorHalfWidth = 1.0; // 2m clear opening, matching the Playground
 const annexDoorHeight = 3.0;
 const annexWallThickness = 0.3;
-const annexHeight = 5.4;
+const annexHeight = wallHeight;
 const annexChamferHalfLen = (cornerBevel * Math.SQRT2) / 2; // ≈3.18, half the bevel
 // Local (room-frame) midpoint of the right chamfer = the doorway centre.
 const annexChamferLocalMid = new THREE.Vector3(
@@ -7630,45 +7630,9 @@ function createSpokeWall(side, doored, nearInfo, farInfo, shopPassageEra = null)
 	keyBot.rotation.y = frameRot;
 	group.add(keyBot);
 
-	// Crown above the opening: a marble cornice band and a low stepped brass
-	// pediment, centered on the doorway and kept under the header so it never
-	// pierces the ceiling.
-	const corniceY = connectorDoorHeight + 0.5;
-	const crownStart = doorStart - 0.12;
-	const crownEnd = doorEnd + 0.12;
-	segment(crownStart, crownEnd, 0.18, corniceY, marble, 0.3); // cornice band
-	segment(crownStart, crownEnd, 0.08, corniceY + 0.12, brass, 0.34); // cornice lip
-	// Three receding pediment steps form a stepped triangular cap.
-	const pedSteps = [
-		{ half: connectorDoorHalfWidth + 0.05, h: 0.16, t: 0.24 },
-		{ half: connectorDoorHalfWidth * 0.62, h: 0.16, t: 0.26 },
-		{ half: connectorDoorHalfWidth * 0.28, h: 0.18, t: 0.28 },
-	];
-	let pedY = corniceY + 0.25;
-	for (const step of pedSteps) {
-		segment(connectorDoorZ - step.half, connectorDoorZ + step.half, step.h, pedY, brass, step.t);
-		pedY += step.h;
-	}
-	// Crowning finial at the apex.
-	const finial = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), brass);
-	finial.position.set(xAt(connectorDoorZ), pedY + 0.02, connectorDoorZ);
-	group.add(finial);
-
 	// Subtle warm glow so the portal reads as an inviting passage. A low cost
 	// emissive marble panel sits flush above the lintel (behind the keystone, so
 	// no z-fight with the header), backed by a faint point light in the opening.
-	const glowPanel = new THREE.Mesh(
-		new THREE.PlaneGeometry(2 * connectorDoorHalfWidth - 0.1, 0.34),
-		new THREE.MeshBasicMaterial({ color: 0xffdca6, transparent: true, opacity: 0.5 })
-	);
-	const glowN = new THREE.Vector3(1, 0, wedgeTan).normalize();
-	glowPanel.position.set(
-		xAt(connectorDoorZ) + glowN.x * 0.085,
-		connectorDoorHeight - 0.12,
-		connectorDoorZ + glowN.z * 0.085
-	);
-	glowPanel.rotation.y = getRotationForNormal(glowN);
-	group.add(glowPanel);
 	const glowLight = new THREE.PointLight(0xffd8a0, 6, 6, 2);
 	glowLight.position.set(xAt(connectorDoorZ), connectorDoorHeight - 0.5, connectorDoorZ);
 	group.add(glowLight);
@@ -7678,9 +7642,8 @@ function createSpokeWall(side, doored, nearInfo, farInfo, shopPassageEra = null)
 	const inwardRot = getRotationForNormal(
 		new THREE.Vector3(1, 0, wedgeTan).normalize()
 	);
-	// Mounted on the upper header, clear of the crown below (apex ~4.4) and the
-	// ceiling above (wallHeight 7.35), so it reads as an unobstructed wayfinder.
-	const signY = connectorDoorHeight + 2.35;
+	// A compact wayfinder mounted just above the door opening.
+	const signY = connectorDoorHeight + 0.74;
 	const cx = xAt(connectorDoorZ);
 	if (nearInfo) {
 		group.add(createSpokeDoorSign(nearInfo, cx, connectorDoorZ, signY, inwardRot));
@@ -7753,35 +7716,20 @@ function buildShopPassageDoorway(group, segment, xAt, mat, era) {
 // layer is offset along the inward face normal beyond that.
 function createSpokeDoorSign(info, x, z, y, facingRotation) {
 	const group = new THREE.Group();
-	const n = new THREE.Vector3(Math.sin(facingRotation), 0, Math.cos(facingRotation));
-	const at = (off) => [x + n.x * off, z + n.z * off];
-	// Brass back-plate, flush against the wall face, with a recessed frame.
+	const nrm = new THREE.Vector3(Math.sin(facingRotation), 0, Math.cos(facingRotation));
+	const at = (off) => [x + nrm.x * off, z + nrm.z * off];
 	const brass = new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 });
-	const backplate = new THREE.Mesh(new THREE.BoxGeometry(1.78, 0.92, 0.05), brass);
-	const [bx, bz] = at(0.155);
-	backplate.position.set(bx, y, bz);
-	backplate.rotation.y = facingRotation;
-	group.add(backplate);
-	const frame = new THREE.Mesh(new THREE.BoxGeometry(1.62, 0.78, 0.05), brass);
-	const [fx, fz] = at(0.2);
+	// Slim brass frame proud of the wall, carrying a single sign board.
+	const frame = new THREE.Mesh(new THREE.BoxGeometry(1.66, 1.0, 0.05), brass);
+	const [fx, fz] = at(0.17);
 	frame.position.set(fx, y, fz);
 	frame.rotation.y = facingRotation;
 	group.add(frame);
-	// Mounting bosses at the corners read as fasteners.
-	for (const [dz, dy] of [[-0.78, 0.38], [0.78, 0.38], [-0.78, -0.38], [0.78, -0.38]]) {
-		const boss = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.05, 10), brass);
-		boss.rotation.z = Math.PI / 2;
-		boss.rotation.y = facingRotation;
-		const [px, pz] = at(0.2);
-		boss.position.set(px - n.z * dz, y + dy, pz + n.x * dz);
-		group.add(boss);
-	}
-
 	const board = new THREE.Mesh(
-		new THREE.PlaneGeometry(1.5, 0.66),
+		new THREE.PlaneGeometry(1.52, 0.88),
 		new THREE.MeshBasicMaterial({ map: createDoorwaySignTexture(info), transparent: true })
 	);
-	const [px, pz] = at(0.235);
+	const [px, pz] = at(0.205);
 	board.position.set(px, y, pz);
 	board.rotation.y = facingRotation;
 	group.add(board);
@@ -7794,7 +7742,7 @@ function createSpokeDoorSign(info, x, z, y, facingRotation) {
 function createDoorwaySignTexture(info) {
 	const canvas = document.createElement('canvas');
 	canvas.width = 560;
-	canvas.height = 246;
+	canvas.height = 320;
 	const ctx = canvas.getContext('2d');
 	const W = canvas.width;
 	const H = canvas.height;
@@ -7812,31 +7760,28 @@ function createDoorwaySignTexture(info) {
 	roundRectPath(ctx, 18, 18, W - 36, H - 36, 11);
 	ctx.stroke();
 
-	// Header bar in the era colour.
-	ctx.fillStyle = info.color;
-	roundRectPath(ctx, 26, 26, W - 52, 50, 9);
-	ctx.fill();
-	ctx.fillStyle = '#10161f';
-	ctx.font = '900 30px system-ui, sans-serif';
+	// Destination room name, its years, and a down arrow pointing at the door.
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-	ctx.fillText('T H I S   W A Y   T O', W / 2, 53);
-
-	// Directional chevron on the leading side, era name centered in remaining space.
-	const later = info.later;
-	const arrowCX = later ? W - 70 : 70;
-	drawChevron(ctx, arrowCX, 158, 30, 52, later, info.color);
-	const nameCX = later ? (26 + (W - 96)) / 2 : (96 + (W - 26)) / 2;
-	const nameMax = W - 26 - 96 - 12;
-
 	ctx.fillStyle = '#f5e8c7';
-	fillFittedCanvasText(ctx, info.era.toUpperCase(), nameCX, 138, nameMax, 50, '900', 'Arial Black, Impact, sans-serif');
-
+	fillFittedCanvasText(ctx, info.era.toUpperCase(), W / 2, 78, W - 70, 58, '900', 'Arial Black, Impact, sans-serif');
 	ctx.fillStyle = info.color;
-	ctx.font = '800 30px system-ui, sans-serif';
-	ctx.fillText(info.yearRange, nameCX, 188);
+	ctx.font = '800 34px system-ui, sans-serif';
+	ctx.fillText(info.yearRange, W / 2, 132);
+	// Down chevron.
+	const acx = W / 2, acy = 188, aw = 52, ah = 30, th = ah * 0.62;
+	ctx.fillStyle = info.color;
+	ctx.beginPath();
+	ctx.moveTo(acx, acy + ah);
+	ctx.lineTo(acx - aw, acy - ah);
+	ctx.lineTo(acx - aw + th, acy - ah);
+	ctx.lineTo(acx, acy + ah - th * 1.7);
+	ctx.lineTo(acx + aw - th, acy - ah);
+	ctx.lineTo(acx + aw, acy - ah);
+	ctx.closePath();
+	ctx.fill();
 
-	const texture = createCanvasTexture(canvas);
+	const texture = createCanvasTexture(canvas, 1024);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
@@ -10179,7 +10124,6 @@ function addEraVignette(group, room, roomIndex) {
 	if (isCurrentVariant) {
 		addEraModelProps(group, room, roomIndex, color, secondary);
 		group.add(createEraCatchphraseSign(room, color, secondary));
-		group.add(createRoomDustMotes(color));
 		const fact = getEraHistoryFact(room.era);
 		if (fact) {
 			const flyer = createFloorFlyer(fact, color);
@@ -14085,39 +14029,6 @@ function getEraCatchphrase(era) {
 	}[era] || 'Code is poetry.';
 }
 
-function createRoomDustMotes(color) {
-	const group = new THREE.Group();
-	const material = new THREE.MeshBasicMaterial({
-		color: 0xfff2c8,
-		transparent: true,
-		opacity: 0.5,
-		depthWrite: false,
-		blending: THREE.AdditiveBlending,
-	});
-	for (let index = 0; index < 7; index++) {
-		const mote = new THREE.Mesh(
-			new THREE.SphereGeometry(0.035 + (index % 3) * 0.01, 6, 6),
-			material.clone()
-		);
-		const baseX = -roomWidth / 2 + 0.6 + Math.random() * (roomWidth - 1.2);
-		const baseZ = -roomDepth / 2 + 0.6 + Math.random() * (roomDepth - 1.2);
-		const baseY = 1.4 + Math.random() * (wallHeight - 2.4);
-		mote.userData.base = {
-			x: baseX, y: baseY, z: baseZ,
-			speed: 0.18 + Math.random() * 0.3,
-			phase: Math.random() * Math.PI * 2,
-		};
-		mote.position.set(baseX, baseY, baseZ);
-		registerAnimation(mote, (object, elapsed) => {
-			const b = object.userData.base;
-			object.position.y = b.y + Math.sin(elapsed * b.speed + b.phase) * 0.4;
-			object.material.opacity = 0.26 + (Math.sin(elapsed * 0.9 + index) * 0.5 + 0.5) * 0.26;
-		});
-		group.add(mote);
-	}
-	return group;
-}
-
 function addEraModelProps(group, room, roomIndex, color, secondary) {
 	// Grounded ambient props, era-appropriate (CRTs, laptops, TVs, furniture).
 	// Each prop carries a role that drives its placement so the central runner
@@ -15965,19 +15876,6 @@ function addFrameMolding(group, color, innerWidth, innerHeight) {
 		}
 	}
 
-	// Bottom nameplate strip in brass with an era-tinted engraving line.
-	const plate = new THREE.Mesh(
-		new THREE.BoxGeometry(0.74, 0.16, 0.04),
-		brassMaterial
-	);
-	plate.position.set(0, -exhibitOuterHeight / 2 + 0.02, exhibitFrameDepth + 0.01);
-	group.add(plate);
-	const engraving = new THREE.Mesh(
-		new THREE.BoxGeometry(0.56, 0.02, 0.045),
-		new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.15 })
-	);
-	engraving.position.set(0, plate.position.y, exhibitFrameDepth + 0.025);
-	group.add(engraving);
 }
 
 // Builds a single flat picture-frame "ring" mesh (a rectangle with a
@@ -17551,6 +17449,12 @@ function focusRelease(index, immediate = false, options = {}) {
 	const target = exhibitPositions[activeIndex];
 	const viewPoint = target.stand.clone();
 	const lookPoint = target.card.clone();
+	if (options.closer) {
+		// Step in toward the picture for a closer look (horizontal only).
+		const toward = lookPoint.clone().sub(viewPoint);
+		toward.y = 0;
+		viewPoint.add(toward.multiplyScalar(0.5));
+	}
 	const view = getViewAngles(viewPoint, lookPoint);
 	if (immediate) {
 		camera.position.copy(viewPoint);
@@ -17720,9 +17624,11 @@ function updateNearestRelease() {
 	cameraPoint.y = 1.65;
 	const activeRoomEra = getCameraRoomEra(cameraPoint);
 	if (!activeRoomEra) {
+		atCenter = true;
 		updateRail();
 		return;
 	}
+	atCenter = false;
 	exhibitPositions.forEach((position, index) => {
 		if (position.era !== activeRoomEra) {
 			return;
@@ -17769,7 +17675,10 @@ function pickFromScreen(x, y) {
 		return true;
 	}
 	if (Number.isFinite(obj.userData.releaseIndex)) {
-		focusRelease(obj.userData.releaseIndex);
+		focusRelease(obj.userData.releaseIndex, false, { closer: true });
+		if (document.pointerLockElement) {
+			document.exitPointerLock();
+		}
 		return true;
 	}
 	return false;
