@@ -1348,8 +1348,8 @@ body[data-variant='current'] .release-panel.is-collapsed .panel-toggle-tab {
 	}
 }
 
-/* Developer overlay: live FPS / draw-call / light stats, toggled with the
-   backtick (`) key. Hidden by default. */
+/* Developer overlay: live FPS / draw-call / light stats, shown when the URL has
+   ?debug. Hidden by default. */
 .debug-panel {
 	position: fixed;
 	top: 12px;

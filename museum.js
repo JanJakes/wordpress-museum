@@ -95,20 +95,23 @@ const floorTileSpan = 5.2;
 // as light, airy limestone that harmonises with the light polished marble
 // floor for a bright, monumental interior.
 const wallWarmTint = 0xf4eede;
-// The official WordPress logotype mark (the filled ring + W of the real logo),
-// reused for the carpet emblem and the Wapuu's held medallion.
-const WP_LOGO_SVG_PATH =
-	'M8.708 61.26c0 20.802 12.089 38.779 29.619 47.298L13.258 39.872c-2.916 6.501-4.55 13.704-4.55 21.388zm88.736-2.673c0-6.496-2.333-10.993-4.333-14.494-2.664-4.329-5.161-7.995-5.161-12.324 0-4.832 3.664-9.331 8.829-9.331.233 0 .454.029.681.042-9.350-8.567-21.807-13.796-35.489-13.796-18.36 0-34.513 9.421-43.91 23.688 1.233.037 2.395.063 3.382.063 5.496 0 14.006-.667 14.006-.667 2.833-.167 3.167 3.994.337 4.329 0 0-2.847.335-6.015.501l19.138 56.925 11.501-34.493-8.188-22.434c-2.83-.166-5.511-.501-5.511-.501-2.83-.166-2.498-4.496.332-4.329 0 0 8.679.667 13.843.667 5.496 0 14.006-.667 14.006-.667 2.835-.167 3.168 3.994.337 4.329 0 0-2.853.335-6.015.501l18.991 56.494 5.242-17.517c2.272-7.269 4.001-12.49 4.001-16.989zM62.184 65.857l-15.768 45.819c4.708 1.384 9.687 2.141 14.846 2.141 6.12 0 11.989-1.058 17.452-2.979-.141-.225-.269-.464-.374-.724L62.184 65.857zM108.74 35.214c.375 2.777.586 5.756.586 8.962 0 8.844-1.651 18.788-6.625 31.229l-26.612 76.926c25.91-15.102 43.337-43.169 43.337-75.311 0-15.152-3.87-29.399-10.686-41.806zM61.262 0C27.483 0 0 27.481 0 61.26c0 33.783 27.483 61.263 61.262 61.263 33.778 0 61.265-27.48 61.265-61.263C122.526 27.481 95.04 0 61.262 0zm0 119.715c-32.23 0-58.453-26.223-58.453-58.455 0-32.229 26.222-58.451 58.453-58.451 32.229 0 58.45 26.222 58.45 58.451 0 32.232-26.221 58.455-58.45 58.455z';
-
+// The official WordPress logo mark (ring + W), as the five separate paths of the
+// canonical asset, reused for the carpet emblem and the Wapuu's held medallion.
+// (A single concatenated path mis-rendered the right swoosh over the ring, which
+// leaked the inner fill out the bottom-right under either fill rule.)
 function wpLogoSvgDataUrl(fill) {
 	return (
 		'data:image/svg+xml,' +
 		encodeURIComponent(
-			"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 122.52 122.523'><path fill-rule='evenodd' fill='" +
+			"<svg viewBox='0 0 122.52 122.523' xmlns='http://www.w3.org/2000/svg'><g fill='" +
 				fill +
-				"' d='" +
-				WP_LOGO_SVG_PATH +
-				"'/></svg>"
+				"'>" +
+				"<path d='m8.708 61.26c0 20.802 12.089 38.779 29.619 47.298l-25.069-68.686c-2.916 6.536-4.55 13.769-4.55 21.388z'/>" +
+				"<path d='m96.74 58.608c0-6.495-2.333-10.993-4.334-14.494-2.664-4.329-5.161-7.995-5.161-12.324 0-4.831 3.664-9.328 8.825-9.328.233 0 .454.029.681.042-9.35-8.566-21.807-13.796-35.489-13.796-18.36 0-34.513 9.42-43.91 23.688 1.233.037 2.395.063 3.382.063 5.497 0 14.006-.667 14.006-.667 2.833-.167 3.167 3.994.337 4.329 0 0-2.847.335-6.015.501l19.138 56.925 11.501-34.493-8.188-22.434c-2.83-.166-5.511-.501-5.511-.501-2.832-.166-2.5-4.496.332-4.329 0 0 8.679.667 13.843.667 5.496 0 14.006-.667 14.006-.667 2.835-.167 3.168 3.994.337 4.329 0 0-2.853.335-6.015.501l18.992 56.494 5.242-17.517c2.272-7.269 4.001-12.49 4.001-16.989z'/>" +
+				"<path d='m62.184 65.857-15.768 45.819c4.708 1.384 9.687 2.141 14.846 2.141 6.12 0 11.989-1.058 17.452-2.979-.141-.225-.269-.464-.374-.724z'/>" +
+				"<path d='m107.376 36.046c.226 1.674.354 3.471.354 5.404 0 5.333-.996 11.328-3.996 18.824l-16.053 46.413c15.624-9.111 26.133-26.038 26.133-45.426.001-9.137-2.333-17.729-6.438-25.215z'/>" +
+				"<path d='m61.262 0c-33.779 0-61.262 27.481-61.262 61.26 0 33.783 27.483 61.263 61.262 61.263 33.778 0 61.265-27.48 61.265-61.263-.001-33.779-27.487-61.26-61.265-61.26zm0 119.715c-32.23 0-58.453-26.223-58.453-58.455 0-32.23 26.222-58.451 58.453-58.451 32.229 0 58.45 26.221 58.45 58.451 0 32.232-26.221 58.455-58.45 58.455z'/>" +
+				"</g></svg>"
 		)
 	);
 }
@@ -500,7 +503,7 @@ let eraYearRangeMap = null;
 const MAX_ACTIVE_POINT_LIGHTS = 14;
 let cullablePointLights = null;
 const lightCullTmp = new THREE.Vector3();
-// Developer stats overlay (toggled with the backtick key).
+// Developer stats overlay (shown when the URL has ?debug).
 let debugPanelEl = null;
 let debugPanelVisible = false;
 let fpsSmoothed = 0;
@@ -17095,11 +17098,6 @@ function bindControls() {
 		if (event.code === 'Enter') {
 			document.querySelector('#open-playground').click();
 		}
-		// Backtick toggles the developer stats overlay (FPS, draw calls, lights).
-		if (event.code === 'Backquote') {
-			event.preventDefault();
-			toggleDebugPanel();
-		}
 	});
 	document.addEventListener('keyup', (event) => {
 		if (isMovementKey(event.code)) {
@@ -17187,12 +17185,10 @@ function bindControls() {
 		.querySelectorAll('[data-mobile-turn]')
 		.forEach((button) => bindHoldButton(button, button.dataset.mobileTurn));
 
-	// The stats overlay also opens via ?stats (or ?debug) in the URL — handy on
-	// phones and keyboards without an easy backtick. The backtick toggle uses the
-	// physical key code, so it works regardless of keyboard language layout.
-	const params = new URLSearchParams(window.location.search);
-	if (params.has('stats') || params.has('debug')) {
-		toggleDebugPanel();
+	// The stats overlay opens via ?debug in the URL (works everywhere, including
+	// phones and any keyboard layout); there is no keyboard shortcut.
+	if (new URLSearchParams(window.location.search).has('debug')) {
+		showDebugPanel();
 	}
 }
 
@@ -17425,13 +17421,13 @@ function updateLightCulling() {
 	}
 }
 
-function toggleDebugPanel() {
-	debugPanelVisible = !debugPanelVisible;
+function showDebugPanel() {
+	debugPanelVisible = true;
 	if (!debugPanelEl) {
 		debugPanelEl = document.getElementById('debug-panel');
 	}
 	if (debugPanelEl) {
-		debugPanelEl.classList.toggle('is-visible', debugPanelVisible);
+		debugPanelEl.classList.add('is-visible');
 	}
 }
 
