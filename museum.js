@@ -8806,7 +8806,7 @@ function createPhpElephantExhibit() {
 	);
 	post.position.set(labelSpot.x, 0.46, labelSpot.z);
 	group.add(post);
-	const plate = createExhibitPlate('THE elePHPant', 'PHP — the language WordPress runs on, since 2003', 1.55);
+	const plate = createExhibitPlate('The elePHPant', '', 1.55);
 	plate.position.set(labelSpot.x, 1.04, labelSpot.z);
 	plate.rotation.y = facing;
 	group.add(plate);
@@ -10240,10 +10240,14 @@ function createExhibitPlateTexture(title, subtitle) {
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
 	ctx.fillStyle = '#241a0c';
-	fillFittedCanvasText(ctx, title, canvas.width / 2, 84, 770, 86, '900', 'Arial Black, Impact, sans-serif');
-	ctx.fillStyle = '#7a5a1c';
-	ctx.font = 'italic 600 40px Georgia, serif';
-	ctx.fillText(subtitle, canvas.width / 2, 168);
+	if (subtitle) {
+		fillFittedCanvasText(ctx, title, canvas.width / 2, 84, 770, 86, '900', 'Arial Black, Impact, sans-serif');
+		ctx.fillStyle = '#7a5a1c';
+		ctx.font = 'italic 600 40px Georgia, serif';
+		ctx.fillText(subtitle, canvas.width / 2, 168);
+	} else {
+		fillFittedCanvasText(ctx, title, canvas.width / 2, canvas.height / 2, 770, 122, '900', 'Arial Black, Impact, sans-serif');
+	}
 	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
