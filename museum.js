@@ -16350,8 +16350,9 @@ function createPlaqueTexture(release, color) {
 	// screenshot; skip those loads so they don't 404 and log console errors.
 	if (releaseHasCapturedAssets(release)) {
 		scheduleDeferredAssetTask(() => {
+			const musicianPath = getMusicianImagePath(release);
 			Promise.all([
-				loadPlaqueImage(getMusicianImagePath(release)),
+				musicianPath ? loadPlaqueImage(musicianPath) : Promise.resolve(null),
 				loadPlaqueImage(getScreenshotImagePath(release)),
 			]).then(([musicianImage, screenshotImage]) => {
 				drawPlaqueTexture(ctx, canvas, release, color, {
@@ -16622,7 +16623,16 @@ function loadPlaqueImage(path) {
 	return plaqueImageCache.get(path);
 }
 
+// Releases whose honoree has no freely-licensed photograph (jazz guitarist Grant
+// Green, WP 3.4 — Wikidata/Commons have none, and same-name files are other
+// people). They fall back to the "Jazz portrait" placeholder rather than show a
+// wrong face.
+const RELEASES_WITHOUT_PORTRAIT = new Set(['3.4']);
+
 function getMusicianImagePath(release) {
+	if (RELEASES_WITHOUT_PORTRAIT.has(release.version)) {
+		return null;
+	}
 	return `./assets/musicians/wp-${getVersionSlug(release)}.jpg`;
 }
 

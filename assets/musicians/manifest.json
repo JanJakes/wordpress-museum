@@ -226,20 +226,6 @@
       "attributionRequired": "true"
     },
     {
-      "version": "3.4",
-      "musician": "Grant Green",
-      "file": "assets/musicians/wp-3-4.jpg",
-      "source": "https://commons.wikimedia.org/wiki/File:Grant_Green.jpg",
-      "commonsTitle": "File:Grant Green.jpg",
-      "wikidataEntity": null,
-      "wikidataLabel": "Grant Green",
-      "license": "Public domain",
-      "licenseUrl": "",
-      "artist": "State of Oklahoma’s Legislative Service Bureau, Photo Division",
-      "credit": "https://oksenate.gov/senators/grant-green",
-      "attributionRequired": "false"
-    },
-    {
       "version": "3.5",
       "musician": "Elvin Jones",
       "file": "assets/musicians/wp-3-5.jpg",
