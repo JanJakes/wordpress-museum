@@ -10087,7 +10087,6 @@ function createRoomDecor(room) {
 	const roomIndex = eras.indexOf(room.era);
 	if (activeVariant.roomFeature === 'era-vignettes') {
 		addRoomFeature(group, room, roomIndex);
-		group.add(createRoomFloorLabel(room, roomIndex));
 		return group;
 	}
 
@@ -10104,7 +10103,6 @@ function createRoomDecor(room) {
 	group.add(right);
 
 	addRoomFeature(group, room, roomIndex);
-	group.add(createRoomFloorLabel(room, roomIndex));
 	return group;
 }
 
@@ -14415,42 +14413,6 @@ function createStyleBookDisplay(color, secondary) {
 	stripe.position.set(0, 0.35, 0.08);
 	group.add(stripe);
 	return group;
-}
-
-function createRoomFloorLabel(room, roomIndex) {
-	const canvas = document.createElement('canvas');
-	canvas.width = 512;
-	canvas.height = 128;
-	const ctx = canvas.getContext('2d');
-	ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	ctx.fillStyle = room.color;
-	ctx.globalAlpha = 0.28;
-	ctx.fillRect(0, 36, canvas.width, 30);
-	ctx.globalAlpha = 1;
-	ctx.fillStyle = '#fff5df';
-	ctx.font = '900 34px Arial Black, Impact, sans-serif';
-	ctx.textAlign = 'center';
-	const labelText = activeVariant.roomFeature === 'era-vignettes'
-		? room.era.toUpperCase()
-		: activeVariant.shortName.replace(/^\d+\.\s*/, '').toUpperCase();
-	fillFittedCanvasText(ctx, labelText, 256, 64, 430, 34, '900', 'Arial Black, Impact, sans-serif');
-	ctx.fillStyle = 'rgba(255, 245, 223, 0.66)';
-	ctx.font = '700 16px system-ui, sans-serif';
-	ctx.fillText(`${room.yearRange} / gallery ${roomIndex + 1}`, 256, 92);
-	const texture = createCanvasTexture(canvas);
-	texture.colorSpace = THREE.SRGBColorSpace;
-	const label = new THREE.Mesh(
-		new THREE.PlaneGeometry(4.9, 1.2),
-		new THREE.MeshBasicMaterial({
-			map: texture,
-			transparent: true,
-			side: THREE.DoubleSide,
-		})
-	);
-	label.position.set(0, 0.075, -roomDepth / 2 + 2.35);
-	label.rotation.x = -Math.PI / 2;
-	return label;
 }
 
 function createMuseumProp(type, color) {
