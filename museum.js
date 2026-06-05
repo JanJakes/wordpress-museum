@@ -7720,13 +7720,13 @@ function createSpokeDoorSign(info, x, z, y, facingRotation) {
 	const at = (off) => [x + nrm.x * off, z + nrm.z * off];
 	const brass = new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 });
 	// Slim brass frame proud of the wall, carrying a single sign board.
-	const frame = new THREE.Mesh(new THREE.BoxGeometry(1.66, 1.0, 0.05), brass);
+	const frame = new THREE.Mesh(new THREE.BoxGeometry(1.66, 0.84, 0.05), brass);
 	const [fx, fz] = at(0.17);
 	frame.position.set(fx, y, fz);
 	frame.rotation.y = facingRotation;
 	group.add(frame);
 	const board = new THREE.Mesh(
-		new THREE.PlaneGeometry(1.52, 0.88),
+		new THREE.PlaneGeometry(1.52, 0.72),
 		new THREE.MeshBasicMaterial({ map: createDoorwaySignTexture(info), transparent: true })
 	);
 	const [px, pz] = at(0.205);
@@ -7742,7 +7742,7 @@ function createSpokeDoorSign(info, x, z, y, facingRotation) {
 function createDoorwaySignTexture(info) {
 	const canvas = document.createElement('canvas');
 	canvas.width = 560;
-	canvas.height = 320;
+	canvas.height = 264;
 	const ctx = canvas.getContext('2d');
 	const W = canvas.width;
 	const H = canvas.height;
@@ -7764,12 +7764,12 @@ function createDoorwaySignTexture(info) {
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
 	ctx.fillStyle = '#f5e8c7';
-	fillFittedCanvasText(ctx, info.era.toUpperCase(), W / 2, 78, W - 70, 58, '900', 'Arial Black, Impact, sans-serif');
+	fillFittedCanvasText(ctx, info.era.toUpperCase(), W / 2, 70, W - 70, 56, '900', 'Arial Black, Impact, sans-serif');
 	ctx.fillStyle = info.color;
 	ctx.font = '800 34px system-ui, sans-serif';
-	ctx.fillText(info.yearRange, W / 2, 132);
+	ctx.fillText(info.yearRange, W / 2, 130);
 	// Down chevron.
-	const acx = W / 2, acy = 188, aw = 52, ah = 30, th = ah * 0.62;
+	const acx = W / 2, acy = 192, aw = 52, ah = 28, th = ah * 0.62;
 	ctx.fillStyle = info.color;
 	ctx.beginPath();
 	ctx.moveTo(acx, acy + ah);
@@ -8086,20 +8086,6 @@ function createRoomMuseumArchitecture(room) {
 	group.add(createRoomAccentWashes(room));
 	group.add(createRoomRopeBarriers(room.color, room));
 	group.add(createRoomTrackLighting(room.color));
-	for (const side of ['left', 'right']) {
-		// On a gallery's shop-facing wall the front sconce shifts toward the inner
-		// edge so it clears the new shop-passage doorway opening (local z ~ -2 ± 0.9).
-		const isPassageWall =
-			isCurrentVariant && hasShopPassage(room) && side === shopPassageWallSide(room);
-		const sconceZs = isPassageWall ? [-3.5, 2.35] : [-2.8, 2.35];
-		for (const z of sconceZs) {
-			const sconce = createWallSconce(room.color);
-			// Inset 0.18 lifts the brass body proud of the angled wall's inner
-			// face so the fixture reads as a sconce, not a buried glow.
-			placeOnSideWall(sconce, side, z, 3.85, 0.18);
-			group.add(sconce);
-		}
-	}
 	return group;
 }
 
@@ -8494,25 +8480,6 @@ function createWallRail(side, y, material, thickness) {
 		rail.position.x -= wallThickness / 2 + 0.012;
 	}
 	return rail;
-}
-
-function createWallSconce(color) {
-	const group = new THREE.Group();
-	const back = new THREE.Mesh(
-		new THREE.BoxGeometry(0.16, 0.56, 0.08),
-		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.32, metalness: 0.5 })
-	);
-	group.add(back);
-	const lamp = new THREE.Mesh(
-		new THREE.SphereGeometry(0.16, 16, 10),
-		new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 })
-	);
-	lamp.position.z = 0.13; // in front of the back-plate, glowing into the room
-	registerAnimation(lamp, (object, elapsed) => {
-		object.material.opacity = 0.78 + Math.sin(elapsed * 1.7) * 0.1;
-	});
-	group.add(lamp);
-	return group;
 }
 
 function createAtriumDecor() {
