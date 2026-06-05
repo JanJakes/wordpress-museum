@@ -1133,15 +1133,17 @@ body[data-variant='current'] .help-stamp {
 .walk-hint {
 	position: fixed;
 	left: 50%;
-	top: 96px;
+	/* Sits clear below the title header (its tallest, h1-capped, is ~151px). */
+	top: 160px;
 	z-index: 12;
 	display: none;
 	gap: 8px;
+	max-width: calc(100vw - 28px);
 	padding: 11px 18px;
 	font-family: var(--pixel-font, ui-monospace, monospace);
 	font-size: 0.62rem;
 	letter-spacing: 0.03em;
-	white-space: nowrap;
+	text-align: center;
 	color: #fff5df;
 	background: rgba(20, 13, 6, 0.9);
 	border: 2px solid var(--accent, #ffd166);
@@ -1157,6 +1159,14 @@ body[data-variant='current'] .help-stamp {
 
 body.is-walking .walk-hint {
 	display: block;
+}
+
+@media (max-width: 760px) {
+	/* The header wraps taller on phones (title + buttons stack), so drop the
+	   hint further down to stay clear of it. */
+	.walk-hint {
+		top: 196px;
+	}
 }
 
 /* Collapsible ADMIT ONE ticket */
