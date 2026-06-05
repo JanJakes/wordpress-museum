@@ -7283,7 +7283,7 @@ function createRoomStoryTexture(room, aspect) {
 			: `WordPress ${first.version}–${last.version}`)
 		: '';
 	const count = `${items.length} release${items.length === 1 ? '' : 's'}`;
-	drawEngravedText(ctx, `${span}   ·   ${count}`, w / 2, h * 0.86, w * 0.78, h * 0.125,
+	drawEngravedText(ctx, `${span}   ·   ${count}`, w / 2, h * 0.78, w * 0.78, h * 0.125,
 		'600', serif, ink);
 
 	const texture = createCanvasTexture(canvas, 2048);
