@@ -831,41 +831,97 @@ function createPortalEndWall(portal, cx, zEnd, height) {
 		group.add(post);
 	}
 
-	const door = new THREE.Mesh(
-		new THREE.BoxGeometry(archWidth, archHeight, 0.18),
-		new THREE.MeshStandardMaterial({ color: portal.door, emissive: new THREE.Color(portal.door).multiplyScalar(0.3), emissiveIntensity: 0.3, roughness: 0.38, metalness: 0.18 })
-	);
-	door.position.set(cx, archHeight / 2 + 0.05, zEnd - 0.14);
+	// A real, closed museum door: a painted slab with recessed panels, a brass
+	// kick plate and a push handle. We view the entrance from inside the museum,
+	// so it carries a NO-ENTRY sign rather than an inviting poster.
+	const doorCenterZ = zEnd - 0.14;
+	const faceZ = doorCenterZ - 0.08; // front face, toward the rotunda
+	const slabMat = new THREE.MeshStandardMaterial({ color: 0x2b5a7a, roughness: 0.5, metalness: 0.12 });
+	const panelMat = new THREE.MeshStandardMaterial({ color: 0x214862, roughness: 0.6, metalness: 0.1 });
+	const brass = new THREE.MeshStandardMaterial({ color: 0xcaa24a, roughness: 0.3, metalness: 0.7 });
+
+	const door = new THREE.Mesh(new THREE.BoxGeometry(archWidth, archHeight, 0.16), slabMat);
+	door.position.set(cx, archHeight / 2 + 0.05, doorCenterZ);
 	door.userData.portalUrl = portal.url;
 	group.add(door);
 	pickables.push(door);
 
-	const doorOverlay = new THREE.Mesh(
-		new THREE.PlaneGeometry(archWidth - 0.16, archHeight - 0.18),
-		new THREE.MeshBasicMaterial({ map: createPortalDoorTexture(portal), transparent: true, side: THREE.DoubleSide, depthWrite: false })
-	);
-	doorOverlay.position.set(cx, archHeight / 2 + 0.05, zEnd - 0.26);
-	doorOverlay.rotation.y = Math.PI;
-	group.add(doorOverlay);
+	// Two columns by two rows of raised panels (classic six-/four-panel look).
+	const panelW = (archWidth - 0.54) / 2;
+	const colDx = panelW / 2 + 0.09;
+	for (const dx of [-colDx, colDx]) {
+		for (const [panelY, panelH] of [[0.95, 1.4], [2.82, 1.9]]) {
+			const panel = new THREE.Mesh(new THREE.BoxGeometry(panelW, panelH, 0.06), panelMat);
+			panel.position.set(cx + dx, panelY, faceZ - 0.02);
+			group.add(panel);
+		}
+	}
 
-	const halo = new THREE.Mesh(
-		new THREE.PlaneGeometry(archWidth + 1.0, archHeight + 1.2),
-		new THREE.MeshBasicMaterial({ color: portal.accent, transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending })
-	);
-	halo.position.set(cx, archHeight / 2 + 0.05, zEnd - 0.4);
-	registerAnimation(halo, (object, elapsed) => {
-		object.material.opacity = 0.1 + (Math.sin(elapsed * 1.2) * 0.5 + 0.5) * 0.16;
-	});
-	group.add(halo);
+	// Brass kick plate and a vertical push handle on the latch side.
+	const kick = new THREE.Mesh(new THREE.BoxGeometry(archWidth - 0.1, 0.42, 0.03), brass);
+	kick.position.set(cx, 0.3, faceZ - 0.02);
+	group.add(kick);
+	const handleX = cx + archWidth / 2 - 0.3;
+	const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 1.1, 12), brass);
+	handle.position.set(handleX, archHeight / 2, faceZ - 0.08);
+	group.add(handle);
+	for (const hy of [archHeight / 2 - 0.52, archHeight / 2 + 0.52]) {
+		const mount = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.12, 10), brass);
+		mount.rotation.x = Math.PI / 2;
+		mount.position.set(handleX, hy, faceZ - 0.05);
+		group.add(mount);
+	}
 
-	const doorLight = new THREE.PointLight(portal.accent, 1.1, 8);
-	doorLight.position.set(cx, archHeight / 2 + 0.3, zEnd - 1.1);
+	// NO-ENTRY sign on the door, with a small plate beneath.
+	const noEntry = createNoEntrySign(0.6);
+	noEntry.position.set(cx, archHeight * 0.6, faceZ - 0.04);
+	noEntry.rotation.y = Math.PI; // face the rotunda
+	group.add(noEntry);
+	const noEntryPlate = createReadableLabel(createSmallSignTexture('NO ENTRY', '#c62828'), 1.1, 0.3);
+	noEntryPlate.position.set(cx, archHeight * 0.6 - 0.92, faceZ - 0.04);
+	noEntryPlate.rotation.y = Math.PI;
+	group.add(noEntryPlate);
+
+	// A soft warm light so the doorway reads, without the old portal glow.
+	const doorLight = new THREE.PointLight(0xffe6b8, 0.7, 7);
+	doorLight.position.set(cx, archHeight / 2 + 0.3, zEnd - 1.4);
 	registerAnimation(doorLight, (object, elapsed) => {
-		object.intensity = 0.9 + Math.sin(elapsed * 1.05) * 0.15;
+		object.intensity = 0.62 + Math.sin(elapsed * 1.05) * 0.1;
 	});
 	group.add(doorLight);
 
 	return group;
+}
+
+// A round "no entry" / prohibition sign (🚫): a white disc with a bold red ring
+// and a diagonal red bar.
+function createNoEntrySign(radius) {
+	const group = new THREE.Group();
+	const red = new THREE.MeshStandardMaterial({ color: 0xc62828, roughness: 0.5, metalness: 0.05 });
+	const white = new THREE.MeshStandardMaterial({ color: 0xf6f6f4, roughness: 0.6 });
+	const disc = new THREE.Mesh(new THREE.CircleGeometry(radius, 48), white);
+	group.add(disc);
+	const ring = new THREE.Mesh(new THREE.RingGeometry(radius * 0.8, radius, 48), red);
+	ring.position.z = 0.008;
+	group.add(ring);
+	const bar = new THREE.Mesh(new THREE.BoxGeometry(radius * 1.5, radius * 0.26, 0.04), red);
+	bar.position.z = 0.03;
+	bar.rotation.z = -Math.PI / 4;
+	group.add(bar);
+	return group;
+}
+
+// An L of golden stanchions with a red velvet rope, roping off the entrance the
+// visitor arrived through and nudging them on toward the galleries.
+function createEntranceStanchions(cx, zStart) {
+	const blockZ = zStart - 0.25;
+	const points = [
+		{ x: cx + 1.4, z: blockZ },
+		{ x: cx, z: blockZ },
+		{ x: cx - 1.4, z: blockZ },
+		{ x: cx - 2.0, z: blockZ - 1.5 },
+	];
+	return createMuseumRopeLine(points, 0xa01828, { postHeight: 0.92, ropeY: 0.86 });
 }
 
 // The back of the exit alcove: a brass-framed open doorway (lintel + posts, no
@@ -955,7 +1011,7 @@ function createPortalContent(portal, cx, zStart, zEnd) {
 	if (portal.kind === 'exit') {
 		group.add(createGiftShopShelf(cx, zStart, zEnd));
 	} else {
-		group.add(createDownloadPlinth(cx, zStart + 1.8));
+		group.add(createEntranceStanchions(cx, zStart));
 	}
 	return group;
 }
@@ -995,37 +1051,6 @@ function createGiftShopShelf(cx, zStart, zEnd) {
 	const tag = createReadableLabel(createSmallSignTexture('WAPUU', '#0e1c2e'), 0.5, 0.14);
 	tag.position.set(cx + (portalAlcoveHalfWidth - 0.62), 0.62, zStart + 2.2);
 	tag.rotation.y = Math.PI / 2;
-	group.add(tag);
-	return group;
-}
-
-function createDownloadPlinth(cx, z) {
-	const group = new THREE.Group();
-	group.add(createPedestal(0.9, 0.5, 0x2bb7ff));
-	const base = group.children[0];
-	base.position.set(cx, 0, z);
-	// Glowing WordPress download orb.
-	const orb = new THREE.Mesh(
-		new THREE.SphereGeometry(0.26, 24, 18),
-		new THREE.MeshStandardMaterial({ color: 0x1e6a93, emissive: 0x1e6a93, emissiveIntensity: 0.4, roughness: 0.3, metalness: 0.2 })
-	);
-	orb.position.set(cx, 0.82, z);
-	registerAnimation(orb, (object, elapsed) => {
-		object.position.y = 0.82 + Math.sin(elapsed * 1.4) * 0.05;
-		object.rotation.y = elapsed * 0.5;
-	});
-	group.add(orb);
-	const mark = new THREE.Mesh(
-		new THREE.PlaneGeometry(0.34, 0.34),
-		new THREE.MeshBasicMaterial({ map: createWapuuWordmarkTexture(), transparent: true, depthWrite: false, side: THREE.DoubleSide })
-	);
-	mark.position.set(cx, 0.82, z + 0.27);
-	registerAnimation(mark, (object, elapsed) => {
-		object.position.y = 0.82 + Math.sin(elapsed * 1.4) * 0.05;
-	});
-	group.add(mark);
-	const tag = createReadableLabel(createSimpleTextTexture('GET WORDPRESS · FREE', '#0e1c2e', '#ffd166'), 1.2, 0.26);
-	tag.position.set(cx, 0.58, z - 0.46);
 	group.add(tag);
 	return group;
 }
@@ -4396,57 +4421,6 @@ function createMercantilePosterTexture() {
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 	return texture;
-}
-
-function createPortalDoorTexture(portal) {
-	const canvas = document.createElement('canvas');
-	canvas.width = 768;
-	canvas.height = 1024;
-	const ctx = canvas.getContext('2d');
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
-	for (let y = 0; y < canvas.height; y += 8) {
-		ctx.fillStyle = `rgba(255, 245, 223, ${y % 16 === 0 ? 0.06 : 0.02})`;
-		ctx.fillRect(0, y, canvas.width, 2);
-	}
-	ctx.globalAlpha = 0.16;
-	ctx.strokeStyle = '#fff5df';
-	ctx.lineWidth = 6;
-	for (let i = 0; i < 2; i++) {
-		ctx.strokeRect(60 + i * 40, 120 + i * 80, canvas.width - 120 - i * 80, canvas.height - 320 - i * 160);
-	}
-	ctx.globalAlpha = 1;
-	const accent = '#' + new THREE.Color(portal.accent).getHexString();
-	ctx.textAlign = 'center';
-	if (portal.kind === 'exit') {
-		ctx.fillStyle = '#fff5df';
-		ctx.font = '900 110px Arial Black, Impact, sans-serif';
-		ctx.fillText('EXIT', canvas.width / 2, 230);
-		ctx.fillStyle = accent;
-		ctx.font = '900 220px Arial Black, Impact, sans-serif';
-		ctx.fillText('→', canvas.width / 2, 600);
-		ctx.fillStyle = '#fff5df';
-		ctx.font = '900 52px Arial Black, Impact, sans-serif';
-		ctx.fillText('MERCANTILE', canvas.width / 2, 800);
-		ctx.font = '500 28px ui-monospace, Menlo, monospace';
-		ctx.fillText(portal.url.replace('https://', '').replace(/\/$/, ''), canvas.width / 2, 870);
-	} else {
-		// The visitor arrived through here, so the door reads as a welcome and a
-		// credit to wordpress.org rather than an outward "ENTER" prompt.
-		ctx.fillStyle = '#fff5df';
-		ctx.font = '900 104px Arial Black, Impact, sans-serif';
-		ctx.fillText('WELCOME', canvas.width / 2, 300);
-		ctx.fillStyle = accent;
-		ctx.font = '900 76px Arial Black, Impact, sans-serif';
-		ctx.fillText('Powered by', canvas.width / 2, 470);
-		ctx.fillText('WordPress', canvas.width / 2, 560);
-		ctx.fillStyle = '#fff5df';
-		ctx.font = '600 34px ui-monospace, Menlo, monospace';
-		ctx.fillText('↩  ' + portal.url.replace('https://', '').replace(/\/$/, ''), canvas.width / 2, 760);
-	}
-	const tex = createCanvasTexture(canvas);
-	tex.colorSpace = THREE.SRGBColorSpace;
-	tex.anisotropy = 4;
-	return tex;
 }
 
 function createPortalPosterTexture(portal) {
