@@ -836,8 +836,8 @@ function createPortalEndWall(portal, cx, zEnd, height) {
 	// so it carries a NO-ENTRY sign rather than an inviting poster.
 	const doorCenterZ = zEnd - 0.14;
 	const faceZ = doorCenterZ - 0.08; // front face, toward the rotunda
-	const slabMat = new THREE.MeshStandardMaterial({ color: 0x2b5a7a, roughness: 0.5, metalness: 0.12 });
-	const panelMat = new THREE.MeshStandardMaterial({ color: 0x214862, roughness: 0.6, metalness: 0.1 });
+	const slabMat = new THREE.MeshStandardMaterial({ color: 0x6e4426, roughness: 0.62, metalness: 0.05 });
+	const panelMat = new THREE.MeshStandardMaterial({ color: 0x593318, roughness: 0.66, metalness: 0.04 });
 	const brass = new THREE.MeshStandardMaterial({ color: 0xcaa24a, roughness: 0.3, metalness: 0.7 });
 
 	const door = new THREE.Mesh(new THREE.BoxGeometry(archWidth, archHeight, 0.16), slabMat);
@@ -934,13 +934,16 @@ function createNoExitTexture() {
 // An L of golden stanchions with a red velvet rope, roping off the entrance the
 // visitor arrived through and nudging them on toward the galleries.
 function createEntranceStanchions(cx, zStart) {
-	const blockZ = zStart - 0.25;
-	// A clean straight cordon across the entrance mouth, parallel to the door.
+	const mouthZ = zStart - 0.3;
+	// An L that guides someone entering through the door (facing the rotunda, −z)
+	// first FORWARD out of the alcove, then LEFT (−x): the forward leg runs along
+	// the visitor's right (+x) side, then the rope turns left across in front.
 	const points = [
-		{ x: cx - 1.5, z: blockZ },
-		{ x: cx - 0.5, z: blockZ },
-		{ x: cx + 0.5, z: blockZ },
-		{ x: cx + 1.5, z: blockZ },
+		{ x: cx + 1.5, z: mouthZ },
+		{ x: cx + 1.5, z: mouthZ - 1.4 },
+		{ x: cx + 1.5, z: mouthZ - 2.8 },
+		{ x: cx + 0.1, z: mouthZ - 2.8 },
+		{ x: cx - 1.3, z: mouthZ - 2.8 },
 	];
 	return createMuseumRopeLine(points, 0xa01828, { postHeight: 0.92, ropeY: 0.86 });
 }
