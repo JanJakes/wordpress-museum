@@ -897,34 +897,34 @@ function createNoExitTexture() {
 	canvas.height = 470;
 	const ctx = canvas.getContext('2d');
 	const cx = 192;
-	const cy = 158;
-	const r = 140;
+	const cy = 172;
+	const r = 116;
 	ctx.fillStyle = '#f6f6f4';
 	ctx.beginPath();
 	ctx.arc(cx, cy, r, 0, Math.PI * 2);
 	ctx.fill();
 	ctx.strokeStyle = '#c62828';
-	ctx.lineWidth = 40;
+	ctx.lineWidth = 34;
 	ctx.beginPath();
-	ctx.arc(cx, cy, r - 24, 0, Math.PI * 2);
+	ctx.arc(cx, cy, r - 20, 0, Math.PI * 2);
 	ctx.stroke();
 	ctx.lineCap = 'butt';
-	const s = (r - 44) * Math.SQRT1_2;
+	const s = (r - 38) * Math.SQRT1_2;
 	ctx.beginPath();
 	ctx.moveTo(cx - s, cy - s);
 	ctx.lineTo(cx + s, cy + s);
 	ctx.stroke();
 	ctx.fillStyle = '#f6f6f4';
-	roundRectPath(ctx, cx - 150, 358, 300, 88, 12);
+	roundRectPath(ctx, cx - 130, 366, 260, 76, 12);
 	ctx.fill();
 	ctx.lineWidth = 6;
-	roundRectPath(ctx, cx - 150, 358, 300, 88, 12);
+	roundRectPath(ctx, cx - 130, 366, 260, 76, 12);
 	ctx.stroke();
 	ctx.fillStyle = '#c62828';
-	ctx.font = '900 66px Arial Black, Impact, sans-serif';
+	ctx.font = '900 54px Arial Black, Impact, sans-serif';
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-	ctx.fillText('NO EXIT', cx, 404);
+	ctx.fillText('NO EXIT', cx, 406);
 	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
@@ -6081,24 +6081,6 @@ function createHubFloor() {
 
 function createHubWalls() {
 	const group = new THREE.Group();
-	const ring = new THREE.Mesh(
-		new THREE.RingGeometry(
-			hubCircumradius,
-			hubCircumradius + 0.45,
-			8,
-			1,
-			Math.PI / 8
-		),
-		new THREE.MeshBasicMaterial({
-			color: 0xffd166,
-			transparent: true,
-			opacity: 0.84,
-		})
-	);
-	ring.rotation.x = -Math.PI / 2;
-	ring.position.y = 0.025;
-	group.add(ring);
-
 	for (const side of hubSides) {
 		if (side.kind === 'mural') {
 			group.add(createMuralWall(side));
@@ -6494,27 +6476,24 @@ function createPortalSignTexture(portal) {
 	canvas.width = 1024;
 	canvas.height = 280;
 	const ctx = canvas.getContext('2d');
-	ctx.fillStyle = '#140d05';
+	// A brass museum plaque — calmer than the old black marquee.
+	const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+	grad.addColorStop(0, '#bd9743');
+	grad.addColorStop(0.5, '#aa863a');
+	grad.addColorStop(1, '#8c6d2d');
+	ctx.fillStyle = grad;
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	const bulb = new THREE.Color(portal.accent).getHexString();
-	for (let index = 0; index < 12; index++) {
-		const x = 26 + index * 84;
-		ctx.fillStyle = index % 2 ? `#${bulb}` : '#fff5df';
-		ctx.beginPath();
-		ctx.arc(x, 34, 8, 0, Math.PI * 2);
-		ctx.fill();
-		ctx.beginPath();
-		ctx.arc(x, canvas.height - 34, 8, 0, Math.PI * 2);
-		ctx.fill();
-	}
-	ctx.fillStyle = '#fff5df';
-	ctx.font = '900 128px Arial Black, Impact, sans-serif';
+	ctx.strokeStyle = 'rgba(58, 42, 16, 0.55)';
+	ctx.lineWidth = 8;
+	ctx.strokeRect(12, 12, canvas.width - 24, canvas.height - 24);
+	ctx.fillStyle = '#2c2008';
+	ctx.font = '900 120px Arial Black, Impact, sans-serif';
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-	ctx.fillText(portal.title, 512, 124);
-	ctx.fillStyle = `#${bulb}`;
-	ctx.font = '700 40px system-ui, sans-serif';
-	ctx.fillText(portal.sub.toUpperCase(), 512, 216);
+	ctx.fillText(portal.title, 512, 116);
+	ctx.fillStyle = '#3a2c12';
+	ctx.font = '700 38px system-ui, sans-serif';
+	ctx.fillText(portal.sub.toUpperCase(), 512, 214);
 
 	const texture = createCanvasTexture(canvas);
 	texture.colorSpace = THREE.SRGBColorSpace;
@@ -6659,6 +6638,16 @@ function createWordPressMuralTexture(aspect) {
 		const texture = createCanvasTexture(canvas);
 		texture.colorSpace = THREE.SRGBColorSpace;
 		texture.anisotropy = 4;
+		// Overlay the real WordPress logo on the medallion (async SVG, then refresh).
+		// Matches drawUltimateMural's geometry: medallionX = h*0.62, radius = h*0.3.
+		const medH = canvas.height;
+		const logoImg = new Image();
+		logoImg.onload = () => {
+			const d = medH * 0.3 * 1.6;
+			ctx.drawImage(logoImg, medH * 0.62 - d / 2, medH / 2 - d / 2, d, d);
+			refreshCanvasTexture(texture);
+		};
+		logoImg.src = wpLogoSvgDataUrl('#7c5a22');
 		return texture;
 	}
 	if (!isCurrentVariant) {
@@ -6827,26 +6816,13 @@ function drawMuralWMark(ctx, x, y, radius, bronze) {
 	ctx.arc(0, 0, radius, 0, Math.PI * 2);
 	ctx.fill();
 
-	// Double bronze ring.
+	// Bronze rim. The mark itself (ring + W) is the real WordPress logo, drawn on
+	// top of this disc from createWordPressMuralTexture.
 	ctx.strokeStyle = bronze;
 	ctx.lineWidth = Math.max(3, radius * 0.06);
 	ctx.beginPath();
 	ctx.arc(0, 0, radius - ctx.lineWidth, 0, Math.PI * 2);
 	ctx.stroke();
-	ctx.lineWidth = Math.max(1.5, radius * 0.025);
-	ctx.beginPath();
-	ctx.arc(0, 0, radius - radius * 0.18, 0, Math.PI * 2);
-	ctx.stroke();
-
-	// Engraved "W": a light emboss highlight under a darker bronze fill.
-	ctx.font = `700 ${Math.round(radius * 1.18)}px Georgia, "Times New Roman", serif`;
-	ctx.textAlign = 'center';
-	ctx.textBaseline = 'middle';
-	ctx.fillStyle = 'rgba(255, 252, 244, 0.6)';
-	ctx.fillText('W', 1.5, radius * 0.04 + 2);
-	ctx.fillStyle = bronze;
-	ctx.fillText('W', 0, radius * 0.04);
-	ctx.textBaseline = 'alphabetic';
 	ctx.restore();
 }
 

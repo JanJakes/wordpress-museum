@@ -216,13 +216,28 @@ body.museum-ready #museum-loader {
 	left: 50%;
 	top: 50%;
 	z-index: 8;
-	width: 16px;
-	height: 16px;
-	border: 1px solid rgba(255, 255, 255, 0.62);
+	width: 22px;
+	height: 22px;
+	border: 2px solid rgba(255, 255, 255, 0.95);
 	border-radius: 50%;
 	opacity: 0;
 	transform: translate(-50%, -50%);
 	transition: opacity 160ms ease;
+	/* Dark halo so the cursor stays visible on light marble and dark signage. */
+	box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.55), 0 0 7px rgba(0, 0, 0, 0.4);
+}
+
+.reticle::after {
+	content: '';
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 4px;
+	height: 4px;
+	background: #fff;
+	border-radius: 50%;
+	transform: translate(-50%, -50%);
+	box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.6);
 }
 
 body.is-walking .reticle {
@@ -1117,19 +1132,20 @@ body[data-variant='current'] .help-stamp {
 .walk-hint {
 	position: fixed;
 	left: 50%;
-	top: 16px;
-	z-index: 9;
+	top: 96px;
+	z-index: 12;
 	display: none;
 	gap: 8px;
-	padding: 9px 16px;
+	padding: 11px 18px;
 	font-family: var(--pixel-font, ui-monospace, monospace);
-	font-size: 0.56rem;
+	font-size: 0.62rem;
 	letter-spacing: 0.03em;
 	white-space: nowrap;
 	color: #fff5df;
-	background: rgba(20, 13, 6, 0.86);
+	background: rgba(20, 13, 6, 0.9);
 	border: 2px solid var(--accent, #ffd166);
 	border-radius: 4px;
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 	pointer-events: none;
 	transform: translateX(-50%);
 }
