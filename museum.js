@@ -355,7 +355,7 @@ const playgroundDoorHeight = 3.0;
 const playgroundWallThickness = 0.3;
 const playgroundWidth = 12.5; // z-extent (south from the gallery corner); expanded for room
 const playgroundDepth = 12.5; // x-extent, east from the chamfer wall; expanded for room
-const playgroundHeight = 5.4;
+const playgroundHeight = wallHeight;
 // The Block Editor gallery (eras[5]) fills the area just NW of the chamfer top
 // (its left corner reaches world x=28, z~11.6), so the annex starts a little south
 // of that corner and runs +z; the doorway sits at the chamfer midpoint near the
