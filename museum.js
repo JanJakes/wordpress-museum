@@ -8724,13 +8724,12 @@ function createAtriumWayfindingSigns() {
 		sign.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
 		group.add(sign);
 
-		if (spec.era === eras[0]) {
-			// A flower bed centred directly under the Start Here sign, against the wall.
-			const bed = createFlowerBed(activeVariant.eraColors[1], activeVariant.eraColors[3]);
-			const spot = center.clone().add(side.normal.clone().multiplyScalar(-0.62));
-			bed.position.set(spot.x, 0, spot.z);
-			group.add(bed);
-		}
+		// A matching flower bed centred directly under each wayfinding sign (Start
+		// Here and Exit), against the wall.
+		const bed = createFlowerBed(activeVariant.eraColors[1], activeVariant.eraColors[3]);
+		const spot = center.clone().add(side.normal.clone().multiplyScalar(-0.62));
+		bed.position.set(spot.x, 0, spot.z);
+		group.add(bed);
 	}
 	return group;
 }
