@@ -872,15 +872,11 @@ function createPortalEndWall(portal, cx, zEnd, height) {
 		group.add(mount);
 	}
 
-	// NO-ENTRY sign on the door, with a small plate beneath.
-	const noEntry = createNoEntrySign(0.6);
-	noEntry.position.set(cx, archHeight * 0.6, faceZ - 0.04);
-	noEntry.rotation.y = Math.PI; // face the rotunda
-	group.add(noEntry);
-	const noEntryPlate = createReadableLabel(createSmallSignTexture('NO ENTRY', '#c62828'), 1.1, 0.3);
-	noEntryPlate.position.set(cx, archHeight * 0.6 - 0.92, faceZ - 0.04);
-	noEntryPlate.rotation.y = Math.PI;
-	group.add(noEntryPlate);
+	// A "NO EXIT" sign (🚫 + label). This is the entrance, viewed from inside, so
+	// visitors leave through the gift shop rather than back out here.
+	const noExit = createReadableLabel(createNoExitTexture(), 1.0, 1.22);
+	noExit.position.set(cx, archHeight * 0.55, faceZ - 0.05);
+	group.add(noExit);
 
 	// A soft warm light so the doorway reads, without the old portal glow.
 	const doorLight = new THREE.PointLight(0xffe6b8, 0.7, 7);
@@ -893,33 +889,58 @@ function createPortalEndWall(portal, cx, zEnd, height) {
 	return group;
 }
 
-// A round "no entry" / prohibition sign (🚫): a white disc with a bold red ring
-// and a diagonal red bar.
-function createNoEntrySign(radius) {
-	const group = new THREE.Group();
-	const red = new THREE.MeshStandardMaterial({ color: 0xc62828, roughness: 0.5, metalness: 0.05 });
-	const white = new THREE.MeshStandardMaterial({ color: 0xf6f6f4, roughness: 0.6 });
-	const disc = new THREE.Mesh(new THREE.CircleGeometry(radius, 48), white);
-	group.add(disc);
-	const ring = new THREE.Mesh(new THREE.RingGeometry(radius * 0.8, radius, 48), red);
-	ring.position.z = 0.008;
-	group.add(ring);
-	const bar = new THREE.Mesh(new THREE.BoxGeometry(radius * 1.5, radius * 0.26, 0.04), red);
-	bar.position.z = 0.03;
-	bar.rotation.z = -Math.PI / 4;
-	group.add(bar);
-	return group;
+// A flat "NO EXIT" sign texture: the round 🚫 prohibition mark (white disc, bold
+// red ring and diagonal bar) over a red "NO EXIT" label, on transparent.
+function createNoExitTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 384;
+	canvas.height = 470;
+	const ctx = canvas.getContext('2d');
+	const cx = 192;
+	const cy = 158;
+	const r = 140;
+	ctx.fillStyle = '#f6f6f4';
+	ctx.beginPath();
+	ctx.arc(cx, cy, r, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.strokeStyle = '#c62828';
+	ctx.lineWidth = 40;
+	ctx.beginPath();
+	ctx.arc(cx, cy, r - 24, 0, Math.PI * 2);
+	ctx.stroke();
+	ctx.lineCap = 'butt';
+	const s = (r - 44) * Math.SQRT1_2;
+	ctx.beginPath();
+	ctx.moveTo(cx - s, cy - s);
+	ctx.lineTo(cx + s, cy + s);
+	ctx.stroke();
+	ctx.fillStyle = '#f6f6f4';
+	roundRectPath(ctx, cx - 150, 358, 300, 88, 12);
+	ctx.fill();
+	ctx.lineWidth = 6;
+	roundRectPath(ctx, cx - 150, 358, 300, 88, 12);
+	ctx.stroke();
+	ctx.fillStyle = '#c62828';
+	ctx.font = '900 66px Arial Black, Impact, sans-serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('NO EXIT', cx, 404);
+	const texture = createCanvasTexture(canvas);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	return texture;
 }
 
 // An L of golden stanchions with a red velvet rope, roping off the entrance the
 // visitor arrived through and nudging them on toward the galleries.
 function createEntranceStanchions(cx, zStart) {
 	const blockZ = zStart - 0.25;
+	// A clean straight cordon across the entrance mouth, parallel to the door.
 	const points = [
-		{ x: cx + 1.4, z: blockZ },
-		{ x: cx, z: blockZ },
-		{ x: cx - 1.4, z: blockZ },
-		{ x: cx - 2.0, z: blockZ - 1.5 },
+		{ x: cx - 1.5, z: blockZ },
+		{ x: cx - 0.5, z: blockZ },
+		{ x: cx + 0.5, z: blockZ },
+		{ x: cx + 1.5, z: blockZ },
 	];
 	return createMuseumRopeLine(points, 0xa01828, { postHeight: 0.92, ropeY: 0.86 });
 }
@@ -6458,23 +6479,6 @@ function createPortalSign(side, portal) {
 				object.material.opacity = 0.5 + (Math.sin(elapsed * 2.2 + index * 0.9) * 0.5 + 0.5) * 0.5;
 			});
 			group.add(arrow);
-		}
-	} else {
-		// No directional CTA: the visitor arrived here. A row of static marquee
-		// bulbs frames the welcome sign instead of beckoning arrows.
-		const bulbMaterial = new THREE.MeshBasicMaterial({ color: portal.accent });
-		for (let index = 0; index < 3; index++) {
-			const dot = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 10), bulbMaterial.clone());
-			dot.position
-				.copy(side.midpoint)
-				.add(side.tangent.clone().multiplyScalar(portal.offset + (-1.0 + index * 1.0)))
-				.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.34));
-			dot.position.y = 0.5;
-			registerAnimation(dot, (object, elapsed) => {
-				object.material.opacity = 0.6 + (Math.sin(elapsed * 1.8 + index * 1.2) * 0.5 + 0.5) * 0.4;
-			});
-			dot.material.transparent = true;
-			group.add(dot);
 		}
 	}
 	return group;
