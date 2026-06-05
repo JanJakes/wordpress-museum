@@ -14097,7 +14097,7 @@ function getEraVignetteItems(room, color, secondary) {
 			{ label: 'RESPONSIVE', object: createResponsivePreview(color, secondary), width: 1.6 },
 		],
 		'API and Customizer': [
-			{ label: 'REST API', object: createApiPortal(color, secondary, 0.62), width: 1.55 },
+			{ label: 'CUSTOMIZER', object: createCustomizerPalette(color, secondary, 0.85), width: 1.74 },
 			{ label: 'JSON', object: createOrbitalSculpture(secondary), width: 1.45 },
 			{ label: 'MEDIA', object: createCommentAquarium(secondary, color, 0.54), width: 1.65 },
 		],
@@ -14581,6 +14581,86 @@ function createServerOracle(color, secondary) {
 	halo.position.y = 1.72;
 	halo.rotation.x = Math.PI / 2;
 	group.add(halo);
+	return group;
+}
+
+// V · API & Customizer — the "Customizer" half of the era: a painter's palette
+// with a freshly dipped brush, a live-preview "recolour your site" pun. Stands in
+// for a second REST portal so the room's two halves are both represented.
+function createCustomizerPalette(color, secondary, scale = 1) {
+	const group = new THREE.Group();
+	const woodMat = new THREE.MeshStandardMaterial({ color: 0xd8b482, roughness: 0.72 });
+
+	const stem = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.06, 0.085, 0.62, 16),
+		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
+	);
+	stem.position.y = 0.31;
+	group.add(stem);
+
+	// Oval palette board, tipped up so its face shows to an arriving visitor.
+	const palette = new THREE.Group();
+	palette.position.y = 0.66;
+	palette.rotation.x = -0.62;
+	const board = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.055, 40), woodMat);
+	board.scale.set(1.22, 1, 0.92);
+	palette.add(board);
+	const hole = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.1, 0.1, 0.08, 20),
+		new THREE.MeshStandardMaterial({ color: 0x2a1d0c, roughness: 0.9 })
+	);
+	hole.position.set(0.42, 0, 0.24);
+	palette.add(hole);
+	const dabColors = [0x1e8cbe, 0xe1577d, 0x46b450, 0xf0a830, 0x826eb4, secondary];
+	dabColors.forEach((c, i) => {
+		const a = -0.5 + (i / (dabColors.length - 1)) * Math.PI * 1.2;
+		const dab = new THREE.Mesh(
+			new THREE.SphereGeometry(0.092, 16, 12),
+			new THREE.MeshStandardMaterial({
+				color: c,
+				roughness: 0.28,
+				emissive: new THREE.Color(c),
+				emissiveIntensity: 0.1,
+			})
+		);
+		dab.scale.y = 0.55;
+		dab.position.set(Math.cos(a) * 0.33, 0.045, Math.sin(a) * 0.25 - 0.04);
+		palette.add(dab);
+	});
+	group.add(palette);
+
+	// A brush resting across the palette, tip dipped in the era colour, gently
+	// rocking as if mid-stroke.
+	const brush = new THREE.Group();
+	const handle = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.03, 0.038, 0.64, 12),
+		new THREE.MeshStandardMaterial({ color: 0x8a5a2b, roughness: 0.7 })
+	);
+	const ferrule = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.043, 0.043, 0.11, 12),
+		new THREE.MeshStandardMaterial({ color: 0xcfd3d6, roughness: 0.3, metalness: 0.7 })
+	);
+	ferrule.position.y = -0.37;
+	const tip = new THREE.Mesh(
+		new THREE.ConeGeometry(0.052, 0.18, 12),
+		new THREE.MeshStandardMaterial({
+			color,
+			roughness: 0.45,
+			emissive: new THREE.Color(color),
+			emissiveIntensity: 0.14,
+		})
+	);
+	tip.position.y = -0.5;
+	tip.rotation.x = Math.PI;
+	brush.add(handle, ferrule, tip);
+	brush.position.set(-0.16, 0.9, 0.22);
+	brush.rotation.set(0.5, 0.2, -0.8);
+	registerAnimation(brush, (object, elapsed) => {
+		object.rotation.z = -0.8 + Math.sin(elapsed * 1.4) * 0.08;
+	});
+	group.add(brush);
+
+	group.scale.setScalar(scale);
 	return group;
 }
 
