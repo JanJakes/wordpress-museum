@@ -16338,7 +16338,9 @@ function createPlaqueTexture(release, color) {
 	canvas.height = 736;
 	const ctx = canvas.getContext('2d');
 	drawPlaqueTexture(ctx, canvas, release, color, {});
-	const texture = createCanvasTexture(canvas);
+	// Full-resolution: these release pictures are the main thing visitors read
+	// (and zoom into), so they bypass the 448px cap.
+	const texture = createCanvasTexture(canvas, 1024);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 
