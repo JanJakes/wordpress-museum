@@ -9271,7 +9271,10 @@ function getGalleryDoorwayPoints(room, doorHalfW) {
 function createRotundaCornerFlora(index, color, secondary) {
 	const palette = activeVariant.eraColors;
 	const blossom = palette[(index * 3 + 1) % palette.length];
-	if (index % 2 === 0) {
+	// Indices 3 (right, by Code is Poetry) and 4 (left, by Start Here) are swapped
+	// so the tree stands on the right and the flower bed on the left.
+	const isTree = index === 3 ? true : index === 4 ? false : index % 2 === 0;
+	if (isTree) {
 		return createFloweringTree(blossom, 2.5 + (index % 3) * 0.4);
 	}
 	return createFlowerBed(blossom, index % 4 === 1 ? secondary : color);
@@ -9684,9 +9687,6 @@ function addAtriumFeature(group, feature, color, secondary) {
 }
 
 function addUltimateAtriumFeature(group, color, secondary) {
-	// Planters flank the Mercantile (gift-shop) doorway on the mural side.
-	addPlaced(group, createAtriumPlanter(color, secondary), -6.7, 14.62, 0);
-	addPlaced(group, createAtriumPlanter(secondary, color), 6.7, 14.62, 0);
 	// Wapuu greets on the west side — the visitor's right as they enter — mirroring
 	// the elePHPant greeter on the east, both partly in the opening view.
 	addPlaced(group, createWapuuDocent(color, secondary), -5.5, 3.0, 2.05);
@@ -9746,30 +9746,6 @@ function createOpenSourceEngineRoom(color, secondary) {
 	portal.position.set(0.96, 0.3, 0.38);
 	portal.rotation.y = Math.PI;
 	group.add(portal);
-	return group;
-}
-
-function createAtriumPlanter(color, secondary) {
-	const group = new THREE.Group();
-	const planter = new THREE.Mesh(
-		new THREE.BoxGeometry(1.55, 0.34, 0.58),
-		new THREE.MeshStandardMaterial({ color: 0xf8efd9, roughness: 0.72 })
-	);
-	planter.position.y = 0.17;
-	group.add(planter);
-
-	const accent = new THREE.Mesh(
-		new THREE.BoxGeometry(1.61, 0.06, 0.62),
-		new THREE.MeshBasicMaterial({ color })
-	);
-	accent.position.y = 0.37;
-	group.add(accent);
-
-	for (const [index, x] of [-0.46, 0, 0.46].entries()) {
-		const plant = createPlant(index === 1 ? secondary : color, 0.56);
-		plant.position.set(x, 0.24, 0);
-		group.add(plant);
-	}
 	return group;
 }
 
