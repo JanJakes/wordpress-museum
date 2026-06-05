@@ -14,7 +14,7 @@
 			href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Special+Elite&display=swap"
 			rel="stylesheet"
 		/>
-		<link rel="stylesheet" href="./style.css?v=4234d84f" />
+		<link rel="stylesheet" href="./style.css?v=9a780fdd" />
 	</head>
 	<body data-variant="current" data-ui="glass">
 		<div id="museum-loader" role="status" aria-live="polite">
@@ -138,6 +138,32 @@
 			</ul>
 		</div>
 
+		<div id="playground-modal" class="playground-modal" aria-hidden="true">
+			<button
+				type="button"
+				id="playground-modal-close"
+				class="playground-modal-backdrop"
+				aria-label="Close Playground"
+			></button>
+			<div
+				class="playground-modal-dialog"
+				role="dialog"
+				aria-modal="true"
+				aria-label="WordPress Playground"
+			>
+				<div class="playground-modal-bar">
+					<span id="playground-modal-title">WordPress Playground</span>
+					<button type="button" id="playground-modal-x" aria-label="Close">✕</button>
+				</div>
+				<iframe
+					id="playground-modal-iframe"
+					class="playground-modal-iframe"
+					title="WordPress Playground"
+					allow="clipboard-write"
+				></iframe>
+			</div>
+		</div>
+
 		<script src="./museum-variants.js?v=c22a4b87"></script>
 		<script src="./museum-data.js?v=7091c468"></script>
 		<script type="importmap">
@@ -180,6 +206,6 @@
 				document.body.classList.add('museum-ready');
 			}, 12000);
 		</script>
-		<script type="module" src="./museum.js?v=614f3ae0"></script>
+		<script type="module" src="./museum.js?v=41a27eec"></script>
 	</body>
 </html>

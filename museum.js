@@ -16769,6 +16769,19 @@ function bindControls() {
 		.querySelector('#release-counter')
 		.addEventListener('click', () => focusRelease(activeIndex));
 
+	const openPlayground = document.querySelector('#open-playground');
+	if (openPlayground) {
+		openPlayground.addEventListener('click', (event) => {
+			event.preventDefault();
+			openPlaygroundModal(activeIndex);
+		});
+	}
+	const pgModal = document.querySelector('#playground-modal');
+	if (pgModal) {
+		document.querySelector('#playground-modal-close').addEventListener('click', closePlaygroundModal);
+		document.querySelector('#playground-modal-x').addEventListener('click', closePlaygroundModal);
+	}
+
 	const panelToggle = document.querySelector('#panel-toggle');
 	const releasePanel = document.querySelector('.release-panel');
 	if (panelToggle && releasePanel) {
@@ -16795,6 +16808,9 @@ function bindControls() {
 		turnCamera(event.movementX, event.movementY);
 	});
 	document.addEventListener('keydown', (event) => {
+		if (event.code === 'Escape') {
+			closePlaygroundModal();
+		}
 		keys.add(event.code);
 		if (isMovementKey(event.code)) {
 			event.preventDefault();
@@ -17421,6 +17437,40 @@ function focusRelease(index, immediate = false, options = {}) {
 	updateActiveExhibitMarker();
 }
 
+function playgroundUrlForRelease(release) {
+	const blueprintUrl = new URL(release.blueprint, window.location.href);
+	const url = new URL('https://playground.wordpress.net/');
+	url.searchParams.set('blueprint-url', blueprintUrl.href);
+	return url.href;
+}
+
+function openPlaygroundModal(index) {
+	const release = releases[wrapIndex(index)];
+	const modal = document.querySelector('#playground-modal');
+	if (!modal) {
+		return;
+	}
+	document.querySelector('#playground-modal-title').textContent =
+		`WordPress ${release.version}${release.name ? ' ' + release.name : ''} · Playground`;
+	document.querySelector('#playground-modal-iframe').src = playgroundUrlForRelease(release);
+	modal.classList.add('is-open');
+	modal.setAttribute('aria-hidden', 'false');
+	if (document.pointerLockElement) {
+		document.exitPointerLock();
+	}
+}
+
+function closePlaygroundModal() {
+	const modal = document.querySelector('#playground-modal');
+	if (!modal || !modal.classList.contains('is-open')) {
+		return;
+	}
+	modal.classList.remove('is-open');
+	modal.setAttribute('aria-hidden', 'true');
+	// Reset the iframe so the WordPress instance stops running in the background.
+	document.querySelector('#playground-modal-iframe').src = 'about:blank';
+}
+
 function updatePanel(release) {
 	document.querySelector('#release-era').textContent = release.era;
 	document.querySelector('#release-title').textContent =
@@ -17431,10 +17481,7 @@ function updatePanel(release) {
 	document.querySelector('#release-counter').textContent =
 		`WP ${release.version}`;
 
-	const blueprintUrl = new URL(release.blueprint, window.location.href);
-	const playgroundUrl = new URL('https://playground.wordpress.net/');
-	playgroundUrl.searchParams.set('blueprint-url', blueprintUrl.href);
-	document.querySelector('#open-playground').href = playgroundUrl.href;
+	document.querySelector('#open-playground').href = playgroundUrlForRelease(release);
 }
 
 function updateRail(syncRail = true) {
@@ -17619,9 +17666,16 @@ function pickFromScreen(x, y) {
 		return true;
 	}
 	if (Number.isFinite(obj.userData.releaseIndex)) {
-		focusRelease(obj.userData.releaseIndex, false, { closer: true });
-		if (document.pointerLockElement) {
-			document.exitPointerLock();
+		const idx = obj.userData.releaseIndex;
+		if (idx === activeIndex && !atCenter) {
+			// Already focused on this picture — clicking it boots that version in
+			// an embedded Playground modal.
+			openPlaygroundModal(idx);
+		} else {
+			focusRelease(idx, false, { closer: true });
+			if (document.pointerLockElement) {
+				document.exitPointerLock();
+			}
 		}
 		return true;
 	}
