@@ -1042,10 +1042,11 @@ body[data-variant='current'] .release-rail {
 body[data-variant='current'] .rail-center-button {
 	font-family: var(--pixel-font);
 	font-size: 0.55rem;
-	background: #ffd166;
+	/* Silver — set apart from the era-colored number buttons. */
+	background: linear-gradient(180deg, #eef1f5, #b7bdc8);
 	color: #1c1306;
-	border: 2px solid #1c1306;
-	box-shadow: 3px 3px 0 #2a1808;
+	border: 2px solid #5a5f68;
+	box-shadow: 3px 3px 0 #3a3e45;
 	border-radius: 2px;
 }
 
@@ -1063,9 +1064,9 @@ body[data-variant='current'] #release-rail-track button {
 
 body[data-variant='current'] .rail-center-button.is-active {
 	box-shadow:
-		3px 3px 0 #2a1808,
-		0 0 16px rgba(255, 209, 102, 0.7);
-	outline: 2px solid #fff5df;
+		3px 3px 0 #3a3e45,
+		0 0 16px rgba(214, 221, 231, 0.8);
+	outline: 2px solid #f2f5f9;
 }
 
 body[data-variant='current'] #release-rail-track button.is-active {
