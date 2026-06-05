@@ -12800,10 +12800,7 @@ function createWebStandLabelTexture() {
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
 	ctx.fillStyle = '#241a0c';
-	fillFittedCanvasText(ctx, 'THE WEB', canvas.width / 2, 80, 760, 84, '900', 'Georgia, "Times New Roman", serif');
-	ctx.fillStyle = '#7a5a1c';
-	ctx.font = 'italic 600 40px Georgia, serif';
-	ctx.fillText('the original World Wide Web', canvas.width / 2, 158);
+	fillFittedCanvasText(ctx, 'THE WEB', canvas.width / 2, 110, 760, 116, '900', 'Georgia, "Times New Roman", serif');
 	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
@@ -12928,9 +12925,11 @@ function createWpHooksRail(metalColor) {
 	group.add(rail);
 	// A pair of J-hooks hanging from the rail, flanking the post so neither fouls it.
 	const drops = [-0.6, 0.6];
-	drops.forEach((z, i) => {
-		const hook = createMetalHook(metal, 0.4 + (i % 2) * 0.07);
+	drops.forEach((z) => {
+		const hook = createMetalHook(metal, 0.4);
 		hook.position.set(0, railY - 0.03, z);
+		// Turn each hook ~45° outward (left out left, right out right) so its curl shows.
+		hook.rotation.y = -Math.sign(z) * (Math.PI / 4);
 		group.add(hook);
 	});
 	// "WP HOOKS · do_action()/apply_filters()" plate at eye level, facing +x.
@@ -14353,6 +14352,11 @@ function createLoopSculpture(color, secondary) {
 		new THREE.MeshBasicMaterial({ color })
 	);
 	dot.position.set(0.34, 0.72, 0);
+	// The marker circles the ring — the post-iteration "Loop" made literal.
+	registerAnimation(dot, (object, elapsed) => {
+		const a = elapsed * 1.2;
+		object.position.set(Math.cos(a) * 0.34, 0.72, Math.sin(a) * 0.34);
+	});
 	group.add(dot);
 	return group;
 }
@@ -15823,26 +15827,6 @@ function createActiveExhibitMarker() {
 		object.material.opacity = 0.13 + Math.sin(elapsed * 2.4) * 0.035;
 	});
 	group.add(wallGlow);
-
-	const floorRing = new THREE.Mesh(
-		new THREE.RingGeometry(0.72, 0.94, 48),
-		new THREE.MeshBasicMaterial({
-			color: 0xffffff,
-			transparent: true,
-			opacity: 0.85,
-			depthWrite: false,
-			side: THREE.DoubleSide,
-		})
-	);
-	floorRing.name = 'activeFloorRing';
-	floorRing.rotation.x = -Math.PI / 2;
-	registerAnimation(floorRing, (object, elapsed) => {
-		const scale = 1 + Math.sin(elapsed * 3) * 0.045;
-		object.scale.set(scale, scale, scale);
-		object.rotation.z = elapsed * 0.9;
-		object.material.opacity = 0.64 + Math.sin(elapsed * 2.1) * 0.14;
-	});
-	group.add(floorRing);
 	return group;
 }
 
@@ -17760,15 +17744,11 @@ function updateActiveExhibitMarker() {
 		return;
 	}
 	const wallGlow = marker.getObjectByName('activeWallGlow');
-	const floorRing = marker.getObjectByName('activeFloorRing');
 	wallGlow.position
 		.copy(position.card)
 		.add(position.normal.clone().multiplyScalar(0.5));
 	wallGlow.rotation.y = position.rotationY;
 	wallGlow.material.color.set(position.color);
-
-	floorRing.position.set(position.stand.x, 0.08, position.stand.z);
-	floorRing.material.color.set(position.color);
 }
 
 function updateNearestRelease() {
