@@ -9225,19 +9225,6 @@ function createFloweringTree(blossomColor, height) {
 		blob.position.set(bx, crownY + by, bz);
 		group.add(blob);
 	}
-	const blossomMat = new THREE.MeshStandardMaterial({
-		color: blossomColor,
-		roughness: 0.6,
-		emissive: blossomColor,
-		emissiveIntensity: 0.12,
-	});
-	for (let i = 0; i < 9; i++) {
-		const a = (Math.PI * 2 * i) / 9 + i;
-		const r = 0.36 + (i % 3) * 0.12;
-		const blossom = new THREE.Mesh(new THREE.SphereGeometry(0.065, 8, 6), blossomMat);
-		blossom.position.set(Math.cos(a) * r, crownY + Math.sin(i * 1.7) * 0.3, Math.sin(a) * r);
-		group.add(blossom);
-	}
 	return group;
 }
 
