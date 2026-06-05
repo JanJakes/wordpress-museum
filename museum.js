@@ -6446,28 +6446,6 @@ function createPortalSign(side, portal) {
 	sign.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
 	group.add(sign);
 
-	if (portal.kind === 'exit') {
-		// Animated arrows guide visitors out toward the gift shop.
-		const arrowMaterial = new THREE.MeshBasicMaterial({
-			color: portal.accent,
-			transparent: true,
-			opacity: 0.9,
-		});
-		for (let index = 0; index < 3; index++) {
-			const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.3, 4), arrowMaterial.clone());
-			arrow.position
-				.copy(side.midpoint)
-				.add(side.tangent.clone().multiplyScalar(portal.offset + (-1.0 + index * 1.0)))
-				.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.34));
-			arrow.position.y = 0.5;
-			arrow.rotation.x = Math.PI / 2;
-			arrow.rotation.y = getRotationForNormal(side.normal);
-			registerAnimation(arrow, (object, elapsed) => {
-				object.material.opacity = 0.5 + (Math.sin(elapsed * 2.2 + index * 0.9) * 0.5 + 0.5) * 0.5;
-			});
-			group.add(arrow);
-		}
-	}
 	return group;
 }
 
