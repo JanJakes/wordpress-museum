@@ -2420,7 +2420,7 @@ function createEraAnnex(annex) {
 			new THREE.BoxGeometry(wt, annexHeight, depth),
 			wallMaterial
 		);
-		wall.position.set(s, annexHeight / 2, depth / 2);
+		wall.position.set(s === sMax ? s - wt / 2 : s, annexHeight / 2, depth / 2);
 		group.add(wall);
 	}
 
@@ -2501,7 +2501,10 @@ function createEraAnnexDoorWall(annex, wallMaterial) {
 	const wt = annexWallThickness;
 	const dHalf = annexDoorHalfWidth;
 	const sLo = annex.sMin - wt;
-	const sHi = annex.sMax + wt;
+	// sMax is the octagon vertex shared with the neighbouring gallery, so the +s
+	// jamb stops AT it — overrunning by wt pokes a dark wall slab into that gallery
+	// (a tall black bar once the annex rises to full height).
+	const sHi = annex.sMax;
 	const addSeg = (s0, s1, height, yCenter) => {
 		const len = s1 - s0;
 		if (len < 0.02) {
