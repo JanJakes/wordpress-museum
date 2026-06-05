@@ -15901,21 +15901,6 @@ function addFrameMolding(group, color, innerWidth, innerHeight) {
 	liner.position.z = exhibitFrameDepth - 0.005;
 	group.add(liner);
 
-	// Small brass corner rosettes sitting on the molding.
-	const rosetteGeometry = new THREE.SphereGeometry(0.05, 14, 10);
-	for (const x of [-1, 1]) {
-		for (const y of [-1, 1]) {
-			const rosette = new THREE.Mesh(rosetteGeometry, brassMaterial);
-			rosette.position.set(
-				x * (exhibitOuterWidth / 2 - 0.07),
-				y * (exhibitOuterHeight / 2 - 0.07),
-				exhibitFrameDepth + 0.025
-			);
-			rosette.scale.set(1, 1, 0.6);
-			group.add(rosette);
-		}
-	}
-
 }
 
 // Builds a single flat picture-frame "ring" mesh (a rectangle with a
@@ -15992,7 +15977,7 @@ function addFrameAccents(group, color) {
 		return;
 	}
 	const style = activeVariant.frameStyle || activeVariant.frameBase;
-	if (['badge', 'knob', 'rail', 'capsule', 'bubble', 'record', 'monument', 'museum-brass'].includes(style)) {
+	if (['badge', 'knob', 'rail', 'capsule', 'bubble', 'record', 'monument'].includes(style)) {
 		addFrameCornerDots(group, color, style);
 	}
 	if (['block', 'maze', 'portal', 'arcade-cabinet', 'terminal-bezel'].includes(style)) {
