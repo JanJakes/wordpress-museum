@@ -848,13 +848,6 @@ function createPortalEndWall(portal, cx, zEnd, height) {
 	doorOverlay.rotation.y = Math.PI;
 	group.add(doorOverlay);
 
-	const knob = new THREE.Mesh(
-		new THREE.SphereGeometry(0.09, 16, 12),
-		new THREE.MeshStandardMaterial({ color: 0xfff5df, roughness: 0.3, metalness: 0.7 })
-	);
-	knob.position.set(cx + archWidth * 0.34, archHeight / 2 + 0.05, zEnd - 0.25);
-	group.add(knob);
-
 	const halo = new THREE.Mesh(
 		new THREE.PlaneGeometry(archWidth + 1.0, archHeight + 1.2),
 		new THREE.MeshBasicMaterial({ color: portal.accent, transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending })
@@ -872,11 +865,6 @@ function createPortalEndWall(portal, cx, zEnd, height) {
 	});
 	group.add(doorLight);
 
-	// The entrance is where the visitor arrived, so it shows a subtle credit badge
-	// ("↩ visit wordpress.org") instead of an outward prompt.
-	const ctaSign = createReadableLabel(createSimpleTextTexture('↩  visit wordpress.org', '#cfe4ff', '#10182a'), 1.5, 0.28);
-	ctaSign.position.set(cx, archHeight / 2 - archHeight * 0.42, zEnd - 0.32);
-	group.add(ctaSign);
 	return group;
 }
 
