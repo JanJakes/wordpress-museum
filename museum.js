@@ -7271,13 +7271,22 @@ function createRoomStoryTexture(room, aspect) {
 	const serif = 'Georgia, "Times New Roman", serif';
 	const ink = '#2d2718';
 
-	// The canvas stays transparent — only the lettering is drawn, so it reads as
-	// carved directly into the marble back wall rather than mounted on a panel.
+	// A soft, feathered marble-cream wash behind the lettering (no hard frame, edges
+	// blurred into the wall) lifts the engraved summary clear of the busy veining so
+	// it stays legible while still reading as part of the stone wall.
+	ctx.save();
+	ctx.shadowColor = 'rgba(245, 240, 227, 0.92)';
+	ctx.shadowBlur = Math.round(h * 0.16);
+	ctx.fillStyle = 'rgba(245, 240, 227, 0.84)';
+	roundRectPath(ctx, w * 0.08, h * 0.13, w * 0.84, h * 0.74, h * 0.18);
+	ctx.fill();
+	ctx.restore();
+
 	ctx.textAlign = 'center';
 	drawEngravedText(ctx, room.yearRange.replace('-', '–'), w / 2, h * 0.18, w * 0.7, h * 0.23,
 		'700', serif, ink);
 
-	drawEngravedWrap(ctx, copy.note, w / 2, h * 0.5, w * 0.86, h * 0.155, 2, '400', serif, ink);
+	drawEngravedWrap(ctx, copy.note, w / 2, h * 0.5, w * 0.86, h * 0.165, 2, '600', serif, ink);
 
 	const span = first && last
 		? (first.version === last.version
