@@ -15961,24 +15961,6 @@ function addFrameAccents(group, color) {
 	if (style === 'record') {
 		addFrameRecords(group);
 	}
-	if (style === 'museum-brass') {
-		addFrameNameplate(group, color);
-	}
-}
-
-function addFrameNameplate(group, color) {
-	const plate = new THREE.Mesh(
-		new THREE.BoxGeometry(0.76, 0.13, 0.045),
-		new THREE.MeshStandardMaterial({ color: 0xf2d48a, roughness: 0.28, metalness: 0.44 })
-	);
-	plate.position.set(0, -exhibitOuterHeight / 2 - 0.1, exhibitFrameDepth + 0.055);
-	group.add(plate);
-	const line = new THREE.Mesh(
-		new THREE.BoxGeometry(0.58, 0.018, 0.052),
-		new THREE.MeshBasicMaterial({ color })
-	);
-	line.position.set(0, plate.position.y, exhibitFrameDepth + 0.083);
-	group.add(line);
 }
 
 function addFrameCornerDots(group, color, style) {
