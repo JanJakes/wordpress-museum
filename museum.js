@@ -8016,7 +8016,7 @@ function createRoomCarpetRunner() {
 	// the doorway threshold, overlapping the arm (which ends at radius 16.6), so
 	// the runner reads continuously from the rotunda into the room — no gap or
 	// width step at the entry.
-	const front = -roomDepth / 2 - 0.05;
+	const front = -roomDepth / 2 - 0.4;
 	const back = roomDepth / 2 - 1.6;
 	const runner = createCarpetRunner(2.2, back - front);
 	runner.position.set(0, 0.092, (front + back) / 2);
@@ -8029,8 +8029,10 @@ function createRoomCarpetRunner() {
 // metalness). Two meshes per runner. Callers position/rotate the returned group.
 function createCarpetRunner(width, length) {
 	const group = new THREE.Group();
+	// Gold trim only along the long sides (flush at the ends) so runners that
+	// abut/overlap end-to-end read as one continuous red strip — no seam line.
 	const border = new THREE.Mesh(
-		new THREE.PlaneGeometry(width + 0.28, length + 0.28),
+		new THREE.PlaneGeometry(width + 0.28, length),
 		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.62, metalness: 0.12 })
 	);
 	border.rotation.x = -Math.PI / 2;
