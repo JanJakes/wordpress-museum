@@ -17654,15 +17654,28 @@ function openPlaygroundModal(index) {
 	}
 	document.querySelector('#playground-modal-title').textContent =
 		`WordPress ${release.version}${release.name ? ' ' + release.name : ''} · Playground`;
-	document.querySelector('#playground-modal-iframe').src = playgroundUrlForRelease(release);
 	modal.classList.add('is-open');
 	modal.setAttribute('aria-hidden', 'false');
 	if (document.pointerLockElement) {
 		document.exitPointerLock();
 	}
-	// Free the scene's GPU memory for the embedded WordPress while it's hidden.
+	const iframe = document.querySelector('#playground-modal-iframe');
+	const playgroundUrl = playgroundUrlForRelease(release);
 	if (loseContextExtension && !webglContextLost) {
+		// Free the scene's GPU memory BEFORE the embedded WordPress starts loading,
+		// so its PHP/WASM heap fills the reclaimed space instead of peaking on top of
+		// the museum's textures (the overlap was crashing memory-tight iOS). Stop
+		// rendering at once, then give the browser a beat to actually reclaim the GPU
+		// before kicking off the iframe.
+		webglContextLost = true;
 		loseContextExtension.loseContext();
+		setTimeout(() => {
+			if (modal.classList.contains('is-open')) {
+				iframe.src = playgroundUrl;
+			}
+		}, 160);
+	} else {
+		iframe.src = playgroundUrl;
 	}
 }
 
