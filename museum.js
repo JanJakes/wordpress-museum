@@ -517,6 +517,12 @@ let fpsSmoothed = 0;
 let debugPanelTimer = 0;
 let vramEstimateMB = 0;
 let vramRecalcTicks = 0;
+// Distant-room texture residency (frees far galleries' big textures).
+let roomTextureGroups = null;
+const residencyFrustum = new THREE.Frustum();
+const residencyMatrix = new THREE.Matrix4();
+const residencySphere = new THREE.Sphere();
+let residencyTimer = 0;
 
 camera.rotation.order = 'YXZ';
 camera.position.copy(atriumStartPosition);
@@ -17027,6 +17033,7 @@ function initDebugApi() {
 		shopPassageDoorways: shopPassageDoorways.map((d) => ({ x: d.x, z: d.z, era: d.era, end: d.end })),
 		connections: galleryConnections.map((p) => [p.a.era, p.b.era]),
 		isInside: (x, z) => isPointInsideClosedMuseum(new THREE.Vector3(x, 1.6, z)),
+		renderer,
 		setCameraView(position, target) {
 			stopGuidedTour();
 			guidedTarget = null;
@@ -17289,12 +17296,96 @@ function animate(timestamp = 0) {
 	updateCamera(delta);
 	updateSceneAnimations(delta, clock.elapsedTime);
 	updateLightCulling();
+	updateRoomTextureResidency(delta, clock.elapsedTime);
 	updateDebugPanel(delta);
 	renderer.render(scene, camera);
 	renderedFrameCount += 1;
 	if (renderedFrameCount === 1) {
 		// The first frame is on the canvas — fade the loading curtain away.
 		document.body.classList.add('museum-ready');
+	}
+}
+
+// Frees the big per-gallery textures (release pictures + murals) once a gallery
+// has been out of view and out of range for a few seconds, capping live VRAM to
+// roughly the rooms around the camera. Disposed textures re-upload automatically
+// from their retained canvases when the gallery comes back into view, so there's
+// no visual change — only a brief upload when you return. Hysteresis (UNLOAD_DELAY)
+// avoids thrashing when you merely turn around.
+function buildRoomTextureGroups() {
+	const groups = roomSides.map((side) => ({
+		center: side.center.clone(),
+		textures: new Set(),
+		lastSeen: 0,
+		freed: false,
+	}));
+	const worldPos = new THREE.Vector3();
+	const slots = ['map', 'emissiveMap'];
+	scene.traverse((object) => {
+		const materials = object.material
+			? Array.isArray(object.material) ? object.material : [object.material]
+			: [];
+		let heavy = null;
+		for (const material of materials) {
+			for (const slot of slots) {
+				const texture = material && material[slot];
+				if (texture && texture.image) {
+					const longEdge = Math.max(texture.image.width || 0, texture.image.height || 0);
+					if (longEdge >= 1000) {
+						heavy = texture;
+					}
+				}
+			}
+		}
+		if (!heavy) {
+			return;
+		}
+		object.getWorldPosition(worldPos);
+		let best = null;
+		let bestDist = Infinity;
+		for (const group of groups) {
+			const d = worldPos.distanceToSquared(group.center);
+			if (d < bestDist) {
+				bestDist = d;
+				best = group;
+			}
+		}
+		// Only manage textures that actually sit inside a gallery; the atrium's
+		// main mural is far from every gallery centre and stays resident.
+		if (best && bestDist < 12 * 12) {
+			best.textures.add(heavy);
+		}
+	});
+	return groups.filter((group) => group.textures.size > 0);
+}
+
+function updateRoomTextureResidency(delta, elapsed) {
+	residencyTimer += delta;
+	if (residencyTimer < 0.5) {
+		return;
+	}
+	residencyTimer = 0;
+	if (!roomTextureGroups) {
+		roomTextureGroups = buildRoomTextureGroups();
+	}
+	camera.updateMatrixWorld();
+	residencyMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+	residencyFrustum.setFromProjectionMatrix(residencyMatrix);
+	const keepRadiusSq = 14 * 14;
+	const unloadDelay = 6;
+	for (const group of roomTextureGroups) {
+		const near = camera.position.distanceToSquared(group.center) < keepRadiusSq;
+		residencySphere.set(group.center, 9);
+		const inView = residencyFrustum.intersectsSphere(residencySphere);
+		if (near || inView) {
+			group.lastSeen = elapsed;
+			group.freed = false;
+		} else if (!group.freed && elapsed - group.lastSeen > unloadDelay) {
+			for (const texture of group.textures) {
+				texture.dispose();
+			}
+			group.freed = true;
+		}
 	}
 }
 
