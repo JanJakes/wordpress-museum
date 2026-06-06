@@ -515,7 +515,9 @@ let debugPanelEl = null;
 let debugPanelVisible = false;
 let fpsSmoothed = 0;
 let debugPanelTimer = 0;
-let vramEstimateMB = 0;
+let vramLiveMB = 0;
+let vramMaxMB = 0;
+let vramComputed = false;
 let vramRecalcTicks = 0;
 // Distant-room texture residency (frees far galleries' big textures).
 let roomTextureGroups = null;
@@ -17231,9 +17233,12 @@ function updateDebugPanel(delta) {
 	// Recompute the (worst-case) texture footprint about once a second so the
 	// per-frame stats stay cheap.
 	vramRecalcTicks += 1;
-	if (vramEstimateMB === 0 || vramRecalcTicks >= 4) {
+	if (!vramComputed || vramRecalcTicks >= 4) {
 		vramRecalcTicks = 0;
-		vramEstimateMB = estimateTextureVRAM();
+		vramComputed = true;
+		const vram = estimateTextureVRAM();
+		vramLiveMB = vram.live;
+		vramMaxMB = vram.max;
 	}
 	const render = renderer.info.render;
 	const memory = renderer.info.memory;
@@ -17252,16 +17257,18 @@ function updateDebugPanel(delta) {
 		`tris   ${(render.triangles / 1000).toFixed(0)}k\n` +
 		`lights ${activeLights}/${totalLights}\n` +
 		`geo ${memory.geometries}  tex ${memory.textures}\n` +
-		`vram   ~${Math.round(vramEstimateMB)} MB`;
+		`vram   ${Math.round(vramLiveMB)}/${Math.round(vramMaxMB)} MB`;
 }
 
-// Sums the byte footprint of every distinct loaded texture in the scene (RGBA
-// + 33% for mipmaps). This is the worst case once all rooms have been visited —
-// the renderer only uploads what's been rendered, so live VRAM is usually less.
+// Texture VRAM in MB: `live` counts only textures actually uploaded to the GPU
+// (so it reflects lazy upload + the residency manager); `max` is the worst case
+// if every scene texture were resident at once. RGBA + 33% for mipmaps.
 function estimateTextureVRAM() {
 	const slots = ['map', 'emissiveMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'alphaMap', 'bumpMap', 'lightMap'];
+	const properties = renderer.properties;
 	const seen = new Set();
-	let bytes = 0;
+	let liveBytes = 0;
+	let maxBytes = 0;
 	scene.traverse((object) => {
 		const materials = object.material
 			? Array.isArray(object.material) ? object.material : [object.material]
@@ -17275,13 +17282,18 @@ function estimateTextureVRAM() {
 				seen.add(texture.uuid);
 				const w = texture.image.width || 0;
 				const h = texture.image.height || 0;
-				if (w && h) {
-					bytes += w * h * 4 * (texture.generateMipmaps ? 1.333 : 1);
+				if (!w || !h) {
+					continue;
+				}
+				const bytes = w * h * 4 * (texture.generateMipmaps ? 1.333 : 1);
+				maxBytes += bytes;
+				if (properties.get(texture).__webglTexture) {
+					liveBytes += bytes;
 				}
 			}
 		}
 	});
-	return bytes / 1048576;
+	return { live: liveBytes / 1048576, max: maxBytes / 1048576 };
 }
 
 function animate(timestamp = 0) {
