@@ -20,6 +20,13 @@ const renderer = new THREE.WebGLRenderer({
 	powerPreference: 'low-power',
 	preserveDrawingBuffer: new URLSearchParams(window.location.search).has('debug'),
 });
+// While the Playground modal covers the scene we free its GPU memory by losing
+// the WebGL context; Three re-uploads textures/buffers on restore. Null if the
+// browser lacks the extension (then the modal simply keeps the scene resident).
+const loseContextExtension = renderer.getContext().getExtension('WEBGL_lose_context');
+let webglContextLost = false;
+canvas.addEventListener('webglcontextlost', () => { webglContextLost = true; }, false);
+canvas.addEventListener('webglcontextrestored', () => { webglContextLost = false; }, false);
 const textureCanvases = new Map();
 const museumTextures = new Map();
 const plaqueImageCache = new Map();
@@ -508,6 +515,8 @@ let debugPanelEl = null;
 let debugPanelVisible = false;
 let fpsSmoothed = 0;
 let debugPanelTimer = 0;
+let vramEstimateMB = 0;
+let vramRecalcTicks = 0;
 
 camera.rotation.order = 'YXZ';
 camera.position.copy(atriumStartPosition);
@@ -15438,7 +15447,9 @@ function createReadableLabel(texture, width, height) {
 
 	const back = new THREE.Mesh(
 		geometry,
-		new THREE.MeshBasicMaterial({ map: texture.clone(), transparent: true })
+		// Reuse the same texture (not a clone) — the back face shows identical
+		// content, so cloning only doubled the GPU upload of every sign/label.
+		new THREE.MeshBasicMaterial({ map: texture, transparent: true })
 	);
 	back.position.z = -0.012;
 	back.rotation.y = Math.PI;
@@ -17210,6 +17221,13 @@ function updateDebugPanel(delta) {
 		return;
 	}
 	debugPanelTimer = 0;
+	// Recompute the (worst-case) texture footprint about once a second so the
+	// per-frame stats stay cheap.
+	vramRecalcTicks += 1;
+	if (vramEstimateMB === 0 || vramRecalcTicks >= 4) {
+		vramRecalcTicks = 0;
+		vramEstimateMB = estimateTextureVRAM();
+	}
 	const render = renderer.info.render;
 	const memory = renderer.info.memory;
 	let activeLights = 0;
@@ -17226,7 +17244,37 @@ function updateDebugPanel(delta) {
 		`draws  ${render.calls}\n` +
 		`tris   ${(render.triangles / 1000).toFixed(0)}k\n` +
 		`lights ${activeLights}/${totalLights}\n` +
-		`geo ${memory.geometries}  tex ${memory.textures}`;
+		`geo ${memory.geometries}  tex ${memory.textures}\n` +
+		`vram   ~${Math.round(vramEstimateMB)} MB`;
+}
+
+// Sums the byte footprint of every distinct loaded texture in the scene (RGBA
+// + 33% for mipmaps). This is the worst case once all rooms have been visited —
+// the renderer only uploads what's been rendered, so live VRAM is usually less.
+function estimateTextureVRAM() {
+	const slots = ['map', 'emissiveMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'alphaMap', 'bumpMap', 'lightMap'];
+	const seen = new Set();
+	let bytes = 0;
+	scene.traverse((object) => {
+		const materials = object.material
+			? Array.isArray(object.material) ? object.material : [object.material]
+			: [];
+		for (const material of materials) {
+			for (const slot of slots) {
+				const texture = material && material[slot];
+				if (!texture || !texture.image || seen.has(texture.uuid)) {
+					continue;
+				}
+				seen.add(texture.uuid);
+				const w = texture.image.width || 0;
+				const h = texture.image.height || 0;
+				if (w && h) {
+					bytes += w * h * 4 * (texture.generateMipmaps ? 1.333 : 1);
+				}
+			}
+		}
+	});
+	return bytes / 1048576;
 }
 
 function animate(timestamp = 0) {
@@ -17234,6 +17282,10 @@ function animate(timestamp = 0) {
 	// The scene always has ambient motion, so render every frame for a
 	// fluid feel; rAF already caps to the display refresh rate.
 	const delta = Math.min(clock.getDelta(), 0.05);
+	if (webglContextLost) {
+		// GPU context is freed while the Playground modal is open; nothing to draw.
+		return;
+	}
 	updateCamera(delta);
 	updateSceneAnimations(delta, clock.elapsedTime);
 	updateLightCulling();
@@ -17505,6 +17557,10 @@ function openPlaygroundModal(index) {
 	if (document.pointerLockElement) {
 		document.exitPointerLock();
 	}
+	// Free the scene's GPU memory for the embedded WordPress while it's hidden.
+	if (loseContextExtension && !webglContextLost) {
+		loseContextExtension.loseContext();
+	}
 }
 
 function closePlaygroundModal() {
@@ -17516,6 +17572,10 @@ function closePlaygroundModal() {
 	modal.setAttribute('aria-hidden', 'true');
 	// Reset the iframe so the WordPress instance stops running in the background.
 	document.querySelector('#playground-modal-iframe').src = 'about:blank';
+	// Bring the WebGL context back; the render loop resumes on 'webglcontextrestored'.
+	if (loseContextExtension && webglContextLost) {
+		loseContextExtension.restoreContext();
+	}
 }
 
 function updatePanel(release) {
