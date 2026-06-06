@@ -14078,7 +14078,6 @@ function getEraVignetteItems(room, color, secondary) {
 	return {
 		'Blogging Roots': [
 			{ label: 'HELLO DOLLY', object: createHelloDollyExhibit(color), width: 1.6 },
-			{ label: 'THE LOOP', object: createLoopSculpture(color, secondary), width: 1.5 },
 			{ label: 'COMMENTS', object: createCommentSculpture(secondary), width: 1.45 },
 		],
 		'Dashboard Foundations': [
@@ -14198,36 +14197,6 @@ function addRoomVignetteLights(group, color) {
 	const rightLamp = createMuseumLamp(color);
 	rightLamp.scale.setScalar(0.72);
 	addLocal(group, rightLamp, roomWidth / 2 - 0.75, -roomDepth / 2 + 1.2, 0);
-}
-
-function createLoopSculpture(color, secondary) {
-	const group = new THREE.Group();
-	group.add(createPedestal(1.05, 0.22, color));
-	const ring = new THREE.Mesh(
-		new THREE.TorusGeometry(0.34, 0.055, 12, 48),
-		new THREE.MeshStandardMaterial({ color: secondary, metalness: 0.28, roughness: 0.32 })
-	);
-	ring.position.y = 0.72;
-	ring.rotation.x = Math.PI / 2;
-	group.add(ring);
-	const post = new THREE.Mesh(
-		new THREE.CylinderGeometry(0.035, 0.05, 0.58, 12),
-		new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.48 })
-	);
-	post.position.y = 0.48;
-	group.add(post);
-	const dot = new THREE.Mesh(
-		new THREE.SphereGeometry(0.08, 14, 10),
-		new THREE.MeshBasicMaterial({ color })
-	);
-	dot.position.set(0.34, 0.72, 0);
-	// The marker circles the ring — the post-iteration "Loop" made literal.
-	registerAnimation(dot, (object, elapsed) => {
-		const a = elapsed * 1.2;
-		object.position.set(Math.cos(a) * 0.34, 0.72, Math.sin(a) * 0.34);
-	});
-	group.add(dot);
-	return group;
 }
 
 function createResponsivePreview(color, secondary) {
