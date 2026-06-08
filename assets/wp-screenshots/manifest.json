@@ -3,6 +3,14 @@
   "description": "Desktop-sized direct WordPress Playground admin screenshots captured without blueprints.",
   "screenshots": [
     {
+      "version": "0.7",
+      "musician": "",
+      "file": "assets/wp-screenshots/wp-0-7.png",
+      "source": "https://playground.wordpress.net/?wp=0.7&mode=seamless",
+      "note": "Front-end of the default WordPress 0.7 site (the original Hello world post); 0.7 predates wp-admin parity, so the public page is captured.",
+      "errors": []
+    },
+    {
       "version": "1.0",
       "musician": "Miles Davis",
       "file": "assets/wp-screenshots/wp-1-0.png",

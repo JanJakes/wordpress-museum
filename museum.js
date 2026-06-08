@@ -16331,11 +16331,13 @@ function createPlaqueTexture(release, color) {
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
 
-	// Pre-codename releases (before 1.0) have no captured portrait or
-	// screenshot; skip those loads so they don't 404 and log console errors.
-	if (releaseHasCapturedAssets(release)) {
+	// Codenamed releases load a portrait + screenshot; the founding 0.7 has no
+	// portrait but now carries a captured screenshot. Anything without either is
+	// skipped so it doesn't 404.
+	const wantsPortrait = releaseHasCapturedAssets(release);
+	if (wantsPortrait || releaseHasScreenshot(release)) {
 		scheduleDeferredAssetTask(() => {
-			const musicianPath = getMusicianImagePath(release);
+			const musicianPath = wantsPortrait ? getMusicianImagePath(release) : null;
 			Promise.all([
 				musicianPath ? loadPlaqueImage(musicianPath) : Promise.resolve(null),
 				loadPlaqueImage(getScreenshotImagePath(release)),
@@ -16356,6 +16358,11 @@ function createPlaqueTexture(release, color) {
 // portrait or screenshot, so their image assets are intentionally absent.
 function releaseHasCapturedAssets(release) {
 	return Boolean(release.musician);
+}
+
+// The founding 0.7 has no jazz portrait but does have a captured screenshot.
+function releaseHasScreenshot(release) {
+	return releaseHasCapturedAssets(release) || release.version === '0.7';
 }
 
 function drawPlaqueTexture(ctx, canvas, release, color, images) {
@@ -16401,10 +16408,14 @@ function drawPlaqueTexture(ctx, canvas, release, color, images) {
 			placeholder: 'WordPress screenshot',
 		});
 	} else {
-		// Pre-codename releases (before 1.0) have no portrait or screenshot;
-		// show an intentional founding-release panel instead of "missing media"
-		// boxes so the museum's first exhibit reads as a deliberate centerpiece.
-		drawFoundingReleasePanel(ctx, release, color, 56, 76, 912, 356);
+		// Founding release (0.7): a compact b2/cafelog → WordPress lineage placard
+		// in the portrait slot, with the captured WordPress 0.7 screenshot beside it.
+		drawFoundingReleasePanel(ctx, release, color, 56, 76, 286, 356);
+		drawMediaPanel(ctx, images.screenshotImage, 376, 76, 592, 356, {
+			fit: 'contain',
+			label: 'WordPress ' + release.version,
+			placeholder: 'WordPress screenshot',
+		});
 	}
 
 	ctx.textAlign = 'left';
@@ -16430,67 +16441,41 @@ function drawPlaqueTexture(ctx, canvas, release, color, images) {
 	ctx.fillText(release.artifact, 376, 694);
 }
 
-// A single wide commemorative panel for the founding release (0.x, before the
-// 1.0 jazz-codename tradition): a "b2/cafelog -> WordPress" lineage with the
-// iconic first post, in place of the portrait/screenshot pair.
+// Compact founding-release placard (0.7) for the portrait slot: a vertical
+// b2/cafelog → WordPress lineage, standing in for the jazz portrait the era
+// predates. The captured screenshot sits in the panel beside it.
 function drawFoundingReleasePanel(ctx, release, color, x, y, width, height) {
 	ctx.save();
-	// Mat + dark field, matching the media-panel framing.
 	ctx.fillStyle = '#f8efd9';
 	ctx.fillRect(x, y, width, height);
 	ctx.fillStyle = '#111827';
 	ctx.fillRect(x + 10, y + 10, width - 20, height - 20);
-
-	const inX = x + 24;
-	const inY = y + 24;
-	const inW = width - 48;
-	const inH = height - 48;
-
-	// Soft vertical gradient field so it reads as a designed plate, not an empty box.
+	const inX = x + 18, inY = y + 18, inW = width - 36, inH = height - 36;
 	const grad = ctx.createLinearGradient(inX, inY, inX, inY + inH);
 	grad.addColorStop(0, '#1b2740');
 	grad.addColorStop(1, '#0e1626');
 	ctx.fillStyle = grad;
 	ctx.fillRect(inX, inY, inW, inH);
-
-	// Lineage line: b2/cafelog --> WordPress, centered in the upper third.
-	const midY = inY + inH * 0.34;
+	const cx = inX + inW / 2;
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-	ctx.fillStyle = 'rgba(255, 245, 223, 0.86)';
-	ctx.font = 'italic 700 40px Georgia, serif';
-	ctx.fillText('b2/cafelog', inX + inW * 0.24, midY);
+	ctx.fillStyle = 'rgba(255, 245, 223, 0.88)';
+	ctx.font = 'italic 700 34px Georgia, serif';
+	ctx.fillText('b2/cafelog', cx, inY + inH * 0.2);
 	ctx.fillStyle = color;
-	ctx.font = '900 52px Georgia, serif';
-	ctx.fillText('→', inX + inW * 0.5, midY);
+	ctx.font = '900 50px Georgia, serif';
+	ctx.fillText('↓', cx, inY + inH * 0.4);
 	ctx.fillStyle = '#fff5df';
-	ctx.font = '900 46px Georgia, serif';
-	ctx.fillText('WordPress', inX + inW * 0.76, midY);
-
-	// The first post, framed as a small "Hello, world." card beneath the lineage.
-	const cardW = inW * 0.62;
-	const cardH = inH * 0.3;
-	const cardX = inX + (inW - cardW) / 2;
-	const cardY = inY + inH * 0.5;
-	ctx.fillStyle = '#f8efd9';
-	ctx.fillRect(cardX, cardY, cardW, cardH);
-	ctx.fillStyle = '#111827';
-	ctx.font = '900 30px Georgia, serif';
-	ctx.fillText('“Hello, world!”', cardX + cardW / 2, cardY + cardH * 0.4);
-	ctx.fillStyle = 'rgba(17, 24, 39, 0.66)';
-	ctx.font = '600 19px system-ui, sans-serif';
-	ctx.fillText('the first post', cardX + cardW / 2, cardY + cardH * 0.74);
-
-	// Caption strip, mirroring the media-panel label band.
-	ctx.fillStyle = 'rgba(15, 23, 38, 0.76)';
-	ctx.fillRect(inX, inY + inH - 46, inW, 36);
+	ctx.font = '900 42px Georgia, serif';
+	ctx.fillText('WordPress', cx, inY + inH * 0.59);
+	ctx.fillStyle = 'rgba(255, 245, 223, 0.72)';
+	ctx.font = '700 22px system-ui, sans-serif';
+	ctx.fillText('the first fork · 2003', cx, inY + inH * 0.76);
+	ctx.fillStyle = 'rgba(15, 23, 38, 0.78)';
+	ctx.fillRect(inX, inY + inH - 42, inW, 34);
 	ctx.fillStyle = '#fff5df';
-	ctx.font = '800 22px system-ui, sans-serif';
-	ctx.fillText('BEFORE THE JAZZ CODENAMES · MAY 2003', inX + inW / 2, inY + inH - 28);
-
-	ctx.strokeStyle = 'rgba(255, 245, 223, 0.46)';
-	ctx.lineWidth = 4;
-	ctx.strokeRect(inX, inY, inW, inH);
+	ctx.font = '800 17px system-ui, sans-serif';
+	ctx.fillText('BEFORE THE CODENAMES', cx, inY + inH - 25);
 	ctx.restore();
 }
 
