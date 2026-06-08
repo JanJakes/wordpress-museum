@@ -7092,7 +7092,12 @@ function createRoom(room) {
 		group.add(createRoomStoryWall(room));
 		group.add(createRoomFloorWayfinding(room));
 		group.add(createRoomCarpetRunner());
-		group.add(createSuspendedReleaseMobile(room));
+		// Room I (Blogging Roots) is already busy with the Web-of-2004 display, so it
+		// skips the hanging release-version chips; only the "Hello, world." neon stays
+		// overhead.
+		if (room.era !== eras[0]) {
+			group.add(createSuspendedReleaseMobile(room));
+		}
 	}
 	if (shouldDecorateScene) {
 		group.add(createRoomMural(room));
@@ -10103,7 +10108,7 @@ function addEraVignette(group, room, roomIndex) {
 		const frontWallZ = -roomDepth / 2 + wallThickness / 2 + 0.05;
 		if (room.era === eras[0]) {
 			addLocal(group, createUnderConstructionPlaque(), 3.88, frontWallZ);
-			addLocal(group, createWebSafePalettePanel(), -3.88, frontWallZ);
+			addLocal(group, createWebSafePalettePanel(), -4.2, frontWallZ);
 			addWebOf2004Display(group);
 			addGuestbookLectern(group);
 			addRetroHomepageStation(group);
@@ -10891,9 +10896,8 @@ function addWebOf2004Display(group) {
 	// Outer boards sit at ±5.78 and the inner panels at ±3.88 so each pair keeps a
 	// ~0.12m gap (their gold frames previously touched / z-fought at the seam)
 	// while the outer frames still clear the side-wall corner.
-	addLocal(group, createLinkButtonBoard(), -5.78, frontWallZ);
+	addLocal(group, createLinkButtonBoard(), -6.7, frontWallZ);
 	addLocal(group, createBrowserWarsPanel(), 5.78, frontWallZ);
-	addPhpElephpantCorner(group);
 }
 
 // (A) A framed board of period 88x31 web "badge" buttons in a tidy grid, drawn
@@ -11223,75 +11227,6 @@ function drawOperaLogo(ctx, cx, cy, r) {
 // the gallery, with a front-facing "Powered by PHP" badge on a low backboard so
 // it reads clearly from the runner regardless of viewing angle. The plinth front
 // (local −z, where the label and badge face) is turned toward the room interior.
-function addPhpElephpantCorner(group) {
-	const station = new THREE.Group();
-
-	const pedestal = createPedestal(0.66, 0.66, 0x21759b);
-	station.add(pedestal);
-
-	const elephpant = createElephpantPlush();
-	elephpant.scale.setScalar(0.92);
-	elephpant.position.y = 0.66;
-	// The plush front (trunk/eyes on +z, with a built-in −0.4 turn) is rotated to
-	// look out the plinth front (local −z) in a relaxed three-quarter pose.
-	elephpant.rotation.y = Math.PI + 0.3;
-	station.add(elephpant);
-
-	// "Powered by PHP" badge on a slim brass-framed backboard raised above and
-	// behind the figure, facing the plinth front (local −z) so it stays legible.
-	const badge = new THREE.Group();
-	const badgeW = 0.86;
-	const frame = new THREE.Mesh(
-		new THREE.BoxGeometry(badgeW + 0.1, 0.46, 0.05),
-		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
-	);
-	badge.add(frame);
-	const art = new THREE.Mesh(
-		new THREE.PlaneGeometry(badgeW, 0.38),
-		new THREE.MeshBasicMaterial({ map: createPoweredByPhpTexture() })
-	);
-	art.position.z = 0.03;
-	badge.add(art);
-	badge.position.set(0, 1.55, 0.26);
-	badge.rotation.y = Math.PI; // face local −z (the plinth front, toward the room)
-	station.add(badge);
-
-	// Tuck against the left wall in the gap behind the lz≈+1 release exhibit,
-	// front turned to the interior so the badge and elephant face the runner.
-	// Inset 0.5 keeps the ~0.66-wide plinth clear of the side rope (offset 0.95),
-	// so the figure reads as guarded behind the barrier instead of clipping it.
-	const spot = sideWallFloorSpot('left', 2.6, 0.5, '-z');
-	addLocal(group, station, spot.x, spot.z, spot.rotation);
-}
-
-function createPoweredByPhpTexture() {
-	const canvas = document.createElement('canvas');
-	canvas.width = 588;
-	canvas.height = 300;
-	const ctx = canvas.getContext('2d');
-	ctx.fillStyle = '#777bb3';
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	ctx.fillStyle = '#eef0fb';
-	ctx.fillRect(14, 14, canvas.width - 28, canvas.height - 28);
-
-	ctx.textAlign = 'center';
-	ctx.textBaseline = 'middle';
-	ctx.fillStyle = '#4f5285';
-	ctx.font = '900 52px Arial Black, Impact, sans-serif';
-	ctx.fillText('POWERED BY', canvas.width / 2, 70);
-	ctx.fillStyle = '#777bb3';
-	ctx.font = 'italic 900 128px Georgia, serif';
-	ctx.fillText('php', canvas.width / 2, 152);
-	ctx.fillStyle = '#33365a';
-	ctx.font = '700 24px system-ui, sans-serif';
-	ctx.fillText('WordPress runs on PHP since 2003', canvas.width / 2, 250);
-
-	const tex = createCanvasTexture(canvas);
-	tex.colorSpace = THREE.SRGBColorSpace;
-	tex.anisotropy = 4;
-	return tex;
-}
-
 // (D) A "Please sign our guestbook!" lectern just inside the entrance, offset to
 // the left of the central runner so an arriving visitor passes it naturally. It
 // sits clear of the door opening, the front-wall props and the side-wall radio.
