@@ -8349,7 +8349,7 @@ function createRoomCornice() {
 	const group = new THREE.Group();
 	const brass = new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.32, metalness: 0.5 });
 	const marble = new THREE.MeshStandardMaterial({ color: 0xf4ecda, roughness: 0.66, metalness: 0.03 });
-	const topY = wallHeight - 0.16;
+	const topY = wallHeight - 0.1;
 	const backZ = roomDepth / 2 - wallThickness / 2;
 	const frontZ = -roomDepth / 2 + wallThickness / 2;
 	const perimeter = [
@@ -8366,9 +8366,10 @@ function createRoomCornice() {
 	return group;
 }
 
-// One straight stepped-moulding run between two inner-face corner points. Tiers
-// are overrun slightly so adjacent runs miter cleanly at the corners; the crown
-// overhangs the frieze for a proper cornice silhouette.
+// One straight stepped-moulding run between two inner-face corner points. Each
+// tier's back tucks into the wall and the rest stands proud INTO the room along
+// the wall's inward normal — centred on the face it would vanish into the angled
+// side walls. Runs overrun slightly so they miter at corners; the crown overhangs.
 function addCorniceRun(group, a, b, topY, brass, marble) {
 	const dx = b.x - a.x;
 	const dz = b.z - a.z;
@@ -8376,16 +8377,27 @@ function addCorniceRun(group, a, b, topY, brass, marble) {
 	const rotY = Math.atan2(-dz, dx);
 	const midX = (a.x + b.x) / 2;
 	const midZ = (a.z + b.z) / 2;
+	// inward normal: perpendicular to the run, pointing toward the room centre
+	let nx = -dz;
+	let nz = dx;
+	const nlen = Math.hypot(nx, nz) || 1;
+	nx /= nlen;
+	nz /= nlen;
+	if (nx * -midX + nz * -midZ < 0) {
+		nx = -nx;
+		nz = -nz;
+	}
 	const tier = (y, height, depth, material) => {
+		const off = depth / 2 - 0.04; // back tucked ~0.04 into the wall, the rest proud
 		const box = new THREE.Mesh(new THREE.BoxGeometry(length + 0.2, height, depth), material);
-		box.position.set(midX, y, midZ);
+		box.position.set(midX + nx * off, y, midZ + nz * off);
 		box.rotation.y = rotY;
 		group.add(box);
 	};
-	tier(topY - 0.30, 0.05, 0.07, brass);  // bottom fillet
-	tier(topY - 0.21, 0.13, 0.10, marble); // frieze
-	tier(topY - 0.10, 0.06, 0.15, brass);  // bed moulding
-	tier(topY - 0.02, 0.07, 0.22, marble); // crown (overhangs)
+	tier(topY - 0.30, 0.05, 0.18, brass);  // bottom fillet
+	tier(topY - 0.21, 0.13, 0.22, marble); // frieze
+	tier(topY - 0.10, 0.06, 0.27, brass);  // bed moulding
+	tier(topY - 0.02, 0.08, 0.33, marble); // crown (overhangs)
 }
 
 function createAtriumDecor() {
