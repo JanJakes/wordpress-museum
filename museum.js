@@ -8088,25 +8088,13 @@ function createLightCone(color, radius, height, opacity, x, z) {
 
 function createRoomMuseumArchitecture(room) {
 	const group = new THREE.Group();
-	const brass = new THREE.MeshStandardMaterial({
-		color: 0xc79b43,
-		roughness: 0.31,
-		metalness: 0.46,
-	});
-	const marble = new THREE.MeshStandardMaterial({
-		color: 0xf4ecda,
-		roughness: 0.68,
-		metalness: 0.03,
-	});
-	// Rails run along the wide back wall; the side walls are broken by the
-	// shared doorway, so they stay clean apart from sconces.
-	group.add(createWallRail('back', 0.72, marble, 0.12));
-	group.add(createWallRail('back', 3.04, brass, 0.045));
-	group.add(createWallRail('back', wallHeight - 0.58, brass, 0.12));
-	group.add(createRoomPilasterGrid(marble, brass));
 	group.add(createRoomAccentWashes(room));
 	group.add(createRoomRopeBarriers(room.color, room));
 	group.add(createRoomTrackLighting(room.color));
+	// Trial: a decorative cornice wrapping one gallery (expand once confirmed).
+	if (room.era === 'Dashboard Foundations') {
+		group.add(createRoomCornice());
+	}
 	return group;
 }
 
@@ -8383,45 +8371,47 @@ function createRoomTrackLighting(color) {
 	return group;
 }
 
-function createRoomPilasterGrid(marbleMaterial, brassMaterial) {
+// Decorative cornice wrapping the room just below the ceiling: a brass band
+// crowned by a thin marble fillet, run along both angled side walls, both 45°
+// chamfers and the back wall (the side-wall connector doors pass under it).
+// Room-local geometry, so it rotates with the gallery.
+function createRoomCornice() {
 	const group = new THREE.Group();
-	// Pilasters flank the wide back wall; the angled side walls (broken by the
-	// shared doorway) are left clean for exhibits.
-	for (const x of [-backFlatHalf + 0.78, backFlatHalf - 0.78]) {
-		const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.22, wallHeight - 1.12, 0.12), marbleMaterial);
-		shaft.position.set(x, wallHeight / 2 + 0.02, roomDepth / 2 - wallThickness / 2 - 0.035);
-		group.add(shaft);
-		const cap = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.1, 0.17), brassMaterial);
-		cap.position.set(x, wallHeight - 0.36, roomDepth / 2 - wallThickness / 2 - 0.055);
-		group.add(cap);
+	const brass = new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 });
+	const marble = new THREE.MeshStandardMaterial({ color: 0xf4ecda, roughness: 0.66, metalness: 0.03 });
+	const corniceY = wallHeight - 0.3;
+	const cos = Math.cos(wedgeHalfAngle);
+	const sin = Math.sin(wedgeHalfAngle);
+	const proud = 0.05; // how far the moulding stands off the wall face, into the room
+	const frontZ = -roomDepth / 2 + 0.15;
+	const backZ = roomDepth / 2 - wallThickness / 2 - proud;
+	const sidePoint = (sign, z) => ({ x: sign * sideHalfWidthAtZ(z) - sign * cos * proud, z: z + sin * proud });
+	const backCorner = (sign) => ({ x: sign * (backFlatHalf - 0.04), z: backZ });
+	const points = [
+		sidePoint(-1, frontZ),
+		sidePoint(-1, spokeEndZ),
+		backCorner(-1),
+		backCorner(1),
+		sidePoint(1, spokeEndZ),
+		sidePoint(1, frontZ),
+	];
+	for (let i = 0; i < points.length - 1; i++) {
+		group.add(createCorniceSegment(points[i], points[i + 1], corniceY, brass, 0.16, 0.1));
+		group.add(createCorniceSegment(points[i], points[i + 1], corniceY + 0.11, marble, 0.05, 0.18));
 	}
-	// (The old upper ledger at wallHeight-0.94 was removed: it crossed the title
-	// tablet's first line. The back rail at wallHeight-0.58 still crowns the wall.)
 	return group;
 }
 
-function createWallRail(side, y, material, thickness) {
-	const isWidthWall = side === 'front' || side === 'back';
-	const rail = new THREE.Mesh(
-		new THREE.BoxGeometry(
-			isWidthWall ? (side === 'back' ? backWallWidth : roomWidth) : thickness,
-			thickness,
-			isWidthWall ? thickness : roomDepth
-		),
-		material
-	);
-	rail.position.copy(getLocalWallPosition(side, 0));
-	rail.position.y = y;
-	if (side === 'back') {
-		rail.position.z -= wallThickness / 2 + 0.012;
-	}
-	if (side === 'left') {
-		rail.position.x += wallThickness / 2 + 0.012;
-	}
-	if (side === 'right') {
-		rail.position.x -= wallThickness / 2 + 0.012;
-	}
-	return rail;
+// One straight moulding run between two floor-plan points, overrun slightly at
+// each end so adjacent runs overlap cleanly at the corners.
+function createCorniceSegment(a, b, y, material, height, depth) {
+	const dx = b.x - a.x;
+	const dz = b.z - a.z;
+	const length = Math.hypot(dx, dz) + 0.18;
+	const box = new THREE.Mesh(new THREE.BoxGeometry(length, height, depth), material);
+	box.position.set((a.x + b.x) / 2, y, (a.z + b.z) / 2);
+	box.rotation.y = Math.atan2(-dz, dx);
+	return box;
 }
 
 function createAtriumDecor() {
