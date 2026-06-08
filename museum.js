@@ -7358,37 +7358,6 @@ function createRoomCeiling(color) {
 			const end = new THREE.Vector3(halfSpan, wallHeight - 1.04, z);
 			group.add(createVaultRib(start, control, end, 0.024, brassMaterial, 30));
 		}
-		// Perimeter cove cornice: a thin glowing tube tracing the hexagon edge
-		// just below the ceiling, hugging both angled spokes and the chamfers so
-		// the room shape reads as intentional architecture rather than a box.
-		const coveMaterial = new THREE.MeshBasicMaterial({
-			color,
-			transparent: true,
-			opacity: 0.34,
-			depthWrite: false,
-		});
-		const coveY = wallHeight - 0.42;
-		const coveInset = 0.22;
-		const covePerimeter = [
-			[-(backFlatHalf - coveInset), roomDepth / 2 - coveInset],
-			[-(sideEndHalfWidth - coveInset), spokeEndZ - coveInset * 0.4],
-			[-(innerHalfWidth - coveInset), -roomDepth / 2 + coveInset],
-			[innerHalfWidth - coveInset, -roomDepth / 2 + coveInset],
-			[sideEndHalfWidth - coveInset, spokeEndZ - coveInset * 0.4],
-			[backFlatHalf - coveInset, roomDepth / 2 - coveInset],
-		];
-		for (let i = 0; i < covePerimeter.length - 1; i++) {
-			const [ax, az] = covePerimeter[i];
-			const [bx, bz] = covePerimeter[i + 1];
-			group.add(createCylinderBetween(
-				new THREE.Vector3(ax, coveY, az),
-				new THREE.Vector3(bx, coveY, bz),
-				0.05,
-				coveMaterial,
-				10
-			));
-		}
-
 		const oculusMaterial = new THREE.MeshBasicMaterial({
 			color,
 			transparent: true,
@@ -8371,47 +8340,52 @@ function createRoomTrackLighting(color) {
 	return group;
 }
 
-// Decorative cornice wrapping the room just below the ceiling: a brass band
-// crowned by a thin marble fillet, run along both angled side walls, both 45°
-// chamfers and the back wall (the side-wall connector doors pass under it).
-// Room-local geometry, so it rotates with the gallery.
+// Decorative cornice wrapping the WHOLE room just below the ceiling: a stepped
+// brass-and-marble moulding (fillet · frieze · bed · overhanging crown) run along
+// every wall — both angled side walls, both 45° chamfers, the back wall and across
+// the front above the entrance. Traced on the inner wall faces (the same outline
+// the old ceiling cove used). Room-local, so it rotates with the gallery.
 function createRoomCornice() {
 	const group = new THREE.Group();
-	const brass = new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 });
+	const brass = new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.32, metalness: 0.5 });
 	const marble = new THREE.MeshStandardMaterial({ color: 0xf4ecda, roughness: 0.66, metalness: 0.03 });
-	const corniceY = wallHeight - 0.3;
-	const cos = Math.cos(wedgeHalfAngle);
-	const sin = Math.sin(wedgeHalfAngle);
-	const proud = 0.05; // how far the moulding stands off the wall face, into the room
-	const frontZ = -roomDepth / 2 + 0.15;
-	const backZ = roomDepth / 2 - wallThickness / 2 - proud;
-	const sidePoint = (sign, z) => ({ x: sign * sideHalfWidthAtZ(z) - sign * cos * proud, z: z + sin * proud });
-	const backCorner = (sign) => ({ x: sign * (backFlatHalf - 0.04), z: backZ });
-	const points = [
-		sidePoint(-1, frontZ),
-		sidePoint(-1, spokeEndZ),
-		backCorner(-1),
-		backCorner(1),
-		sidePoint(1, spokeEndZ),
-		sidePoint(1, frontZ),
+	const topY = wallHeight - 0.16;
+	const backZ = roomDepth / 2 - wallThickness / 2;
+	const frontZ = -roomDepth / 2 + wallThickness / 2;
+	const perimeter = [
+		{ x: -backFlatHalf, z: backZ },
+		{ x: -sideEndHalfWidth, z: spokeEndZ },
+		{ x: -innerHalfWidth, z: frontZ },
+		{ x: innerHalfWidth, z: frontZ },
+		{ x: sideEndHalfWidth, z: spokeEndZ },
+		{ x: backFlatHalf, z: backZ },
 	];
-	for (let i = 0; i < points.length - 1; i++) {
-		group.add(createCorniceSegment(points[i], points[i + 1], corniceY, brass, 0.16, 0.1));
-		group.add(createCorniceSegment(points[i], points[i + 1], corniceY + 0.11, marble, 0.05, 0.18));
+	for (let i = 0; i < perimeter.length; i++) {
+		addCorniceRun(group, perimeter[i], perimeter[(i + 1) % perimeter.length], topY, brass, marble);
 	}
 	return group;
 }
 
-// One straight moulding run between two floor-plan points, overrun slightly at
-// each end so adjacent runs overlap cleanly at the corners.
-function createCorniceSegment(a, b, y, material, height, depth) {
+// One straight stepped-moulding run between two inner-face corner points. Tiers
+// are overrun slightly so adjacent runs miter cleanly at the corners; the crown
+// overhangs the frieze for a proper cornice silhouette.
+function addCorniceRun(group, a, b, topY, brass, marble) {
 	const dx = b.x - a.x;
 	const dz = b.z - a.z;
-	const length = Math.hypot(dx, dz) + 0.18;
-	const box = new THREE.Mesh(new THREE.BoxGeometry(length, height, depth), material);
-	box.position.set((a.x + b.x) / 2, y, (a.z + b.z) / 2);
-	box.rotation.y = Math.atan2(-dz, dx);
-	return box;
+	const length = Math.hypot(dx, dz);
+	const rotY = Math.atan2(-dz, dx);
+	const midX = (a.x + b.x) / 2;
+	const midZ = (a.z + b.z) / 2;
+	const tier = (y, height, depth, material) => {
+		const box = new THREE.Mesh(new THREE.BoxGeometry(length + 0.2, height, depth), material);
+		box.position.set(midX, y, midZ);
+		box.rotation.y = rotY;
+		group.add(box);
+	};
+	tier(topY - 0.30, 0.05, 0.07, brass);  // bottom fillet
+	tier(topY - 0.21, 0.13, 0.10, marble); // frieze
+	tier(topY - 0.10, 0.06, 0.15, brass);  // bed moulding
+	tier(topY - 0.02, 0.07, 0.22, marble); // crown (overhangs)
 }
 
 function createAtriumDecor() {
