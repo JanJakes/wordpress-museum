@@ -8352,11 +8352,15 @@ function createRoomCornice() {
 	const topY = wallHeight - 0.1;
 	const backZ = roomDepth / 2 - wallThickness / 2;
 	const frontZ = -roomDepth / 2 + wallThickness / 2;
+	// Front corners sit on the side-wall line at frontZ (sideHalfWidthAtZ(frontZ)),
+	// not innerHalfWidth (which is the half-width at z=-roomDepth/2) — otherwise the
+	// side run is tilted a hair off the wall and visibly drifts from it toward the front.
+	const frontHalf = sideHalfWidthAtZ(frontZ);
 	const perimeter = [
 		{ x: -backFlatHalf, z: backZ },
 		{ x: -sideEndHalfWidth, z: spokeEndZ },
-		{ x: -innerHalfWidth, z: frontZ },
-		{ x: innerHalfWidth, z: frontZ },
+		{ x: -frontHalf, z: frontZ },
+		{ x: frontHalf, z: frontZ },
 		{ x: sideEndHalfWidth, z: spokeEndZ },
 		{ x: backFlatHalf, z: backZ },
 	];
