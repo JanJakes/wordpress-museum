@@ -953,16 +953,13 @@ function createNoExitTexture() {
 function createEntranceStanchions(cx, zStart) {
 	const mouthZ = zStart - 0.3;
 	// An L that guides someone entering through the door (facing the rotunda, −z)
-	// first FORWARD out of the alcove, then LEFT, then angles along the Start Here
-	// wall (45°) toward Room I for a clearer lead-in.
+	// first FORWARD out of the alcove, then LEFT across the Start Here approach.
 	const points = [
 		{ x: cx + 1.5, z: mouthZ },
 		{ x: cx + 1.5, z: mouthZ - 1.4 },
 		{ x: cx + 1.5, z: mouthZ - 2.8 },
 		{ x: cx + 0.1, z: mouthZ - 2.8 },
 		{ x: cx - 1.3, z: mouthZ - 2.8 },
-		{ x: cx - 2.36, z: mouthZ - 3.86 },
-		{ x: cx - 3.42, z: mouthZ - 4.92 },
 	];
 	return createMuseumRopeLine(points, 0xa01828, { postHeight: 0.92, ropeY: 0.86, sag: 0.2 });
 }
