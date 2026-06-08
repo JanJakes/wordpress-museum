@@ -7092,12 +7092,6 @@ function createRoom(room) {
 		group.add(createRoomStoryWall(room));
 		group.add(createRoomFloorWayfinding(room));
 		group.add(createRoomCarpetRunner());
-		// Room I (Blogging Roots) is already busy with the Web-of-2004 display, so it
-		// skips the hanging release-version chips; only the "Hello, world." neon stays
-		// overhead.
-		if (room.era !== eras[0]) {
-			group.add(createSuspendedReleaseMobile(room));
-		}
 	}
 	if (shouldDecorateScene) {
 		group.add(createRoomMural(room));
@@ -8041,7 +8035,10 @@ function createRoomCarpetRunner() {
 	const front = -roomDepth / 2 - 0.4;
 	const back = roomDepth / 2 - 1.6;
 	const runner = createCarpetRunner(2.2, back - front);
-	runner.position.set(0, 0.092, (front + back) / 2);
+	// Sit level with the rotunda's radial arm (group y 0.03, top ≈0.034) — a hair
+	// above so the runner stays on top at the overlap — so the carpet reads as one
+	// continuous strip from the hub through the doorway, not a 6cm step.
+	runner.position.set(0, 0.034, (front + back) / 2);
 	return runner;
 }
 
@@ -8334,82 +8331,6 @@ function createCylinderBetween(start, end, radius, material, radialSegments = 12
 		cylinder.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
 	}
 	return cylinder;
-}
-
-function createSuspendedReleaseMobile(room) {
-	const group = new THREE.Group();
-	const items = getSuspendedReleaseItems(room);
-	const cableMaterial = new THREE.MeshBasicMaterial({
-		color: 0xfff5df,
-		transparent: true,
-		opacity: 0.46,
-	});
-
-	items.forEach(({ release }, index) => {
-		const x = -3.35 + index * (6.7 / Math.max(items.length - 1, 1));
-		const z = -0.78 + (index % 2) * 1.22;
-		const y = 4.64 + (index % 3) * 0.1;
-		const cableLength = wallHeight - 0.85 - y;
-		const cable = new THREE.Mesh(
-			new THREE.CylinderGeometry(0.011, 0.011, cableLength, 8),
-			cableMaterial
-		);
-		cable.position.set(x, y + cableLength / 2, z);
-		group.add(cable);
-
-		const chip = createHangingReleaseChip(release, room.color, index);
-		chip.position.set(x, y, z);
-		registerAnimation(chip, (object, elapsed) => {
-			object.position.y = y + Math.sin(elapsed * 1.15 + index) * 0.055;
-			object.rotation.y = Math.sin(elapsed * 0.8 + index) * 0.36;
-			object.rotation.z = Math.sin(elapsed * 0.52 + index) * 0.045;
-		});
-		group.add(chip);
-	});
-
-	return group;
-}
-
-function getSuspendedReleaseItems(room) {
-	const items = getEraReleaseItems(room.era);
-	const important = items.filter(({ release }) => release.version.endsWith('.0'));
-	const candidates = important.length >= 3
-		? important
-		: [
-			items[0],
-			items[Math.floor(items.length / 2)],
-			items[items.length - 1],
-		].filter(Boolean);
-	return candidates.slice(0, 5);
-}
-
-function createHangingReleaseChip(release, color, index) {
-	const group = new THREE.Group();
-	const chipMaterial = new THREE.MeshStandardMaterial({
-		color: index % 2 ? 0xf8efd9 : color,
-		emissive: new THREE.Color(color),
-		emissiveIntensity: 0.08,
-		roughness: 0.42,
-		metalness: 0.18,
-	});
-	const chip = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.42, 0.055), chipMaterial);
-	group.add(chip);
-
-	const label = createReadableLabel(
-		createSmallSignTexture(`WP ${release.version}`, color),
-		0.58,
-		0.17
-	);
-	label.position.z = -0.044;
-	group.add(label);
-
-	const rim = new THREE.Mesh(
-		new THREE.BoxGeometry(0.76, 0.035, 0.065),
-		new THREE.MeshBasicMaterial({ color: 0xfff5df, transparent: true, opacity: 0.62 })
-	);
-	rim.position.y = 0.245;
-	group.add(rim);
-	return group;
 }
 
 function createRoomTrackLighting(color) {
