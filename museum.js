@@ -17569,9 +17569,9 @@ function focusRelease(index, immediate = false, options = {}) {
 }
 
 function playgroundUrlForRelease(release) {
-	const blueprintUrl = new URL(release.blueprint, window.location.href);
 	const url = new URL('https://playground.wordpress.net/');
-	url.searchParams.set('blueprint-url', blueprintUrl.href);
+	// Just the WordPress version — Playground auto-selects a compatible PHP.
+	url.searchParams.set('wp', release.version);
 	// Seamless embed: hide Playground's own browser chrome so only the WordPress
 	// site shows inside our modal.
 	url.searchParams.set('mode', 'seamless');
