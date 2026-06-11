@@ -16561,7 +16561,9 @@ function fillFittedCanvasText(
 		}
 		fontSize -= 2;
 	}
-	ctx.fillText(text, x, y);
+	// At the minimum font size long strings can still overflow (and clip at the
+	// canvas edge); the maxWidth arg condenses the glyphs to fit instead.
+	ctx.fillText(text, x, y, maxWidth);
 }
 
 function bindControls() {
