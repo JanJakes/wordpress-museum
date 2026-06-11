@@ -4309,10 +4309,21 @@ function createMercantileCounter() {
 	group.add(onlineSign);
 	pickables.push(onlineSign);
 
-	// Hanging "CHECKOUT" sign above the counter.
+	// Hanging "CHECKOUT" sign above the counter, on two drop rods from the
+	// ceiling so it doesn't read as floating.
+	const signY = shopHeight - 1.0;
 	const checkoutSign = createReadableLabel(createSmallSignTexture('CHECKOUT', '#c24a2c'), 1.4, 0.4);
-	checkoutSign.position.set(counterX, shopHeight - 1.0, counterZ);
+	checkoutSign.position.set(counterX, signY, counterZ);
 	group.add(checkoutSign);
+	const rodMat = new THREE.MeshStandardMaterial({ color: 0x8a6a3a, roughness: 0.5, metalness: 0.4 });
+	const rodTop = shopHeight;
+	const rodBottom = signY + 0.2; // sign top edge
+	const rodLen = rodTop - rodBottom;
+	for (const dx of [-0.55, 0.55]) {
+		const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, rodLen, 6), rodMat);
+		rod.position.set(counterX + dx, rodBottom + rodLen / 2, counterZ);
+		group.add(rod);
+	}
 
 	return group;
 }
