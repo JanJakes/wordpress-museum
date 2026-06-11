@@ -1316,27 +1316,44 @@ function createPennantGeometry(width, height) {
 	return geometry;
 }
 
+// The pennant geometry only samples the downward triangle between the top
+// corners and the bottom-center apex, so everything is laid out inside that
+// triangle: border along its edges, each text line sized to the width the
+// triangle still has at the line's bottom, and a WP roundel near the apex.
 function createWordCampBannerTexture() {
 	const canvas = document.createElement('canvas');
 	canvas.width = 420;
 	canvas.height = 260;
 	const ctx = canvas.getContext('2d');
-	// Felt-blue field with a cream border, the WordCamp standby look.
+	const w = canvas.width;
+	const h = canvas.height;
+	// Width still available at a given y, inside the border.
+	const availWidth = (y, margin) => Math.max(0, w * (1 - y / h) - margin * 2);
+	// Felt-blue field with a cream border following the triangle's edges.
 	ctx.fillStyle = '#21759b';
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillRect(0, 0, w, h);
 	ctx.strokeStyle = '#fff5df';
 	ctx.lineWidth = 10;
-	ctx.strokeRect(14, 12, canvas.width - 28, canvas.height - 24);
+	ctx.beginPath();
+	ctx.moveTo(10, 8);
+	ctx.lineTo(w - 10, 8);
+	ctx.lineTo(w / 2, h - 14);
+	ctx.closePath();
+	ctx.stroke();
 	ctx.textAlign = 'center';
 	ctx.fillStyle = '#fff5df';
-	ctx.font = '900 52px Arial Black, Impact, sans-serif';
-	ctx.fillText('WordCamp', canvas.width / 2, 84);
+	fillFittedCanvasText(ctx, 'WordCamp', w / 2, 68, availWidth(80, 34), 44, '900', 'Arial Black, Impact, sans-serif');
 	ctx.fillStyle = '#ffd166';
-	ctx.font = '800 30px system-ui, sans-serif';
-	ctx.fillText('★ COMMUNITY ★', canvas.width / 2, 130);
+	fillFittedCanvasText(ctx, '★ COMMUNITY ★', w / 2, 112, availWidth(118, 34), 24, '800', 'system-ui, sans-serif');
+	// Small WP roundel toward the apex, where text no longer fits.
+	ctx.strokeStyle = '#fff5df';
+	ctx.lineWidth = 4;
+	ctx.beginPath();
+	ctx.arc(w / 2, 158, 18, 0, Math.PI * 2);
+	ctx.stroke();
 	ctx.fillStyle = '#fff5df';
-	ctx.font = '600 22px ui-monospace, Menlo, monospace';
-	ctx.fillText('contributor day', canvas.width / 2, 168);
+	ctx.font = '900 20px Georgia, serif';
+	ctx.fillText('W', w / 2, 165);
 	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.anisotropy = 4;
