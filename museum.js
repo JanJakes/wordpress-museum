@@ -13670,15 +13670,21 @@ function createFlyerTexture(fact, color) {
 function createEraCatchphraseSign(room, color, secondary) {
 	const group = new THREE.Group();
 	const phrase = getEraCatchphrase(room.era);
-	const board = new THREE.Mesh(
-		new THREE.PlaneGeometry(4.8, 1.05),
-		new THREE.MeshBasicMaterial({
-			map: createNeonSignTexture(phrase, color, secondary),
-			transparent: true,
-			depthWrite: false,
-			side: THREE.DoubleSide,
-		})
-	);
+	// Two front-facing planes sharing one material — a single DoubleSide plane
+	// would render the text mirrored on its back face.
+	const boardGeometry = new THREE.PlaneGeometry(4.8, 1.05);
+	const boardMaterial = new THREE.MeshBasicMaterial({
+		map: createNeonSignTexture(phrase, color, secondary),
+		transparent: true,
+		depthWrite: false,
+	});
+	const board = new THREE.Group();
+	for (const facing of [0, Math.PI]) {
+		const face = new THREE.Mesh(boardGeometry, boardMaterial);
+		face.rotation.y = facing;
+		face.position.z = facing === 0 ? 0.006 : -0.006;
+		board.add(face);
+	}
 	const baseY = wallHeight - 1.85;
 	const signZ = 0.6;
 	board.position.set(0, baseY, signZ);
