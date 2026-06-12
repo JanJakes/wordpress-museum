@@ -90,10 +90,6 @@ const wapuuTextureSources = [
 		name: 'Orbit Wapuu',
 		src: './assets/wapuu/variations/wapuu-orbit.png',
 	},
-	{
-		name: 'Orbit 23',
-		src: './assets/wapuu/variations/wapuu-23.png',
-	},
 ];
 // Each procedural floor canvas holds a 2x2 block of slabs; this span sets
 // the real-world size of that block so individual slabs read ~2.6m.
@@ -6610,9 +6606,16 @@ function registerWapuuVariationClick(wapuu, textures) {
 		if (wapuu.userData.wapuuFlipStart) {
 			return;
 		}
+		const toIndex = (wapuu.userData.wapuuVariationIndex + 1) % textures.length;
+		if (toIndex === 0) {
+			// The click that completes the variation tour leads out to the gallery
+			// they came from. wapuu.studio forbids iframing (X-Frame-Options:
+			// SAMEORIGIN), so a new tab rather than the Playground modal.
+			window.open('https://wapuu.studio/', '_blank', 'noopener,noreferrer');
+		}
 		wapuu.userData.wapuuFlipStart = clock.elapsedTime;
 		wapuu.userData.wapuuFlipFromIndex = wapuu.userData.wapuuVariationIndex;
-		wapuu.userData.wapuuFlipToIndex = (wapuu.userData.wapuuVariationIndex + 1) % textures.length;
+		wapuu.userData.wapuuFlipToIndex = toIndex;
 	};
 	pickables.push(wapuu);
 
