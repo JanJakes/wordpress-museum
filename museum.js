@@ -16926,12 +16926,24 @@ function focusRailItem(item, options = {}) {
 	focusRelease(item.index, false, options);
 }
 
+// Fly to a centred overview of the gallery: on the runner near the entry,
+// facing the back wall, so the era header, the hanging catchphrase sign and
+// both prominent props are in frame. The ticket shows the room's first
+// release (the nearest one takes over on arrival).
 function focusRoom(era, options = {}) {
+	const room = roomLayout.get(era);
 	const index = getEraReleaseItems(era)[0]?.index;
-	if (index === undefined) {
+	if (!room || index === undefined) {
 		return;
 	}
-	focusRelease(index, false, options);
+	atCenter = false;
+	activeIndex = index;
+	const viewPoint = roomLocalToWorld(room, new THREE.Vector3(0, 1.65, -5.4));
+	const lookPoint = roomLocalToWorld(room, new THREE.Vector3(0, 3.0, roomDepth / 2));
+	guidedTarget = createGuidedFlight(viewPoint, getViewAngles(viewPoint, lookPoint), era);
+	updatePanel(releases[activeIndex]);
+	updateRail(options.syncRail !== false);
+	updateActiveExhibitMarker();
 }
 
 function shouldIgnoreMuseumWheel(target) {
