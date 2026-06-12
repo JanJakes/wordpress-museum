@@ -17499,6 +17499,10 @@ function updateRail(syncRail = true) {
 		button.classList.toggle('is-active', isRailItemActive(railItems[index]));
 	});
 	document.querySelector('#center-button')?.classList.toggle('is-active', atCenter);
+	// Parked at the centre the visitor isn't "on" any release: hide the ticket
+	// and render the WP-version pill unselected (clicking it still jumps there).
+	document.querySelector('.release-panel')?.classList.toggle('is-hidden', atCenter);
+	document.querySelector('#release-counter')?.classList.toggle('is-active', !atCenter);
 	if (!syncRail) {
 		return;
 	}
