@@ -488,6 +488,7 @@ const cameraBounds = {
 const movementZones = roomSides;
 let activeIndex = 0;
 let atCenter = true; // true while parked at the rotunda centre, not on a release
+let inMercantileShop = false; // true while the visitor stands in the gift shop
 let guidedTarget = null;
 let guidedTour = false;
 let tourHoldUntil = 0;
@@ -1252,12 +1253,25 @@ function createMercantileShop() {
 	fill.position.set(cx, shopHeight - 1.4, shopZEnd - 1.6);
 	group.add(fill);
 
-	group.add(createMercantileWallSign(cx, shopZEnd));
-	group.add(createMercantileShelves());
-	group.add(createMercantileTables());
-	group.add(createMercantileCounter());
-	group.add(createWordCampBanner());
+	group.add(linkToMercantile(createMercantileWallSign(cx, shopZEnd)));
+	group.add(linkToMercantile(createMercantileShelves()));
+	group.add(linkToMercantile(createMercantileTables()));
+	group.add(linkToMercantile(createMercantileCounter()));
+	group.add(linkToMercantile(createWordCampBanner()));
 	return group;
+}
+
+// Every sign and piece of merch in the shop is a storefront link: clicking
+// any of it opens the real Mercantile in a new tab (same handling as the
+// portal doors' userData.portalUrl).
+function linkToMercantile(root) {
+	root.traverse((child) => {
+		if (child.isMesh && !child.userData.portalUrl) {
+			child.userData.portalUrl = mercantileUrl;
+			pickables.push(child);
+		}
+	});
+	return root;
 }
 
 // A felt WordCamp pennant banner strung high on the shop's clean mid right wall,
@@ -16624,6 +16638,9 @@ function bindControls() {
 	const openPlayground = document.querySelector('#open-playground');
 	if (openPlayground) {
 		openPlayground.addEventListener('click', (event) => {
+			if (inMercantileShop) {
+				return; // the link is a plain <a target="_blank"> to the Mercantile
+			}
 			event.preventDefault();
 			openPlaygroundModal(activeIndex);
 		});
@@ -17493,7 +17510,42 @@ function updatePanel(release) {
 	document.querySelector('#release-counter').textContent =
 		`WP ${release.version}`;
 
-	document.querySelector('#open-playground').href = playgroundUrlForRelease(release);
+	const link = document.querySelector('#open-playground');
+	link.textContent = '▶ Boot in Playground';
+	link.href = playgroundUrlForRelease(release);
+	link.removeAttribute('target');
+	link.removeAttribute('rel');
+}
+
+// Standing in the gift shop the ticket becomes a Mercantile flyer: same
+// popover, but its action link leads out to the real store in a new tab
+// (the click handler lets the plain <a target="_blank"> through).
+function setMercantileTicket(inside) {
+	if (inside === inMercantileShop) {
+		return;
+	}
+	inMercantileShop = inside;
+	if (inside) {
+		updateMercantilePanel();
+	} else {
+		updatePanel(releases[activeIndex]);
+	}
+}
+
+function updateMercantilePanel() {
+	document.querySelector('#release-era').textContent = 'Gift Shop';
+	document.querySelector('#release-title').textContent = 'The Mercantile';
+	document.querySelector('#release-date').textContent = 'mercantile.wordpress.org';
+	document.querySelector('#release-known-for').textContent =
+		'Official WordPress swag';
+	document.querySelector('#release-detail').textContent =
+		'Tees, stickers and Wapuu plushies — every purchase supports the ' +
+		'WordPress open source project.';
+	const link = document.querySelector('#open-playground');
+	link.textContent = '▶ Open the Mercantile';
+	link.href = mercantileUrl;
+	link.target = '_blank';
+	link.rel = 'noopener noreferrer';
 }
 
 function updateRail(syncRail = true) {
@@ -17504,7 +17556,10 @@ function updateRail(syncRail = true) {
 	document.querySelector('#center-button')?.classList.toggle('is-active', atCenter);
 	// Parked at the centre the visitor isn't "on" any release: hide the ticket
 	// and render the WP-version pill unselected (clicking it still jumps there).
-	document.querySelector('.release-panel')?.classList.toggle('is-hidden', atCenter);
+	// In the gift shop the ticket stays up as the Mercantile flyer.
+	document
+		.querySelector('.release-panel')
+		?.classList.toggle('is-hidden', atCenter && !inMercantileShop);
 	document.querySelector('#release-counter')?.classList.toggle('is-active', !atCenter);
 	if (!syncRail) {
 		return;
@@ -17630,6 +17685,7 @@ function updateNearestRelease() {
 	const cameraPoint = camera.position.clone();
 	cameraPoint.y = 1.65;
 	const activeRoomEra = getCameraRoomEra(cameraPoint);
+	setMercantileTicket(!activeRoomEra && isPointInsideShop(cameraPoint));
 	if (!activeRoomEra) {
 		atCenter = true;
 		updateRail();
