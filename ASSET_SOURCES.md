@@ -11,6 +11,10 @@
 - Wapuu original SVG and PNG: official Wapuu artwork, GPLv2 or later. See
   `assets/wapuu/manifest.json`. Wall Wapuu variations live in
   `assets/wapuu/variations/` and come from Wapuu Studio.
+- WordPress logo PNGs in `assets/logos/`: the official W mark and logotype
+  lockup from the WordPress brand resources (https://wordpress.org/about/logos/),
+  used here to present the project's own identity; the WordPress marks are
+  trademarks of the WordPress Foundation.
 
 ## Design Exploration Assets
 

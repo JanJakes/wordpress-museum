@@ -8378,24 +8378,25 @@ function createAtriumDecor() {
 	return group;
 }
 
-// "The WordPress logo through the years": a brass-framed museum panel hung on the
-// clean grey-marble wall segment to the right of the Modern Admin doorway — the
-// wall a visitor faces on entering from the welcome portal. It charts the mark's
-// evolution left-to-right, oldest to newest, ending on the modern circular-W mark.
-// World-space; sits at picture height clear of the floor beacons/lamp below.
+// "The WordPress logo through the years": a brass-framed portrait panel hung on
+// the clean grey-marble wall segment to the right of the Modern Admin doorway —
+// the wall a visitor faces on entering from the welcome portal. A true top-down
+// timeline: the 2003 Dante wordmark, Jason Santa Maria's 2005 lockup (unchanged
+// since), and the standalone W mark.
 function createLogoEvolutionDisplay() {
 	const group = new THREE.Group();
 	const side = hubSides.find((s) => s.era === eras[3]); // Modern Admin (north)
 	const segmentLength = (roomWidth - roomDoorHalfWidth * 2) / 2;
-	const segmentOffset = roomDoorHalfWidth + segmentLength / 2;
-	// The right-hand segment relative to the inward-facing visitor.
+	// The right-hand segment relative to the inward-facing visitor, nudged
+	// toward the doorway so the corner flora doesn't block the view.
+	const segmentOffset = roomDoorHalfWidth + segmentLength / 2 - 0.5;
 	const center = side.midpoint
 		.clone()
 		.add(side.tangent.clone().multiplyScalar(-segmentOffset))
 		.add(side.normal.clone().multiplyScalar(-wallThickness / 2 - 0.04));
 
 	const panel = createLogoEvolutionPanel();
-	panel.position.set(center.x, 2.3, center.z);
+	panel.position.set(center.x, 2.55, center.z);
 	panel.rotation.y = getRotationForNormal(side.normal.clone().multiplyScalar(-1));
 	group.add(panel);
 	return group;
@@ -8522,8 +8523,8 @@ function createWayfindingTexture(label, aspect) {
 
 function createLogoEvolutionPanel() {
 	const group = new THREE.Group();
-	const width = 2.7;
-	const height = 1.36;
+	const width = 1.58;
+	const height = 2.32;
 	const frame = new THREE.Mesh(
 		new THREE.BoxGeometry(width + 0.16, height + 0.16, 0.08),
 		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
@@ -8540,70 +8541,101 @@ function createLogoEvolutionPanel() {
 
 function createLogoEvolutionTexture() {
 	const canvas = document.createElement('canvas');
-	canvas.width = 2048;
-	canvas.height = 1030;
+	canvas.width = 1100;
+	canvas.height = 1615;
 	const ctx = canvas.getContext('2d');
+	const cx = canvas.width / 2;
 	ctx.fillStyle = '#fbf7ee';
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 	ctx.fillStyle = '#21759b';
-	ctx.fillRect(0, 0, canvas.width, 14);
-	ctx.fillRect(0, canvas.height - 14, canvas.width, 14);
+	ctx.fillRect(0, 0, canvas.width, 12);
+	ctx.fillRect(0, canvas.height - 12, canvas.width, 12);
 
 	ctx.fillStyle = '#23282d';
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-	fillFittedCanvasText(
-		ctx,
-		'THE WORDPRESS LOGO',
-		canvas.width / 2,
-		88,
-		1900,
-		72,
-		'900',
-		'Arial Black, Impact, sans-serif'
-	);
+	fillFittedCanvasText(ctx, 'THE WORDPRESS LOGO', cx, 86, 960, 64, '900', 'Arial Black, Impact, sans-serif');
 	ctx.fillStyle = '#6b7280';
 	ctx.font = '700 30px system-ui, sans-serif';
-	ctx.fillText('the official mark, lockup and logotype', canvas.width / 2, 150);
+	ctx.fillText('through the years', cx, 148);
 
-	const texture = createCanvasTexture(canvas);
+	const caption = (lines, y) => {
+		ctx.fillStyle = '#23282d';
+		fillFittedCanvasText(ctx, lines[0], cx, y, 960, 36, '800', 'system-ui, sans-serif');
+		ctx.fillStyle = '#6b7280';
+		fillFittedCanvasText(ctx, lines[1], cx, y + 44, 960, 27, '600', 'system-ui, sans-serif');
+	};
+	const divider = (y) => {
+		ctx.strokeStyle = 'rgba(35, 40, 45, 0.14)';
+		ctx.lineWidth = 3;
+		ctx.beginPath();
+		ctx.moveTo(90, y);
+		ctx.lineTo(canvas.width - 90, y);
+		ctx.stroke();
+	};
+
+	// 2003 — the original wordmark, drawn here: "WordPress" in a Dante-style
+	// serif, "Word" in blue, "Press" near-black, over a thin rule (per the
+	// WordPress history book; Dante itself isn't a web font, Georgia stands in).
+	ctx.font = '400 104px Georgia, "Times New Roman", serif';
+	const wWord = ctx.measureText('Word').width;
+	const wPress = ctx.measureText('Press').width;
+	const startX = cx - (wWord + wPress) / 2;
+	ctx.textAlign = 'left';
+	ctx.fillStyle = '#1d5775';
+	ctx.fillText('Word', startX, 360);
+	ctx.fillStyle = '#1c1e21';
+	ctx.fillText('Press', startX + wWord, 360);
+	ctx.fillRect(startX, 422, wWord + wPress, 3);
+	ctx.textAlign = 'center';
+	caption(['2003 · the original wordmark', 'set in Dante, by Matt Mullenweg'], 510);
+	divider(610);
+
+	// 2005 onward: the official brand assets, loaded async below; their
+	// captions and dividers are static and drawn up front. The lockup row is
+	// composed horizontally from the mark + the wide logotype so the Mrs
+	// Eaves text stays readable at panel scale (the stacked 1000x1000 lockup
+	// asset shrinks its own text into illegibility).
+	const rows = [
+		{
+			// The "standard" logotype asset is the full lockup: W mark + the
+			// Mrs Eaves wordmark.
+			images: [
+				{ src: './assets/logos/wp-logotype-standard.png', cx, cy: 830, maxW: 820, maxH: 240 },
+			],
+			lines: ["2005 · Jason Santa Maria's lockup", 'Mrs Eaves small caps · in use ever since'],
+			captionY: 1010,
+			dividerY: 1110,
+		},
+		{
+			images: [{ src: './assets/logos/wp-mark-notext.png', cx, cy: 1310, maxW: 280, maxH: 280 }],
+			lines: ['the W mark', 'the standalone symbol, recognisable on its own'],
+			captionY: 1500,
+		},
+	];
+	for (const row of rows) {
+		caption(row.lines, row.captionY);
+		if (row.dividerY) {
+			divider(row.dividerY);
+		}
+	}
+
+	const texture = createCanvasTexture(canvas, 1024);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.anisotropy = 4;
-
-	// The real, official WordPress logo assets (from the WordPress brand kit),
-	// loaded and drawn into three cells; the texture refreshes as each arrives.
-	const cells = [
-		{ src: './assets/logos/wp-mark-notext.png', title: 'the W mark', maxH: 360 },
-		{ src: './assets/logos/wp-logotype-wmark.png', title: 'the primary lockup', maxH: 410 },
-		{ src: './assets/logos/wp-logotype-standard.png', title: 'the logotype', maxH: 230 },
-	];
-	const cellW = canvas.width / cells.length;
-	const markCY = 470;
-	cells.forEach((cell, index) => {
-		const cx = cellW * index + cellW / 2;
-		if (index > 0) {
-			ctx.strokeStyle = 'rgba(35, 40, 45, 0.14)';
-			ctx.lineWidth = 3;
-			ctx.beginPath();
-			ctx.moveTo(cellW * index, 210);
-			ctx.lineTo(cellW * index, canvas.height - 70);
-			ctx.stroke();
+	for (const row of rows) {
+		for (const spec of row.images) {
+			const img = new Image();
+			img.onload = () => {
+				const scale = Math.min(spec.maxW / img.width, spec.maxH / img.height);
+				const w = img.width * scale;
+				const h = img.height * scale;
+				ctx.drawImage(img, spec.cx - w / 2, spec.cy - h / 2, w, h);
+				refreshCanvasTexture(texture);
+			};
+			img.src = spec.src;
 		}
-		ctx.fillStyle = '#23282d';
-		ctx.textAlign = 'center';
-		ctx.textBaseline = 'middle';
-		fillFittedCanvasText(ctx, cell.title, cx, canvas.height - 150, cellW - 80, 40, '700', 'system-ui, sans-serif');
-		const img = new Image();
-		img.onload = () => {
-			const maxW = cellW - 170;
-			const scale = Math.min(maxW / img.width, cell.maxH / img.height);
-			const w = img.width * scale;
-			const h = img.height * scale;
-			ctx.drawImage(img, cx - w / 2, markCY - h / 2, w, h);
-			refreshCanvasTexture(texture);
-		};
-		img.src = cell.src;
-	});
+	}
 
 	return texture;
 }
