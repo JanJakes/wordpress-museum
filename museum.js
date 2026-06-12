@@ -7135,7 +7135,6 @@ function createRoom(room) {
 	if (isCurrentVariant) {
 		group.add(createRoomMuseumArchitecture(room));
 		group.add(createRoomStoryWall(room));
-		group.add(createRoomFloorWayfinding(room));
 		group.add(createRoomCarpetRunner());
 	}
 	if (shouldDecorateScene) {
@@ -8004,43 +8003,9 @@ function createRoomLight(color) {
 	return group;
 }
 
-function createRoomFloorWayfinding(room) {
-	const group = new THREE.Group();
-	const color = room.color;
-	const stripeMaterial = new THREE.MeshBasicMaterial({
-		color,
-		transparent: true,
-		opacity: 0.34,
-		depthWrite: false,
-	});
-	const softMaterial = new THREE.MeshBasicMaterial({
-		color: 0xfff5df,
-		transparent: true,
-		opacity: 0.2,
-		depthWrite: false,
-	});
-	group.add(createFloorStripe(0, -1.1, 0.075, 8.8, 0, stripeMaterial));
-	group.add(createFloorStripe(-2.25, -1.95, 0.055, 4.1, Math.PI / 4, stripeMaterial));
-	group.add(createFloorStripe(2.25, -1.95, 0.055, 4.1, -Math.PI / 4, stripeMaterial));
-	group.add(createFloorStripe(0, 3.65, 4.8, 0.055, 0, softMaterial));
-	return group;
-}
-
-function createFloorStripe(x, z, width, length, rotation, material) {
-	const stripe = new THREE.Mesh(
-		new THREE.BoxGeometry(width, 0.012, length),
-		material
-	);
-	stripe.position.set(x, 0.082, z);
-	stripe.rotation.y = rotation;
-	return stripe;
-}
-
 // Per-gallery red carpet runner: a deep-red plane on a thin gold/tan border,
 // laid down the room centreline from just inside the hub doorway to near the
-// back wall. It sits above the floor wayfinding stripes so it cleanly covers
-// the central stripe without z-fighting; the diagonal side stripes (x≈±2.25)
-// stay visible flanking the carpet.
+// back wall.
 function createRoomCarpetRunner() {
 	// Width matches the atrium star arm (2.2) and the front edge tucks just under
 	// the doorway threshold, overlapping the arm (which ends at radius 16.6), so
