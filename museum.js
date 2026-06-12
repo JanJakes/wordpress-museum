@@ -492,8 +492,9 @@ let inMercantileShop = false; // true while the visitor stands in the gift shop
 let guidedTarget = null;
 let guidedTour = false;
 let tourHoldUntil = 0;
-const guidedFlightY = 2.05; // waypoint eye height: above heads, below lintels
-const guidedFlightSpeed = 9; // m/s cap so long hops glide rather than teleport
+const guidedFlightY = 2.05; // wing-door waypoint height (those doors are 2.7-3.0m)
+const guidedRotundaY = 3.1; // rotunda waypoints fly over hub statues/signs/desks
+const guidedFlightSpeed = 9; // m/s base; long hops scale up (guidedFlightSpeedFor)
 let yaw = Math.PI;
 let pitch = 0;
 let dragging = false;
@@ -16880,11 +16881,13 @@ function returnToMuseumCenter() {
 		atriumCenterPosition,
 		getRoomLookPoint(releases[activeIndex].era)
 	);
+	const vias = guidedRouteVias(camera.position, null);
 	guidedTarget = {
 		position: atriumCenterPosition.clone(),
 		yaw: view.yaw,
 		pitch: 0,
-		vias: guidedRouteVias(camera.position, null),
+		vias,
+		speed: guidedFlightSpeedFor(camera.position, vias, atriumCenterPosition),
 	};
 	atCenter = true;
 	updateRail();
@@ -17241,8 +17244,9 @@ function updateCamera(delta) {
 		const toAim = aimPos.clone().sub(camera.position);
 		const distance = toAim.length();
 		if (distance > 1e-6) {
+			const speed = guidedTarget.speed || guidedFlightSpeed;
 			const eased = distance * (1 - Math.pow(0.055, flightDelta));
-			const step = Math.min(enRoute ? distance : eased, guidedFlightSpeed * flightDelta);
+			const step = Math.min(enRoute ? distance : eased, speed * flightDelta);
 			camera.position.addScaledVector(toAim, step / distance);
 		}
 		// Look where we are going between waypoints; blend into the exhibit's
@@ -17441,11 +17445,13 @@ function focusRelease(index, immediate = false, options = {}) {
 		setCameraRotation();
 		guidedTarget = null;
 	} else {
+		const vias = guidedRouteVias(camera.position, release.era);
 		guidedTarget = {
 			position: viewPoint,
 			yaw: view.yaw,
 			pitch: view.pitch,
-			vias: guidedRouteVias(camera.position, release.era),
+			vias,
+			speed: guidedFlightSpeedFor(camera.position, vias, viewPoint),
 		};
 	}
 	updatePanel(release);
@@ -17476,15 +17482,17 @@ function guidedRouteVias(from, targetEra) {
 			vias.push(
 				guidedWaypoint(sideX, shopPassageZCenter),
 				guidedWaypoint(shopCenterX, shopZStart - 0.4),
-				guidedWaypoint(shopCenterX, hubApothem - 1.2)
+				guidedWaypoint(shopCenterX, hubApothem - 2.6, guidedRotundaY)
 			);
 		} else if (isPointInsideShop(from)) {
 			vias.push(
 				guidedWaypoint(shopCenterX, shopZStart - 0.4),
-				guidedWaypoint(shopCenterX, hubApothem - 1.2)
+				guidedWaypoint(shopCenterX, hubApothem - 2.6, guidedRotundaY)
 			);
 		} else if (isPointInsideMuralPortals(from)) {
-			vias.push(guidedWaypoint(Math.sign(from.x) * portalCenterOffset, hubApothem - 1.2));
+			vias.push(
+				guidedWaypoint(Math.sign(from.x) * portalCenterOffset, hubApothem - 2.6, guidedRotundaY)
+			);
 		}
 	}
 	if (wingEra === targetEra) {
@@ -17499,13 +17507,29 @@ function guidedRouteVias(from, targetEra) {
 	return vias;
 }
 
+// Pulled 2.6m into the rotunda off the doorway (and raised): cross-hub chords
+// between doors then run well clear of the octagon wall, its corner flora and
+// the wall-side exhibits, and fly over the hub furniture. The hub doorways are
+// full-height openings, so the raised point still passes through them.
 function roomDoorwayWaypoint(era) {
 	const side = roomLayout.get(era);
-	return guidedWaypoint(side.doorway.x, side.doorway.z);
+	const pulled = side.doorway.clone().addScaledVector(side.normal, -2.6);
+	return guidedWaypoint(pulled.x, pulled.z, guidedRotundaY);
 }
 
-function guidedWaypoint(x, z) {
-	return new THREE.Vector3(x, guidedFlightY, z);
+function guidedWaypoint(x, z, y = guidedFlightY) {
+	return new THREE.Vector3(x, y, z);
+}
+
+// Longer journeys fly proportionally faster so cross-museum hops don't drag.
+function guidedFlightSpeedFor(from, vias, target) {
+	let length = 0;
+	let prev = from;
+	for (const point of [...vias, target]) {
+		length += prev.distanceTo(point);
+		prev = point;
+	}
+	return THREE.MathUtils.clamp(length * 0.32, guidedFlightSpeed, 14);
 }
 
 function playgroundUrlForRelease(release) {
