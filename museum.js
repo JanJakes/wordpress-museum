@@ -3897,16 +3897,18 @@ function createForkSignpost() {
 		a.position.set(dir * 0.28, 1.62, 0); a.rotation.z = dir * 0.7; g.add(a);
 	};
 	arm(-1); arm(1);
+	// The boards sit proud of their arms (arms span z ±0.05) so the wood never
+	// pokes through the board faces; each board mounts on its reading side.
 	// Old, weathered b2/cafelog arrow pointing back (-z, toward the gallery).
 	const oldSign = createReadableLabel(createSmallSignTexture('b2/cafelog ', '#8a8f86'), 1.0, 0.3);
-	oldSign.position.set(-0.62, 1.95, 0); oldSign.rotation.y = Math.PI; oldSign.rotation.z = 0.18;
+	oldSign.position.set(-0.62, 1.95, -0.07); oldSign.rotation.y = Math.PI; oldSign.rotation.z = 0.18;
 	g.add(oldSign);
 	// Bright WordPress arrow pointing ahead (+z, into the museum).
 	const newSign = createReadableLabel(createSmallSignTexture('WordPress ', '#2b6c8f'), 1.05, 0.3);
-	newSign.position.set(0.62, 1.95, 0); newSign.rotation.z = -0.18;
+	newSign.position.set(0.62, 1.95, 0.07); newSign.rotation.z = -0.18;
 	g.add(newSign);
 	const tag = createReadableLabel(createSmallSignTexture('the fork · 2003', '#e0913f'), 0.9, 0.22);
-	tag.position.set(0, 1.05, 0.07);
+	tag.position.set(0, 1.05, 0.09);
 	g.add(tag);
 	return g;
 }
@@ -8631,11 +8633,13 @@ function createPhpElephantExhibit() {
 	// An upright label sign on a brass post, well in front of the plinth and below
 	// the (now up-curled) trunk, so it reads cleanly head-on.
 	const labelSpot = spot.clone().add(dir.clone().multiplyScalar(2.1));
+	// Post tops out at the plate's bottom edge (1.04 − 1.55·0.26/2) so it
+	// doesn't poke through between the plate's two faces.
 	const post = new THREE.Mesh(
-		new THREE.CylinderGeometry(0.055, 0.055, 0.92, 12),
+		new THREE.CylinderGeometry(0.055, 0.055, 0.84, 12),
 		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
 	);
-	post.position.set(labelSpot.x, 0.46, labelSpot.z);
+	post.position.set(labelSpot.x, 0.42, labelSpot.z);
 	group.add(post);
 	const plate = createExhibitPlate('The elePHPant', '', 1.55);
 	plate.position.set(labelSpot.x, 1.04, labelSpot.z);
@@ -9751,11 +9755,13 @@ function createMuseumInfoDesk(color, secondary) {
 	group.add(laptop);
 	// "INFORMATION" raised on a slim pole above the desk, clear of the screen
 	// and laptop; the label is double-faced, so it reads from both sides.
+	// The pole ends at the sign's bottom edge — thicker than the gap between
+	// the label's two faces, it would poke through the artwork otherwise.
 	const signPole = new THREE.Mesh(
-		new THREE.CylinderGeometry(0.028, 0.038, 1.7, 12),
+		new THREE.CylinderGeometry(0.028, 0.038, 1.59, 12),
 		new THREE.MeshStandardMaterial({ color: 0x6b6b78, roughness: 0.4, metalness: 0.5 })
 	);
-	signPole.position.set(0, 0.46 + 0.85, -0.28);
+	signPole.position.set(0, 0.46 + 0.795, -0.28);
 	group.add(signPole);
 	const sign = createReadableLabel(createSmallSignTexture('INFORMATION', secondary), 1.4, 0.3);
 	sign.position.set(0, 2.2, -0.28);
