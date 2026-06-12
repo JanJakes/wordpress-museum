@@ -495,7 +495,7 @@ let tourHoldUntil = 0;
 const guidedFlightY = 1.65; // flat flights at eye level, matching the stands
 const guidedFlightSpeed = 11; // m/s base; long hops scale up (guidedFlightSpeedFor)
 const guidedFlightAccel = 16; // m/s² ease-in/out and braking into corners
-const guidedCornerRadius = 1.4; // arc radius; matches the audited corner-cut envelope
+const guidedCornerRadius = 3.0; // arc radius; wide, gentle turns (audited envelope)
 let yaw = Math.PI;
 let pitch = 0;
 let dragging = false;
@@ -17677,14 +17677,15 @@ function smoothGuidedRoute(from, rawVias, target, fullSpeed) {
 		const radius = Math.min(guidedCornerRadius, inLen / 2, outLen / 2);
 		const arcStart = v.clone().addScaledVector(inDir, -radius);
 		const arcEnd = v.clone().addScaledVector(outDir, radius);
+		// Wider arcs sweep gently, so they can be taken a bit faster too.
 		const cornerSpeed = THREE.MathUtils.clamp(
-			fullSpeed * (1.1 - bend / 2.2),
-			4.5,
+			fullSpeed * (1.15 - bend / 2.4),
+			5.5,
 			fullSpeed
 		);
 		vias.push(arcStart);
 		limits.push(fullSpeed); // the straight INTO the arc; braking handles entry
-		for (const t of [0.25, 0.5, 0.75]) {
+		for (const t of [1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6]) {
 			const a = arcStart.clone().lerp(v, t);
 			const b = v.clone().lerp(arcEnd, t);
 			vias.push(a.lerp(b, t)); // quadratic bezier point
