@@ -9749,8 +9749,16 @@ function createMuseumInfoDesk(color, secondary) {
 	laptop.position.set(0.47, 0.52, -0.14);
 	laptop.rotation.y = -0.24;
 	group.add(laptop);
-	const sign = createReadableLabel(createSmallSignTexture('INFORMATION', secondary), 1.3, 0.25);
-	sign.position.set(0, 0.66, -0.39);
+	// "INFORMATION" raised on a slim pole above the desk, clear of the screen
+	// and laptop; the label is double-faced, so it reads from both sides.
+	const signPole = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.028, 0.038, 1.7, 12),
+		new THREE.MeshStandardMaterial({ color: 0x6b6b78, roughness: 0.4, metalness: 0.5 })
+	);
+	signPole.position.set(0, 0.46 + 0.85, -0.28);
+	group.add(signPole);
+	const sign = createReadableLabel(createSmallSignTexture('INFORMATION', secondary), 1.4, 0.3);
+	sign.position.set(0, 2.2, -0.28);
 	group.add(sign);
 
 	const miniWapuu = createWapuu3D({ height: 0.5, accent: 0xffd166 });
