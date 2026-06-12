@@ -9951,7 +9951,7 @@ function addEraVignette(group, room, roomIndex) {
 			group,
 			createVignetteStation(color, item.label, item.object, {
 				...item,
-				objectScale: index === 2 ? 0.72 : 1,
+				objectScale: item.objectScale ?? (index === 2 ? 0.72 : 1),
 			}),
 			station.x,
 			station.z,
@@ -9992,7 +9992,7 @@ function addEraVignette(group, room, roomIndex) {
 			addProminentPair(group, createEmojiStatue(), createResponsiveTotem());
 		} else if (room.era === 'API and Customizer') {
 			addLocal(group, createMaterialDesignPanel(), 3.95, frontWallZ);
-			addProminentPair(group, createRestSwitchboard(), createRestBench());
+			addProminentPair(group, createCustomizerProminent(color, secondary), createRestBench());
 		} else if (room.era === 'Block Editor') {
 			addLocal(group, createBigTypePanel(), 3.95, frontWallZ);
 			addBlockEditorPrintingPress(group, color);
@@ -10394,35 +10394,15 @@ function createResponsiveTotem() {
 
 // V · API & Customizer (left) — an operator's patch panel routing JSON between
 // REST endpoints (4.7's REST API content endpoints).
-function createRestSwitchboard() {
+// V · API & Customizer (left prominent spot) — the Customizer palette promoted
+// from its wall vignette: a weighted base and a museum plate, full scale.
+function createCustomizerProminent(color, secondary) {
 	const g = new THREE.Group();
-	const cabinet = propStdMat(0x2b2f36, 0.55, 0.3);
-	const socketMat = propStdMat(0x14181f, 0.5, 0.4);
 	g.add(createPropBase(0.46));
-	const stand = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.7, 0.4), cabinet);
-	stand.position.y = 0.45;
-	g.add(stand);
-	const board = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.95, 0.12), cabinet);
-	board.position.set(0, 1.25, 0.04);
-	board.rotation.x = -0.32;
-	g.add(board);
-	const cableC = [0x6ddcff, 0xffd166, 0xff7a90, 0x9be870];
-	const pts = [];
-	for (let r = 0; r < 3; r++) {
-		for (let c = 0; c < 3; c++) {
-			const x = -0.38 + c * 0.38;
-			const y = 1.5 - r * 0.26;
-			const sk = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.06, 16), socketMat);
-			sk.rotation.x = Math.PI / 2 - 0.32;
-			sk.position.set(x, y, 0.2 + r * 0.04);
-			g.add(sk);
-			pts.push(new THREE.Vector3(x, y, 0.27 + r * 0.04));
-		}
-	}
-	[[0, 5], [2, 7], [3, 8], [1, 6]].forEach((pair, i) => {
-		g.add(createCylinderBetween(pts[pair[0]], pts[pair[1]], 0.018, propStdMat(cableC[i % cableC.length], 0.4, 0.2), 6));
-	});
-	const plate = createExhibitPlate('REST API', 'GET · POST · /wp-json');
+	const palette = createCustomizerPalette(color, secondary);
+	palette.position.y = 0.1;
+	g.add(palette);
+	const plate = createExhibitPlate('CUSTOMIZER', 'live preview · paint your site');
 	plate.position.set(0, 0.45, 0.5);
 	g.add(plate);
 	return g;
@@ -13913,9 +13893,10 @@ function getEraVignetteItems(room, color, secondary) {
 			{ label: 'RESPONSIVE', object: createResponsivePreview(color, secondary), width: 1.6 },
 		],
 		'API and Customizer': [
-			{ label: 'CUSTOMIZER', object: createCustomizerPalette(color, secondary, 0.85), width: 1.74 },
+			// The Customizer palette moved to the room's prominent spot
+			// (createCustomizerProminent), so only two wall vignettes remain.
 			{ label: 'JSON', object: createOrbitalSculpture(secondary), width: 1.45 },
-			{ label: 'MEDIA', object: createCommentAquarium(secondary, color, 0.54), width: 1.65 },
+			{ label: 'MEDIA', object: createCommentAquarium(secondary, color, 0.54), width: 1.65, objectScale: 0.72 },
 		],
 		'Block Editor': [
 			// Stands out in the open floor (where the viewing sofa used to be),
