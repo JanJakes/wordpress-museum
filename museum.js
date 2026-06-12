@@ -492,6 +492,8 @@ let inMercantileShop = false; // true while the visitor stands in the gift shop
 let guidedTarget = null;
 let guidedTour = false;
 let tourHoldUntil = 0;
+const guidedFlightY = 2.05; // waypoint eye height: above heads, below lintels
+const guidedFlightSpeed = 9; // m/s cap so long hops glide rather than teleport
 let yaw = Math.PI;
 let pitch = 0;
 let dragging = false;
@@ -16841,6 +16843,21 @@ function initDebugApi() {
 		scene,
 		camera,
 		THREE,
+		// Guided-flight route planner + flight endpoints, exposed so the
+		// no-wall-crossing guarantee can be audited geometrically in tests.
+		planRoute: (from, targetEra) =>
+			guidedRouteVias(new THREE.Vector3(from.x, from.y ?? 1.65, from.z), targetEra).map(
+				vectorToPlainObject
+			),
+		getFlightStands: () =>
+			exhibitPositions.map((p) => ({ x: p.stand.x, z: p.stand.z, era: p.era })),
+		getAnnexDoors: () =>
+			eraAnnexes.map((a) => ({
+				era: a.config.era,
+				door: { x: a.center.x, z: a.center.z },
+				forward: { x: a.forward.x, z: a.forward.z },
+				depth: a.depth,
+			})),
 	};
 }
 
@@ -16867,6 +16884,7 @@ function returnToMuseumCenter() {
 		position: atriumCenterPosition.clone(),
 		yaw: view.yaw,
 		pitch: 0,
+		vias: guidedRouteVias(camera.position, null),
 	};
 	atCenter = true;
 	updateRail();
@@ -17211,22 +17229,38 @@ function updateCamera(delta) {
 	}
 
 	if (guidedTarget) {
-		// When crossing between galleries, glide through a raised waypoint in
-		// the rotunda so the camera arcs out of one room and into the next
-		// instead of slicing through marble walls.
-		const aimPos = guidedTarget.via || guidedTarget.position;
-		camera.position.lerp(aimPos, 1 - Math.pow(0.055, delta));
-		yaw = lerpAngle(yaw, guidedTarget.yaw, 1 - Math.pow(0.02, delta));
-		pitch = THREE.MathUtils.lerp(
-			pitch,
-			guidedTarget.pitch,
-			1 - Math.pow(0.02, delta)
-		);
-		setCameraRotation();
-		if (guidedTarget.via && camera.position.distanceTo(guidedTarget.via) < 1.3) {
-			guidedTarget.via = null;
+		// Glide through the planned doorway waypoints, then settle on the
+		// exhibit. Speed is capped so long hops read as a brisk walk-through
+		// rather than a teleport, easing out only on the final approach.
+		// Clamp the timestep so a hiccup frame can't jump the camera meters
+		// along the path (and through a waypoint corner).
+		const flightDelta = Math.min(delta, 0.07);
+		const vias = guidedTarget.vias;
+		const enRoute = !!(vias && vias.length);
+		const aimPos = enRoute ? vias[0] : guidedTarget.position;
+		const toAim = aimPos.clone().sub(camera.position);
+		const distance = toAim.length();
+		if (distance > 1e-6) {
+			const eased = distance * (1 - Math.pow(0.055, flightDelta));
+			const step = Math.min(enRoute ? distance : eased, guidedFlightSpeed * flightDelta);
+			camera.position.addScaledVector(toAim, step / distance);
 		}
-		if (!guidedTarget.via && camera.position.distanceTo(guidedTarget.position) < 0.06) {
+		// Look where we are going between waypoints; blend into the exhibit's
+		// framed view only on the final approach.
+		let yawAim = guidedTarget.yaw;
+		let pitchAim = guidedTarget.pitch;
+		const finalDistance = camera.position.distanceTo(guidedTarget.position);
+		if ((enRoute || finalDistance > 3.4) && Math.hypot(toAim.x, toAim.z) > 0.5) {
+			yawAim = Math.atan2(-toAim.x, -toAim.z);
+			pitchAim = 0;
+		}
+		yaw = lerpAngle(yaw, yawAim, 1 - Math.pow(0.03, delta));
+		pitch = THREE.MathUtils.lerp(pitch, pitchAim, 1 - Math.pow(0.03, delta));
+		setCameraRotation();
+		if (enRoute && camera.position.distanceTo(vias[0]) < 1.4) {
+			vias.shift();
+		}
+		if ((!vias || !vias.length) && camera.position.distanceTo(guidedTarget.position) < 0.06) {
 			guidedTarget = null;
 			tourHoldUntil = performance.now() + 3000;
 			updateNearestRelease();
@@ -17388,7 +17422,6 @@ function getRoomLookPoint(era) {
 
 function focusRelease(index, immediate = false, options = {}) {
 	atCenter = false;
-	const previousEra = releases[activeIndex]?.era;
 	activeIndex = wrapIndex(index);
 	const release = releases[activeIndex];
 	const target = exhibitPositions[activeIndex];
@@ -17412,14 +17445,67 @@ function focusRelease(index, immediate = false, options = {}) {
 			position: viewPoint,
 			yaw: view.yaw,
 			pitch: view.pitch,
+			vias: guidedRouteVias(camera.position, release.era),
 		};
-		if (previousEra && previousEra !== release.era) {
-			guidedTarget.via = atriumCenterPosition.clone().setY(2.4);
-		}
 	}
 	updatePanel(release);
 	updateRail(options.syncRail !== false);
 	updateActiveExhibitMarker();
+}
+
+// Plans the doorway waypoints a guided flight follows to reach a gallery (or
+// the rotunda centre when targetEra is null) without cutting through walls:
+// leave the current wing through its own doorways into the rotunda, then
+// enter the target room through its doorway. Every leg connects two points
+// inside one convex space (a gallery, an annex, the shop, a corridor or the
+// rotunda octagon), so the straight glide between consecutive waypoints can
+// never cross a wall.
+function guidedRouteVias(from, targetEra) {
+	const vias = [];
+	let wingEra = getCameraRoomEra(from);
+	if (!wingEra && !isPointInsideHub(from)) {
+		const annex = eraAnnexes.find((a) => isPointInsideEraAnnex(from, a));
+		if (annex) {
+			vias.push(guidedWaypoint(annex.center.x, annex.center.z));
+			wingEra = annex.config.era;
+		} else if (isPointInsidePlayground(from)) {
+			vias.push(guidedWaypoint(playgroundDoorWallX, playgroundDoorZCenter));
+			wingEra = eras[eras.length - 1];
+		} else if (isPointInsideShopPassage(from)) {
+			const sideX = shopCenterX + Math.sign(from.x - shopCenterX) * (shopWidth / 2 - 0.8);
+			vias.push(
+				guidedWaypoint(sideX, shopPassageZCenter),
+				guidedWaypoint(shopCenterX, shopZStart - 0.4),
+				guidedWaypoint(shopCenterX, hubApothem - 1.2)
+			);
+		} else if (isPointInsideShop(from)) {
+			vias.push(
+				guidedWaypoint(shopCenterX, shopZStart - 0.4),
+				guidedWaypoint(shopCenterX, hubApothem - 1.2)
+			);
+		} else if (isPointInsideMuralPortals(from)) {
+			vias.push(guidedWaypoint(Math.sign(from.x) * portalCenterOffset, hubApothem - 1.2));
+		}
+	}
+	if (wingEra === targetEra) {
+		return vias; // already in the target room (or its annex): glide direct
+	}
+	if (wingEra) {
+		vias.push(roomDoorwayWaypoint(wingEra));
+	}
+	if (targetEra) {
+		vias.push(roomDoorwayWaypoint(targetEra));
+	}
+	return vias;
+}
+
+function roomDoorwayWaypoint(era) {
+	const side = roomLayout.get(era);
+	return guidedWaypoint(side.doorway.x, side.doorway.z);
+}
+
+function guidedWaypoint(x, z) {
+	return new THREE.Vector3(x, guidedFlightY, z);
 }
 
 function playgroundUrlForRelease(release) {
