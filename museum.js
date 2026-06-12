@@ -6772,9 +6772,10 @@ function drawUltimateMural(ctx, canvas) {
 	);
 
 	// Thin bronze rules flanking the founding-date subtitle, clear of the text.
+	const subtitle = 'EST. MMIII · THE FIRST TWENTY YEARS';
 	const subY = h * 0.74;
 	ctx.font = `600 ${Math.round(h * 0.115)}px Georgia, "Times New Roman", serif`;
-	const dateHalf = ctx.measureText('EST. MMIII').width / 2;
+	const dateHalf = ctx.measureText(subtitle).width / 2;
 	ctx.fillStyle = bronze;
 	const ruleW = h * 0.26;
 	const ruleGap = h * 0.1;
@@ -6782,7 +6783,7 @@ function drawUltimateMural(ctx, canvas) {
 	ctx.fillRect(textCx + dateHalf + ruleGap, subY - 2, ruleW, 3);
 	drawEngravedText(
 		ctx,
-		'EST. MMIII',
+		subtitle,
 		textCx,
 		subY,
 		w,
