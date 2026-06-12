@@ -17650,7 +17650,10 @@ function updateNearestRelease() {
 	const cameraPoint = camera.position.clone();
 	cameraPoint.y = 1.65;
 	const activeRoomEra = getCameraRoomEra(cameraPoint);
-	setMercantileTicket(!activeRoomEra && isPointInsideShop(cameraPoint));
+	setMercantileTicket(
+		!activeRoomEra &&
+			(isPointInsideShop(cameraPoint) || isPointInsideExitAlcove(cameraPoint))
+	);
 	if (!activeRoomEra) {
 		atCenter = true;
 		updateRail();
@@ -17831,6 +17834,13 @@ function isPointInsideSideDoorway(position, room) {
 		return true;
 	}
 	return false;
+}
+
+// The exit-side mural alcove — the hall from the rotunda toward the gift
+// shop — so the Mercantile flyer already greets visitors on the way in. The
+// two alcoves sit at x = ±portalCenterOffset and never straddle x = 0.
+function isPointInsideExitAlcove(position) {
+	return isPointInsideMuralPortals(position) && position.x > 0;
 }
 
 function isPointInsideMuralPortals(position) {
