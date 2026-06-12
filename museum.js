@@ -10125,75 +10125,101 @@ function createDashboardCockpit() {
 	const trim = new THREE.Mesh(new THREE.BoxGeometry(1.54, 0.68, 0.06), brass);
 	trim.position.z = -0.04;
 	housing.add(trim);
-	const fracs = [0.3, 0.62, 0.88];
-	for (let i = 0; i < 3; i++) {
-		const x = -0.46 + i * 0.46;
-		const bezel = new THREE.Mesh(new THREE.TorusGeometry(0.165, 0.028, 14, 28), brass);
-		bezel.position.set(x, 0, 0.1);
+	// A larger central speedo flanked by two smaller dials, automotive-style.
+	const dials = [
+		{ x: -0.5, r: 0.13, frac: 0.34 },
+		{ x: 0, r: 0.2, frac: 0.72 },
+		{ x: 0.5, r: 0.13, frac: 0.55 },
+	];
+	for (const dial of dials) {
+		const bezel = new THREE.Mesh(new THREE.TorusGeometry(dial.r + 0.012, 0.026, 14, 30), brass);
+		bezel.position.set(dial.x, 0, 0.1);
 		housing.add(bezel);
 		const face = new THREE.Mesh(
-			new THREE.CircleGeometry(0.155, 30),
-			new THREE.MeshBasicMaterial({ map: createGaugeFaceTexture(fracs[i]) })
+			new THREE.CircleGeometry(dial.r, 30),
+			new THREE.MeshBasicMaterial({ map: createGaugeFaceTexture(dial.frac) })
 		);
-		face.position.set(x, 0, 0.092);
+		face.position.set(dial.x, 0, 0.092);
 		housing.add(face);
 	}
-	// Steering wheel below, with a hub and three spokes.
+	// Steering wheel on a short column in front of the panel, clearly readable.
 	const dark = propStdMat(0x14181f, 0.55);
-	const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.052, 16, 32), dark);
-	wheel.position.set(0, 0.9, 0.42);
-	wheel.rotation.x = 1.2;
-	g.add(wheel);
-	const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.07, 18), brass);
-	hub.position.set(0, 0.9, 0.42);
-	hub.rotation.x = 1.2 + Math.PI / 2;
-	g.add(hub);
+	const wheelGroup = new THREE.Group();
+	wheelGroup.position.set(0, 0.98, 0.38);
+	wheelGroup.rotation.x = 1.15;
+	g.add(wheelGroup);
+	const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.045, 16, 32), dark);
+	wheelGroup.add(wheel);
+	const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.07, 18), brass);
+	hub.rotation.x = Math.PI / 2;
+	wheelGroup.add(hub);
 	for (const a of [Math.PI / 2, Math.PI * 7 / 6, Math.PI * 11 / 6]) {
-		const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.03, 0.03), dark);
-		spoke.position.set(0, 0.9, 0.42);
-		spoke.rotation.set(1.2, 0, a);
-		g.add(spoke);
+		const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.03, 0.03), dark);
+		spoke.rotation.z = a;
+		spoke.position.set(Math.cos(a) * 0.125, Math.sin(a) * 0.125, 0);
+		wheelGroup.add(spoke);
 	}
+	const wheelColumn = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, 0.42, 12), steel);
+	wheelColumn.position.set(0, 0.78, 0.28);
+	wheelColumn.rotation.x = 0.45;
+	g.add(wheelColumn);
 	const plate = createExhibitPlate('THE DASHBOARD', 'mind the gauges');
 	plate.position.set(0, 0.5, 0.66);
 	g.add(plate);
 	return g;
 }
 
-// A round instrument dial: cream face, tick ring, a red needle and a hub.
+// A speedometer-style dial: dark face, green-amber-red arc band, tick marks
+// and a thick red needle sweeping from the lower left — reads automotive, not
+// like a wall clock.
 function createGaugeFaceTexture(frac) {
 	const cv = document.createElement('canvas');
 	cv.width = 220;
 	cv.height = 220;
 	const x = cv.getContext('2d');
 	const cx = 110, cy = 110, r = 96;
-	x.fillStyle = '#f4ead0';
+	x.fillStyle = '#20242c';
 	x.beginPath();
 	x.arc(cx, cy, r, 0, Math.PI * 2);
 	x.fill();
 	const a0 = Math.PI * 0.75;
 	const a1 = Math.PI * 2.25;
-	x.strokeStyle = '#241a0c';
+	// Coloured zone band along the sweep.
+	const zones = [
+		{ to: 0.55, color: '#46b450' },
+		{ to: 0.8, color: '#f0a830' },
+		{ to: 1, color: '#c0392b' },
+	];
+	let from = 0;
+	x.lineWidth = 16;
+	for (const zone of zones) {
+		x.strokeStyle = zone.color;
+		x.beginPath();
+		x.arc(cx, cy, r - 20, a0 + (a1 - a0) * from, a0 + (a1 - a0) * zone.to);
+		x.stroke();
+		from = zone.to;
+	}
+	x.strokeStyle = '#e8e2d2';
 	for (let i = 0; i <= 8; i++) {
 		const a = a0 + (a1 - a0) * i / 8;
 		const c = Math.cos(a), s = Math.sin(a);
 		x.lineWidth = i % 2 ? 3 : 6;
 		x.beginPath();
-		x.moveTo(cx + c * (r - 10), cy + s * (r - 10));
-		x.lineTo(cx + c * (r - 26), cy + s * (r - 26));
+		x.moveTo(cx + c * (r - 6), cy + s * (r - 6));
+		x.lineTo(cx + c * (r - 16), cy + s * (r - 16));
 		x.stroke();
 	}
 	const na = a0 + (a1 - a0) * frac;
-	x.strokeStyle = '#c0392b';
-	x.lineWidth = 8;
+	x.strokeStyle = '#e2574c';
+	x.lineWidth = 9;
 	x.lineCap = 'round';
 	x.beginPath();
-	x.moveTo(cx, cy);
-	x.lineTo(cx + Math.cos(na) * (r - 30), cy + Math.sin(na) * (r - 30));
+	x.moveTo(cx - Math.cos(na) * 14, cy - Math.sin(na) * 14);
+	x.lineTo(cx + Math.cos(na) * (r - 34), cy + Math.sin(na) * (r - 34));
 	x.stroke();
-	x.fillStyle = '#241a0c';
+	x.fillStyle = '#c79b43';
 	x.beginPath();
-	x.arc(cx, cy, 12, 0, Math.PI * 2);
+	x.arc(cx, cy, 11, 0, Math.PI * 2);
 	x.fill();
 	const t = createCanvasTexture(cv);
 	t.colorSpace = THREE.SRGBColorSpace;
@@ -10201,142 +10227,204 @@ function createGaugeFaceTexture(frac) {
 	return t;
 }
 
-// II · Dashboard Foundations (right) — a big round UNDO button (a crisp circular
-// arrow) on a stand, with a tidy pull-lever on the side (revisions/trash/undo).
+// II · Dashboard Foundations (right) — a giant just-pressed Ctrl+Z, the
+// universal undo (revisions, trash and the undo stack all landed in this era).
 function createUndoLever() {
 	const g = new THREE.Group();
-	const steel = propStdMat(0x5b6472, 0.5, 0.5);
-	const gold = propStdMat(0xffd166, 0.4, 0.32);
-	const dark = propStdMat(0x14181f, 0.6);
-	g.add(createPropBase(0.44));
-	const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 1.02, 18), steel);
-	pillar.position.y = 0.56;
-	g.add(pillar);
-	// Round "button" backing, facing the viewer (+z).
-	const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.12, 40), dark);
-	disc.rotation.x = Math.PI / 2;
-	disc.position.set(0, 1.45, 0.04);
-	g.add(disc);
-	const rim = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.04, 14, 44), gold);
-	rim.position.set(0, 1.45, 0.1);
-	g.add(rim);
-	// Crisp circular undo arrow on the button face.
-	const glyph = new THREE.Mesh(
-		new THREE.PlaneGeometry(0.82, 0.82),
-		new THREE.MeshBasicMaterial({ map: createUndoGlyphTexture(), transparent: true })
+	g.add(createPropBase(0.72));
+	// A tilted display board angles both key tops toward the visitor, so the
+	// legends read from standing height.
+	const support = new THREE.Mesh(
+		new THREE.BoxGeometry(0.56, 0.62, 0.5),
+		propStdMat(0x2e3440, 0.6, 0.2)
 	);
-	glyph.position.set(0, 1.45, 0.11);
-	g.add(glyph);
-	// A tidy pull-lever on the side, clearly separate from the arrow.
-	const lever = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.5, 12), steel);
-	lever.position.set(0.34, 0.82, 0.0);
-	lever.rotation.z = -0.5;
-	g.add(lever);
-	const knob = new THREE.Mesh(new THREE.SphereGeometry(0.085, 16, 12), gold);
-	knob.position.set(0.56, 0.96, 0.0);
-	g.add(knob);
-	const plate = createExhibitPlate('UNDO', 'revisions · trash · undo');
-	plate.position.set(0, 0.52, 0.5);
+	support.position.set(0, 0.36, -0.3);
+	g.add(support);
+	const board = new THREE.Group();
+	board.position.set(0, 0.8, -0.05);
+	board.rotation.x = 0.62;
+	g.add(board);
+	const slab = new THREE.Mesh(
+		new THREE.BoxGeometry(1.72, 0.1, 1.34),
+		propStdMat(0x2e3440, 0.6, 0.2)
+	);
+	board.add(slab);
+	const ctrl = createGiantKeycap('ctrl', 1.02, 0.8);
+	ctrl.position.set(-0.26, 0.05, -0.24);
+	board.add(ctrl);
+	// The Z key sits visibly pressed, caught mid-undo.
+	const z = createGiantKeycap('Z', 0.74, 0.74);
+	z.position.set(0.42, 0.05, 0.28);
+	z.rotation.y = -0.1;
+	z.scale.y = 0.72;
+	board.add(z);
+	const plate = createExhibitPlate('UNDO', 'ctrl+Z · revisions · trash');
+	plate.position.set(0, 0.5, 0.85);
 	g.add(plate);
 	return g;
 }
 
-function createUndoGlyphTexture() {
+// One oversized keyboard keycap: a cream body with a slightly smaller cap top
+// carrying the legend, like a giant desk-toy key.
+function createGiantKeycap(legend, width, depth) {
+	const g = new THREE.Group();
+	const body = new THREE.Mesh(
+		new THREE.BoxGeometry(width, 0.52, depth),
+		propStdMat(0xd9d0bc, 0.6)
+	);
+	body.position.y = 0.26;
+	g.add(body);
+	const cap = new THREE.Mesh(
+		new THREE.BoxGeometry(width * 0.9, 0.14, depth * 0.9),
+		propStdMat(0xf2ecdc, 0.5)
+	);
+	cap.position.y = 0.59;
+	g.add(cap);
+	const face = new THREE.Mesh(
+		new THREE.PlaneGeometry(width * 0.84, depth * 0.84),
+		new THREE.MeshBasicMaterial({ map: createKeycapTexture(legend), transparent: true })
+	);
+	face.rotation.x = -Math.PI / 2;
+	face.position.y = 0.662;
+	g.add(face);
+	return g;
+}
+
+function createKeycapTexture(legend) {
 	const cv = document.createElement('canvas');
 	cv.width = 256;
 	cv.height = 256;
 	const x = cv.getContext('2d');
-	const cx = 128, cy = 134, r = 76;
-	x.strokeStyle = '#ffd166';
-	x.lineWidth = 30;
-	x.lineCap = 'butt';
-	// A near-full circle, open at the top-right where the arrowhead sits.
-	const start = -Math.PI * 0.12;
-	const end = Math.PI * 1.62;
-	x.beginPath();
-	x.arc(cx, cy, r, start, end, false);
-	x.stroke();
-	// Arrowhead at the start of the arc, pointing along the (clockwise) tangent.
-	const ax = cx + Math.cos(start) * r;
-	const ay = cy + Math.sin(start) * r;
-	const tang = start - Math.PI / 2; // clockwise tangent
-	const back = start + Math.PI / 2;
-	const h = 46;
-	x.fillStyle = '#ffd166';
-	x.beginPath();
-	x.moveTo(ax + Math.cos(tang) * h * 0.6, ay + Math.sin(tang) * h * 0.6);
-	x.lineTo(ax + Math.cos(back) * h * 0.55 + Math.cos(start) * 8, ay + Math.sin(back) * h * 0.55 + Math.sin(start) * 8);
-	x.lineTo(ax - Math.cos(start) * h * 0.7, ay - Math.sin(start) * h * 0.7);
-	x.closePath();
-	x.fill();
+	x.fillStyle = '#f6efe0';
+	x.fillRect(0, 0, 256, 256);
+	x.strokeStyle = '#cfc4ab';
+	x.lineWidth = 10;
+	x.strokeRect(10, 10, 236, 236);
+	x.fillStyle = '#262019';
+	x.textAlign = 'center';
+	x.textBaseline = 'middle';
+	x.font = `900 ${legend.length > 1 ? 84 : 150}px system-ui, sans-serif`;
+	x.fillText(legend, 128, 134);
 	const t = createCanvasTexture(cv);
 	t.colorSpace = THREE.SRGBColorSpace;
 	t.anisotropy = 4;
 	return t;
 }
 
-// III · CMS Toolkit (left) — an open toolbox of tools, the "toolkit" that turned
-// WordPress into a CMS (custom post types, multisite, customizer).
+// III · CMS Toolkit (left) — an open red toolbox on a slim workstand, tools
+// standing proud of the tray: the "toolkit" that turned WordPress into a CMS.
 function createToolboxStand() {
 	const g = new THREE.Group();
-	const wood = propStdMat(0x7a4a22, 0.85);
-	const red = propStdMat(0xb23b32, 0.6);
-	const steel = propStdMat(0x9aa3ad, 0.45, 0.6);
-	g.add(createPropBase(0.46));
-	const stand = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.85, 0.6), wood);
-	stand.position.y = 0.52;
-	g.add(stand);
-	const box = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.4, 0.5), red);
-	box.position.y = 1.12;
+	const red = propStdMat(0xb23b32, 0.5, 0.18);
+	const redDark = propStdMat(0x8e2e27, 0.55, 0.18);
+	const steel = propStdMat(0x9aa3ad, 0.4, 0.65);
+	const steelDark = propStdMat(0x5b6472, 0.5, 0.5);
+	const wood = propStdMat(0xc9a16a, 0.8);
+	g.add(createPropBase(0.5));
+	// Slim pedestal workstand.
+	const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 0.74, 14), steelDark);
+	leg.position.y = 0.47;
+	g.add(leg);
+	const top = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.06, 0.62), wood);
+	top.position.y = 0.87;
+	g.add(top);
+	// Toolbox body with a darker rim and the lid hinged wide open at the back.
+	const box = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.3, 0.46), red);
+	box.position.y = 1.05;
 	g.add(box);
-	const handle = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.025, 10, 22, Math.PI), steel);
-	handle.position.set(0, 1.33, 0);
-	g.add(handle);
-	const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.5, 10), steel);
-	shaft.position.set(-0.28, 1.5, 0.06);
+	const rim = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.045, 0.48), redDark);
+	rim.position.y = 1.2;
+	g.add(rim);
+	const lid = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.04, 0.42), red);
+	lid.position.set(0, 1.36, -0.38);
+	lid.rotation.x = -2.1;
+	g.add(lid);
+	const lidHandle = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.02, 10, 20, Math.PI), steel);
+	lidHandle.position.set(0, 1.46, -0.46);
+	lidHandle.rotation.x = -2.1;
+	g.add(lidHandle);
+	// Tools standing in the tray at easy-going angles: hammer, screwdriver, wrench.
+	const hammerHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.038, 0.6, 10), wood);
+	hammerHandle.position.set(-0.32, 1.42, 0);
+	hammerHandle.rotation.z = 0.24;
+	g.add(hammerHandle);
+	const hammerHead = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.1, 0.1), steel);
+	hammerHead.position.set(-0.39, 1.7, 0);
+	hammerHead.rotation.z = 0.24;
+	g.add(hammerHead);
+	const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.42, 10), steel);
+	shaft.position.set(0.02, 1.45, 0.06);
+	shaft.rotation.z = -0.12;
 	g.add(shaft);
-	const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.18, 10), red);
-	grip.position.set(-0.28, 1.34, 0.06);
+	const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.2, 12), redDark);
+	grip.position.set(0.06, 1.32, 0.06);
+	grip.rotation.z = -0.12;
 	g.add(grip);
-	const wrench = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.52, 0.04), steel);
-	wrench.position.set(0.28, 1.5, -0.04);
-	wrench.rotation.z = 0.16;
+	const wrench = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.5, 0.03), steel);
+	wrench.position.set(0.34, 1.42, -0.04);
+	wrench.rotation.z = -0.3;
 	g.add(wrench);
+	// Open wrench jaw.
+	const jaw = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.028, 10, 18, Math.PI * 1.3), steel);
+	jaw.position.set(0.42, 1.66, -0.04);
+	jaw.rotation.z = 1.9;
+	g.add(jaw);
 	const plate = createExhibitPlate('THE TOOLKIT', 'build anything');
 	plate.position.set(0, 0.5, 0.5);
 	g.add(plate);
 	return g;
 }
 
-// III · CMS Toolkit (right) — a little network of linked houses (multisite, 3.0:
-// one install serving many sites).
+// III · CMS Toolkit (right) — one mother house feeding three satellite homes
+// over golden lines: multisite (3.0), one install serving many sites.
 function createMultisiteVillage() {
 	const g = new THREE.Group();
-	const wallC = [0xf4ead0, 0xd9b08c, 0xbcd4c4];
-	const roofC = [0xb23b32, 0x3a6ea5, 0x7a5a1c];
-	g.add(createPropBase(0.52));
-	const platform = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.12, 24), propStdMat(0x6b7280, 0.7, 0.2));
+	g.add(createPropBase(0.58));
+	const platform = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.72, 0.72, 0.12, 28),
+		propStdMat(0x7c8794, 0.7, 0.15)
+	);
 	platform.position.y = 0.16;
 	g.add(platform);
-	const spots = [[0, 0.92, 0], [-0.34, 0.72, 0.28], [0.36, 0.64, -0.22]];
-	const hubs = [];
-	spots.forEach(([hx, hh, hz], i) => {
-		const bodyH = hh - 0.4;
-		const body = new THREE.Mesh(new THREE.BoxGeometry(0.34, bodyH, 0.34), propStdMat(wallC[i], 0.7));
-		body.position.set(hx, 0.22 + bodyH / 2, hz);
-		g.add(body);
-		const roof = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.26, 4), propStdMat(roofC[i], 0.7));
-		roof.position.set(hx, 0.22 + bodyH + 0.13, hz);
+	const ground = 0.22;
+	const house = (x, z, w, h, wall, roofColor, rotation = 0) => {
+		const home = new THREE.Group();
+		home.position.set(x, ground, z);
+		home.rotation.y = rotation;
+		const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), propStdMat(wall, 0.7));
+		body.position.y = h / 2;
+		home.add(body);
+		const roof = new THREE.Mesh(new THREE.ConeGeometry(w * 0.88, w * 0.62, 4), propStdMat(roofColor, 0.7));
+		roof.position.y = h + w * 0.31;
 		roof.rotation.y = Math.PI / 4;
-		g.add(roof);
-		hubs.push(new THREE.Vector3(hx, 0.22 + bodyH * 0.6, hz));
-	});
+		home.add(roof);
+		const door = new THREE.Mesh(new THREE.BoxGeometry(w * 0.24, h * 0.42, 0.02), propStdMat(0x4a3320, 0.8));
+		door.position.set(0, h * 0.21, w / 2 + 0.005);
+		home.add(door);
+		for (const wx of [-w * 0.26, w * 0.26]) {
+			const window = new THREE.Mesh(new THREE.BoxGeometry(w * 0.2, w * 0.2, 0.02), propStdMat(0xbfe0f5, 0.3, 0.4));
+			window.position.set(wx, h * 0.68, w / 2 + 0.005);
+			home.add(window);
+		}
+		g.add(home);
+		return new THREE.Vector3(x, ground + h * 0.75, z);
+	};
+	// The big mother house (the install) and its three satellite sites.
+	const mother = house(-0.08, -0.2, 0.46, 0.52, 0xf4ead0, 0xb23b32, 0.25);
+	const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.08), propStdMat(0x8e6a4a, 0.8));
+	chimney.position.set(-0.24, ground + 0.66, -0.3);
+	g.add(chimney);
+	const sats = [
+		house(0.42, 0.18, 0.24, 0.26, 0xd9b08c, 0x3a6ea5, -0.3),
+		house(-0.5, 0.3, 0.22, 0.24, 0xbcd4c4, 0x7a5a1c, 0.5),
+		house(0.34, -0.46, 0.22, 0.3, 0xe8d8b8, 0x5a7a52, 0.9),
+	];
 	const link = propStdMat(0xffd166, 0.4, 0.3);
-	g.add(createCylinderBetween(hubs[0], hubs[1], 0.02, link, 6));
-	g.add(createCylinderBetween(hubs[0], hubs[2], 0.02, link, 6));
-	g.add(createCylinderBetween(hubs[1], hubs[2], 0.02, link, 6));
+	for (const sat of sats) {
+		g.add(createCylinderBetween(mother, sat, 0.018, link, 6));
+	}
 	const plate = createExhibitPlate('MULTISITE', 'one install, many sites');
-	plate.position.set(0, 0.5, 0.66);
+	plate.position.set(0, 0.5, 0.78);
 	g.add(plate);
 	return g;
 }
@@ -10401,6 +10489,9 @@ function createCustomizerProminent(color, secondary) {
 	g.add(createPropBase(0.46));
 	const palette = createCustomizerPalette(color, secondary);
 	palette.position.y = 0.1;
+	// The palette board tips its face toward local -z; the prominent-prop
+	// convention fronts +z, so turn it round to face the entry.
+	palette.rotation.y = Math.PI;
 	g.add(palette);
 	const plate = createExhibitPlate('CUSTOMIZER', 'live preview · paint your site');
 	plate.position.set(0, 0.45, 0.5);
