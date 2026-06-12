@@ -494,7 +494,9 @@ let guidedTour = false;
 let tourHoldUntil = 0;
 const guidedFlightY = 2.05; // wing-door waypoint height (those doors are 2.7-3.0m)
 const guidedRotundaY = 3.1; // rotunda waypoints fly over hub statues/signs/desks
-const guidedFlightSpeed = 9; // m/s base; long hops scale up (guidedFlightSpeedFor)
+const guidedFlightSpeed = 11; // m/s base; long hops scale up (guidedFlightSpeedFor)
+const guidedFlightAccel = 16; // m/s² ease-in/out and braking into corners
+const guidedCornerRadius = 1.4; // arc radius; matches the audited corner-cut envelope
 let yaw = Math.PI;
 let pitch = 0;
 let dragging = false;
@@ -16850,6 +16852,14 @@ function initDebugApi() {
 			guidedRouteVias(new THREE.Vector3(from.x, from.y ?? 1.65, from.z), targetEra).map(
 				vectorToPlainObject
 			),
+		planSmoothedRoute: (from, targetEra, target) => {
+			const f = new THREE.Vector3(from.x, from.y ?? 1.65, from.z);
+			const t = new THREE.Vector3(target.x, target.y ?? 1.65, target.z);
+			const raw = guidedRouteVias(f, targetEra);
+			const speed = guidedFlightSpeedFor(f, raw, t);
+			const route = smoothGuidedRoute(f, raw, t, speed);
+			return { vias: route.vias.map(vectorToPlainObject), limits: route.limits, speed };
+		},
 		getFlightStands: () =>
 			exhibitPositions.map((p) => ({ x: p.stand.x, z: p.stand.z, era: p.era })),
 		getAnnexDoors: () =>
@@ -16881,14 +16891,7 @@ function returnToMuseumCenter() {
 		atriumCenterPosition,
 		getRoomLookPoint(releases[activeIndex].era)
 	);
-	const vias = guidedRouteVias(camera.position, null);
-	guidedTarget = {
-		position: atriumCenterPosition.clone(),
-		yaw: view.yaw,
-		pitch: 0,
-		vias,
-		speed: guidedFlightSpeedFor(camera.position, vias, atriumCenterPosition),
-	};
+	guidedTarget = createGuidedFlight(atriumCenterPosition.clone(), view, null);
 	atCenter = true;
 	updateRail();
 }
@@ -17244,7 +17247,20 @@ function updateCamera(delta) {
 		const toAim = aimPos.clone().sub(camera.position);
 		const distance = toAim.length();
 		if (distance > 1e-6) {
-			const speed = guidedTarget.speed || guidedFlightSpeed;
+			const full = guidedTarget.speed || guidedFlightSpeed;
+			const limits = guidedTarget.viaLimits || [];
+			// Cap this leg by its own limit, and brake early toward a slower
+			// upcoming leg (corner) so turns are entered gently.
+			const legLimit = enRoute ? limits[0] ?? full : full;
+			const nextLimit = enRoute ? (limits.length > 1 ? limits[1] : full) : full;
+			const cap = Math.min(legLimit, nextLimit + guidedFlightAccel * distance * 0.12);
+			const current = guidedTarget.currentSpeed ?? full;
+			const speed = current + THREE.MathUtils.clamp(
+				cap - current,
+				-guidedFlightAccel * 1.6 * flightDelta,
+				guidedFlightAccel * flightDelta
+			);
+			guidedTarget.currentSpeed = speed;
 			const eased = distance * (1 - Math.pow(0.055, flightDelta));
 			const step = Math.min(enRoute ? distance : eased, speed * flightDelta);
 			camera.position.addScaledVector(toAim, step / distance);
@@ -17261,8 +17277,11 @@ function updateCamera(delta) {
 		yaw = lerpAngle(yaw, yawAim, 1 - Math.pow(0.03, delta));
 		pitch = THREE.MathUtils.lerp(pitch, pitchAim, 1 - Math.pow(0.03, delta));
 		setCameraRotation();
-		if (enRoute && camera.position.distanceTo(vias[0]) < 1.4) {
+		// Smaller switch radius: corners are pre-rounded into dense arc samples,
+		// so the camera should track them closely rather than cut across.
+		if (enRoute && camera.position.distanceTo(vias[0]) < 0.35) {
 			vias.shift();
+			guidedTarget.viaLimits?.shift();
 		}
 		if ((!vias || !vias.length) && camera.position.distanceTo(guidedTarget.position) < 0.06) {
 			guidedTarget = null;
@@ -17445,18 +17464,28 @@ function focusRelease(index, immediate = false, options = {}) {
 		setCameraRotation();
 		guidedTarget = null;
 	} else {
-		const vias = guidedRouteVias(camera.position, release.era);
-		guidedTarget = {
-			position: viewPoint,
-			yaw: view.yaw,
-			pitch: view.pitch,
-			vias,
-			speed: guidedFlightSpeedFor(camera.position, vias, viewPoint),
-		};
+		guidedTarget = createGuidedFlight(viewPoint, view, release.era);
 	}
 	updatePanel(release);
 	updateRail(options.syncRail !== false);
 	updateActiveExhibitMarker();
+}
+
+// Assembles a guided flight: plan the doorway route, round its corners and
+// derive per-leg speed limits, scaling overall speed with journey length.
+function createGuidedFlight(position, view, targetEra) {
+	const rawVias = guidedRouteVias(camera.position, targetEra);
+	const speed = guidedFlightSpeedFor(camera.position, rawVias, position);
+	const route = smoothGuidedRoute(camera.position, rawVias, position, speed);
+	return {
+		position,
+		yaw: view.yaw,
+		pitch: view.pitch ?? 0,
+		vias: route.vias,
+		viaLimits: route.limits,
+		speed,
+		currentSpeed: 3, // gentle ease-in from near standstill
+	};
 }
 
 // Plans the doorway waypoints a guided flight follows to reach a gallery (or
@@ -17529,7 +17558,58 @@ function guidedFlightSpeedFor(from, vias, target) {
 		length += prev.distanceTo(point);
 		prev = point;
 	}
-	return THREE.MathUtils.clamp(length * 0.32, guidedFlightSpeed, 14);
+	return THREE.MathUtils.clamp(length * 0.42, guidedFlightSpeed, 18);
+}
+
+// Rounds each waypoint corner into a short sampled arc (quadratic bezier whose
+// hull stays inside the audited 1.4m corner-cut envelope, so it cannot reach a
+// wall) and assigns every leg a speed limit: full speed on straights, slower
+// through bends in proportion to the turn angle. Returns {vias, limits} where
+// limits[i] caps the leg flown TOWARD vias[i].
+function smoothGuidedRoute(from, rawVias, target, fullSpeed) {
+	const points = [from, ...rawVias, target];
+	const vias = [];
+	const limits = [];
+	for (let i = 1; i + 1 < points.length; i++) {
+		const v = points[i];
+		const prev = points[i - 1];
+		const next = points[i + 1];
+		const inDir = v.clone().sub(prev);
+		const outDir = next.clone().sub(v);
+		const inLen = inDir.length();
+		const outLen = outDir.length();
+		if (inLen < 0.05 || outLen < 0.05) {
+			continue;
+		}
+		inDir.divideScalar(inLen);
+		outDir.divideScalar(outLen);
+		const bend = inDir.angleTo(outDir);
+		if (bend < 0.26) {
+			// Practically straight: keep the plain vertex at full speed.
+			vias.push(v);
+			limits.push(fullSpeed);
+			continue;
+		}
+		const radius = Math.min(guidedCornerRadius, inLen / 2, outLen / 2);
+		const arcStart = v.clone().addScaledVector(inDir, -radius);
+		const arcEnd = v.clone().addScaledVector(outDir, radius);
+		const cornerSpeed = THREE.MathUtils.clamp(
+			fullSpeed * (1.1 - bend / 2.2),
+			4.5,
+			fullSpeed
+		);
+		vias.push(arcStart);
+		limits.push(fullSpeed); // the straight INTO the arc; braking handles entry
+		for (const t of [0.25, 0.5, 0.75]) {
+			const a = arcStart.clone().lerp(v, t);
+			const b = v.clone().lerp(arcEnd, t);
+			vias.push(a.lerp(b, t)); // quadratic bezier point
+			limits.push(cornerSpeed);
+		}
+		vias.push(arcEnd);
+		limits.push(cornerSpeed);
+	}
+	return { vias, limits };
 }
 
 function playgroundUrlForRelease(release) {
