@@ -17556,6 +17556,15 @@ function guidedRouteVias(from, targetEra) {
 	if (wingEra === targetEra) {
 		return vias; // already in the target room (or its annex): glide direct
 	}
+	// Adjacent galleries share a side door mid-spoke: slip through it instead
+	// of detouring out into the rotunda and back.
+	if (wingEra && targetEra) {
+		const sideDoor = gallerySideDoorVias(wingEra, targetEra);
+		if (sideDoor) {
+			vias.push(...sideDoor);
+			return vias;
+		}
+	}
 	if (wingEra) {
 		vias.push(roomDoorwayWaypoint(wingEra));
 	}
@@ -17563,6 +17572,35 @@ function guidedRouteVias(from, targetEra) {
 		vias.push(roomDoorwayWaypoint(targetEra));
 	}
 	return vias;
+}
+
+// For adjacent galleries, two waypoints flanking their shared side door: one
+// pulled 1.6m into each room along the door->room-centre direction. Each leg
+// then lies in one convex room, and the short crossing between them passes
+// through the door opening.
+function gallerySideDoorVias(eraA, eraB) {
+	const connected = galleryConnections.some(
+		(p) =>
+			(p.a.era === eraA && p.b.era === eraB) ||
+			(p.a.era === eraB && p.b.era === eraA)
+	);
+	if (!connected) {
+		return null;
+	}
+	const roomA = roomLayout.get(eraA);
+	const roomB = roomLayout.get(eraB);
+	const onRight =
+		(roomB.center.x - roomA.center.x) * roomA.tangent.x +
+			(roomB.center.z - roomA.center.z) * roomA.tangent.z >
+		0;
+	const localX = (onRight ? 1 : -1) * sideHalfWidthAtZ(connectorDoorZ);
+	const door = roomLocalToWorld(roomA, new THREE.Vector3(localX, 0, connectorDoorZ));
+	const dirA = roomA.center.clone().sub(door).setY(0).normalize();
+	const dirB = roomB.center.clone().sub(door).setY(0).normalize();
+	return [
+		guidedWaypoint(door.x + dirA.x * 1.6, door.z + dirA.z * 1.6),
+		guidedWaypoint(door.x + dirB.x * 1.6, door.z + dirB.z * 1.6),
+	];
 }
 
 // The two tall greeter exhibits on the rotunda floor; flat (eye-level)
