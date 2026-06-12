@@ -17271,7 +17271,7 @@ function updateCamera(delta) {
 		let yawAim = guidedTarget.yaw;
 		let pitchAim = guidedTarget.pitch;
 		const finalDistance = camera.position.distanceTo(guidedTarget.position);
-		if (enRoute || finalDistance > 3.4) {
+		if (!guidedTarget.strafe && (enRoute || finalDistance > 3.4)) {
 			let remaining = 3.0;
 			let lookFrom = camera.position;
 			let lookPoint = guidedTarget.position;
@@ -17510,6 +17510,10 @@ function createGuidedFlight(position, view, targetEra) {
 		viaLimits: route.limits,
 		speed,
 		currentSpeed: 3, // gentle ease-in from near standstill
+		// A routeless flight stays within the current room (previous/next
+		// exhibit): glide sideways holding the exhibit-facing view instead of
+		// turning toward the travel direction and back.
+		strafe: rawVias.length === 0,
 	};
 }
 
