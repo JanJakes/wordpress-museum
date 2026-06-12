@@ -492,8 +492,7 @@ let inMercantileShop = false; // true while the visitor stands in the gift shop
 let guidedTarget = null;
 let guidedTour = false;
 let tourHoldUntil = 0;
-const guidedFlightY = 2.05; // wing-door waypoint height (those doors are 2.7-3.0m)
-const guidedRotundaY = 3.1; // rotunda waypoints fly over hub statues/signs/desks
+const guidedFlightY = 1.65; // flat flights at eye level, matching the stands
 const guidedFlightSpeed = 11; // m/s base; long hops scale up (guidedFlightSpeedFor)
 const guidedFlightAccel = 16; // m/s² ease-in/out and braking into corners
 const guidedCornerRadius = 1.4; // arc radius; matches the audited corner-cut envelope
@@ -16855,7 +16854,7 @@ function initDebugApi() {
 		planSmoothedRoute: (from, targetEra, target) => {
 			const f = new THREE.Vector3(from.x, from.y ?? 1.65, from.z);
 			const t = new THREE.Vector3(target.x, target.y ?? 1.65, target.z);
-			const raw = guidedRouteVias(f, targetEra);
+			const raw = avoidHubExhibits(f, guidedRouteVias(f, targetEra), t);
 			const speed = guidedFlightSpeedFor(f, raw, t);
 			const route = smoothGuidedRoute(f, raw, t, speed);
 			return { vias: route.vias.map(vectorToPlainObject), limits: route.limits, speed };
@@ -17265,14 +17264,35 @@ function updateCamera(delta) {
 			const step = Math.min(enRoute ? distance : eased, speed * flightDelta);
 			camera.position.addScaledVector(toAim, step / distance);
 		}
-		// Look where we are going between waypoints; blend into the exhibit's
-		// framed view only on the final approach.
+		// Look at a point a few metres ahead ALONG the remaining path, so the
+		// heading sweeps smoothly through rounded corners instead of snapping
+		// per arc sample. Blend into the exhibit's framed view only on the
+		// final approach.
 		let yawAim = guidedTarget.yaw;
 		let pitchAim = guidedTarget.pitch;
 		const finalDistance = camera.position.distanceTo(guidedTarget.position);
-		if ((enRoute || finalDistance > 3.4) && Math.hypot(toAim.x, toAim.z) > 0.5) {
-			yawAim = Math.atan2(-toAim.x, -toAim.z);
-			pitchAim = 0;
+		if (enRoute || finalDistance > 3.4) {
+			let remaining = 3.0;
+			let lookFrom = camera.position;
+			let lookPoint = guidedTarget.position;
+			for (const point of [...(vias || []), guidedTarget.position]) {
+				const leg = lookFrom.distanceTo(point);
+				if (leg >= remaining) {
+					lookPoint = lookFrom.clone().lerp(point, remaining / leg);
+					break;
+				}
+				remaining -= leg;
+				lookFrom = point;
+			}
+			const dx = lookPoint.x - camera.position.x;
+			const dz = lookPoint.z - camera.position.z;
+			if (Math.hypot(dx, dz) > 0.3) {
+				yawAim = Math.atan2(-dx, -dz);
+				pitchAim = 0;
+			} else {
+				yawAim = yaw; // too close to judge a heading: hold, don't snap
+				pitchAim = pitch;
+			}
 		}
 		yaw = lerpAngle(yaw, yawAim, 1 - Math.pow(0.03, delta));
 		pitch = THREE.MathUtils.lerp(pitch, pitchAim, 1 - Math.pow(0.03, delta));
@@ -17471,10 +17491,15 @@ function focusRelease(index, immediate = false, options = {}) {
 	updateActiveExhibitMarker();
 }
 
-// Assembles a guided flight: plan the doorway route, round its corners and
-// derive per-leg speed limits, scaling overall speed with journey length.
+// Assembles a guided flight: plan the doorway route, swerve around the tall
+// hub greeters, round corners and derive per-leg speed limits, scaling
+// overall speed with journey length.
 function createGuidedFlight(position, view, targetEra) {
-	const rawVias = guidedRouteVias(camera.position, targetEra);
+	const rawVias = avoidHubExhibits(
+		camera.position,
+		guidedRouteVias(camera.position, targetEra),
+		position
+	);
 	const speed = guidedFlightSpeedFor(camera.position, rawVias, position);
 	const route = smoothGuidedRoute(camera.position, rawVias, position, speed);
 	return {
@@ -17511,16 +17536,16 @@ function guidedRouteVias(from, targetEra) {
 			vias.push(
 				guidedWaypoint(sideX, shopPassageZCenter),
 				guidedWaypoint(shopCenterX, shopZStart - 0.4),
-				guidedWaypoint(shopCenterX, hubApothem - 2.6, guidedRotundaY)
+				guidedWaypoint(shopCenterX, hubApothem - 2.6)
 			);
 		} else if (isPointInsideShop(from)) {
 			vias.push(
 				guidedWaypoint(shopCenterX, shopZStart - 0.4),
-				guidedWaypoint(shopCenterX, hubApothem - 2.6, guidedRotundaY)
+				guidedWaypoint(shopCenterX, hubApothem - 2.6)
 			);
 		} else if (isPointInsideMuralPortals(from)) {
 			vias.push(
-				guidedWaypoint(Math.sign(from.x) * portalCenterOffset, hubApothem - 2.6, guidedRotundaY)
+				guidedWaypoint(Math.sign(from.x) * portalCenterOffset, hubApothem - 2.6)
 			);
 		}
 	}
@@ -17536,14 +17561,73 @@ function guidedRouteVias(from, targetEra) {
 	return vias;
 }
 
-// Pulled 2.6m into the rotunda off the doorway (and raised): cross-hub chords
-// between doors then run well clear of the octagon wall, its corner flora and
-// the wall-side exhibits, and fly over the hub furniture. The hub doorways are
-// full-height openings, so the raised point still passes through them.
+// The two tall greeter exhibits on the rotunda floor; flat (eye-level)
+// flights must walk around them, not through.
+const guidedHubObstacles = [
+	{ x: 5.5, z: 3.0, radius: 2.1 }, // elePHPant plinth
+	{ x: -5.5, z: 3.0, radius: 2.1 }, // Wapuu docent
+];
+
+// Inserts a swerve waypoint into any cross-hub leg that passes through a
+// greeter's clearance circle. The swerve point stays deep inside the convex
+// rotunda, so the detoured legs remain wall-safe; the corner it introduces is
+// rounded and speed-limited by smoothGuidedRoute like any other.
+function avoidHubExhibits(from, vias, target) {
+	const points = [from, ...vias, target];
+	const out = [];
+	for (let i = 0; i + 1 < points.length; i++) {
+		const a = points[i];
+		const b = points[i + 1];
+		if (i > 0) {
+			out.push(a);
+		}
+		if (Math.hypot(a.x, a.z) > 15.5 || Math.hypot(b.x, b.z) > 15.5) {
+			continue; // only rotunda legs can meet the greeters
+		}
+		for (const o of guidedHubObstacles) {
+			const abx = b.x - a.x;
+			const abz = b.z - a.z;
+			const len2 = abx * abx + abz * abz;
+			if (len2 < 1e-6) {
+				continue;
+			}
+			const t = THREE.MathUtils.clamp(
+				((o.x - a.x) * abx + (o.z - a.z) * abz) / len2,
+				0,
+				1
+			);
+			let dx = a.x + abx * t - o.x;
+			let dz = a.z + abz * t - o.z;
+			const d = Math.hypot(dx, dz);
+			if (d >= o.radius || t <= 0.02 || t >= 0.98) {
+				continue;
+			}
+			if (d < 1e-3) {
+				// Dead-centre hit: pass on the side nearer the rotunda centre.
+				const inv = 1 / Math.sqrt(len2);
+				dx = -abz * inv;
+				dz = abx * inv;
+				if (dx * o.x + dz * o.z > 0) {
+					dx = -dx;
+					dz = -dz;
+				}
+				out.push(guidedWaypoint(o.x + dx * o.radius, o.z + dz * o.radius));
+				continue;
+			}
+			const push = o.radius / d;
+			out.push(guidedWaypoint(o.x + dx * push, o.z + dz * push));
+		}
+	}
+	return out;
+}
+
+// Pulled 2.6m into the rotunda off the doorway: cross-hub chords between
+// doors then run well clear of the octagon wall, its corner flora and the
+// wall-side exhibits.
 function roomDoorwayWaypoint(era) {
 	const side = roomLayout.get(era);
 	const pulled = side.doorway.clone().addScaledVector(side.normal, -2.6);
-	return guidedWaypoint(pulled.x, pulled.z, guidedRotundaY);
+	return guidedWaypoint(pulled.x, pulled.z);
 }
 
 function guidedWaypoint(x, z, y = guidedFlightY) {
