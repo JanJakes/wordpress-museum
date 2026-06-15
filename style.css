@@ -1464,10 +1464,17 @@ body[data-variant='current'] .release-panel.is-collapsed .panel-toggle-tab {
 }
 
 .playground-modal-bar button {
-	font-family: var(--pixel-font, ui-monospace, monospace);
-	font-size: 0.8rem;
+	/* Fixed square with the glyph flex-centred; a system font renders a clean,
+	   centred "x" (the pixel font's metrics push it off-centre). */
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	padding: 0;
+	font-family: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+	font-size: 1rem;
 	line-height: 1;
-	padding: 6px 10px;
 	color: #1c1306;
 	background: var(--accent, #ffd166);
 	border: 2px solid #1c1306;
