@@ -10174,11 +10174,12 @@ function createDashboardCockpit() {
 		face.position.set(dial.x, 0, 0.092);
 		housing.add(face);
 	}
-	// Steering wheel on a short column in front of the panel, clearly readable.
+	// Steering wheel on a short column in front of the panel, standing upright
+	// and facing the viewer with just a slight backward lean.
 	const dark = propStdMat(0x14181f, 0.55);
 	const wheelGroup = new THREE.Group();
 	wheelGroup.position.set(0, 0.98, 0.38);
-	wheelGroup.rotation.x = 1.15;
+	wheelGroup.rotation.x = 0.2;
 	g.add(wheelGroup);
 	const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.045, 16, 32), dark);
 	wheelGroup.add(wheel);
