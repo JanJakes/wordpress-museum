@@ -13817,8 +13817,8 @@ function addEraModelProps(group, room, roomIndex, color, secondary) {
 			{ obj: createCdSpindleExhibit(secondary), side: 'right', z: -5.7, inset: 0.45 },
 		],
 		'CMS Toolkit': [
+			// The theme shelf moved to the 3rd-prop slot (THEMES); keep the iPad easel.
 			{ obj: createIPadEaselExhibit(color), side: 'left', z: -5.7, inset: 0.5 },
-			{ obj: createThemeLibraryShelf(color, secondary), side: 'right', z: -5.5, inset: 0.55 },
 		],
 		'Modern Admin': [
 			{ obj: createFlatPhoneExhibit(color), side: 'left', z: -5.7, inset: 0.45 },
@@ -13884,44 +13884,44 @@ function getEraVignetteStations(roomIndex = 0) {
 }
 
 function getEraVignetteItems(room, color, secondary) {
+	// The standardized "3rd prop" spot: beside the central carpet, forward
+	// toward the entrance, turned to face the carpet — same in every room.
+	const at3 = { x: 3.4, z: -4.85, rotation: Math.PI / 2 };
 	return {
 		'Blogging Roots': [
 			{ label: 'HELLO DOLLY', object: createHelloDollyExhibit(color), width: 1.6 },
-			{ label: 'COMMENTS', object: createCommentSculpture(secondary), width: 1.45 },
+			{ label: 'COMMENTS', object: createCommentSculpture(secondary), width: 1.5, at: at3, objectScale: 1 },
 		],
 		'Dashboard Foundations': [
-			// The DASHBOARD and /WP-ADMIN vignettes were dropped: the room
-			// already has the prominent "THE DASHBOARD" cockpit. The lone
-			// remaining PLUGINS vignette stands out in the open floor (off the
-			// side wall, forward toward the entrance), facing arriving visitors.
-			{ label: 'PLUGINS', object: createPluginCrates(color), width: 1.55, at: { x: 3.4, z: -4.85, rotation: Math.PI / 2 } },
+			{ label: 'PLUGINS', object: createPluginCrates(color), width: 1.55, at: at3, objectScale: 1 },
 		],
 		'CMS Toolkit': [
 			{ label: 'MENUS', object: createMenuShelf(color, secondary), width: 1.6 },
 			{ label: 'POST TYPES', object: createDisplayCase(secondary, 'CPT', { showLabel: false }), width: 1.5 },
 			{ label: 'CUSTOMIZER', object: createKnobConsole(color), width: 1.55 },
+			{ label: 'THEMES', object: createThemeStackProp(color, secondary), width: 1.6, at: at3, objectScale: 1 },
 		],
 		'Modern Admin': [
-			{ label: 'MP6 DESK', object: createTerminalDesk(color), width: 1.7 },
 			{ label: 'AUTOSAVE', object: createDisplayCase(secondary, 'SAVE', { showLabel: false }), width: 1.5 },
 			{ label: 'RESPONSIVE', object: createResponsivePreview(color, secondary), width: 1.6 },
+			{ label: 'MP6 DESK', object: createTerminalDesk(color), width: 1.7, at: at3, objectScale: 1 },
 		],
 		'API and Customizer': [
-			// The Customizer palette moved to the room's prominent spot
-			// (createCustomizerProminent), so only two wall vignettes remain.
+			// The Customizer palette is the room's prominent prop; JSON stays on
+			// the wall and MEDIA becomes the 3rd prop.
 			{ label: 'JSON', object: createOrbitalSculpture(secondary), width: 1.45 },
-			{ label: 'MEDIA', object: createCommentAquarium(secondary, color, 0.54), width: 1.65, objectScale: 0.72 },
+			{ label: 'MEDIA', object: createCommentAquarium(secondary, color, 0.54), width: 1.65, at: at3, objectScale: 0.72 },
 		],
 		'Block Editor': [
-			// Stands out in the open floor (where the viewing sofa used to be),
-			// turned to face the room entry — the Gutenberg press carries the era's
-			// "movable type" pun, so the abstract GUTENBERG/GROUPS cases were dropped.
+			// The Gutenberg press is the main prop; BLOCKS fountain stands out in
+			// the open floor, and the BLOCK STACK is the 3rd prop.
 			{ label: 'BLOCKS', object: createBlockFountain(color, 0.62), width: 1.55, at: { x: -3.75, z: 1.3, rotation: -0.38 } },
+			{ label: 'BLOCK STACK', object: createContentBlockStack(color, secondary), width: 1.55, at: at3, objectScale: 1 },
 		],
 		'Blocks Everywhere': [
-			{ label: 'PATTERNS', object: createBlockFountain(color, 0.58), width: 1.55 },
 			{ label: 'SITE EDITOR', object: createDisplayCase(secondary, 'FSE', { showLabel: false }), width: 1.55 },
 			{ label: 'STYLE BOOK', object: createStyleBookDisplay(color, secondary), width: 1.7 },
+			{ label: 'PATTERNS', object: createPatternsBoard(color, secondary), width: 1.6, at: at3, objectScale: 1 },
 		],
 	}[room.era];
 }
@@ -14460,6 +14460,128 @@ function createApiPortal(color, secondary, scale = 1) {
 	return group;
 }
 
+// III · CMS Toolkit 3rd prop — a small easel of framed default-theme cards,
+// fronts on local -z so they face the carpet at the 3rd-prop rotation.
+function createThemeStackProp(color, secondary) {
+	const g = new THREE.Group();
+	const frameMat = new THREE.MeshStandardMaterial({ color: 0xe8d9b0, roughness: 0.5, metalness: 0.1 });
+	const riser = new THREE.Mesh(
+		new THREE.BoxGeometry(1.16, 0.16, 0.46),
+		new THREE.MeshStandardMaterial({ color: 0xcdb890, roughness: 0.7 })
+	);
+	riser.position.y = 0.08;
+	g.add(riser);
+	const palette = [0x21759b, secondary, color];
+	[-0.38, 0, 0.38].forEach((cx, i) => {
+		const card = new THREE.Group();
+		const frame = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.5, 0.03), frameMat);
+		const screen = new THREE.Mesh(
+			new THREE.PlaneGeometry(0.3, 0.42),
+			new THREE.MeshBasicMaterial({ map: createMiniThemeTexture(palette[i % palette.length]), side: THREE.DoubleSide })
+		);
+		screen.position.z = -0.02;
+		card.add(frame, screen);
+		card.position.set(cx, 0.49, i === 1 ? 0 : 0.05);
+		card.rotation.y = (i - 1) * 0.3;
+		g.add(card);
+	});
+	return g;
+}
+
+function createMiniThemeTexture(accent) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 128; canvas.height = 180;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#f4ead0'; ctx.fillRect(0, 0, 128, 180);
+	const hex = '#' + new THREE.Color(accent).getHexString();
+	ctx.fillStyle = hex; ctx.fillRect(0, 0, 128, 44); // header
+	ctx.fillStyle = '#d8cdb4'; ctx.fillRect(12, 58, 104, 10); // text lines
+	ctx.fillRect(12, 78, 80, 10);
+	ctx.fillStyle = hex; ctx.fillRect(12, 104, 48, 30); // a content block
+	ctx.fillStyle = '#d8cdb4'; ctx.fillRect(68, 104, 48, 30);
+	const tex = createCanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	return tex;
+}
+
+// VI · Block Editor 3rd prop — content turning into a stack of distinct blocks.
+function createContentBlockStack(color, secondary) {
+	const g = new THREE.Group();
+	const colors = [0x1e2a36, color, secondary, 0x46b450];
+	colors.forEach((c, i) => {
+		const block = new THREE.Mesh(
+			new THREE.BoxGeometry(0.64, 0.24, 0.5),
+			new THREE.MeshStandardMaterial({ color: c, roughness: 0.5 })
+		);
+		block.position.set((i % 2 ? 1 : -1) * 0.07, 0.18 + i * 0.28, 0);
+		block.rotation.y = (i % 2 ? 1 : -1) * 0.07;
+		g.add(block);
+		// A pale "content" bar on the front (-z) edge of each block.
+		const bar = new THREE.Mesh(
+			new THREE.PlaneGeometry(0.42, 0.06),
+			new THREE.MeshBasicMaterial({ color: 0xeef2f6, side: THREE.DoubleSide })
+		);
+		bar.position.set(block.position.x, block.position.y, -0.251);
+		bar.rotation.y = block.rotation.y;
+		g.add(bar);
+	});
+	return g;
+}
+
+// VII · Blocks Everywhere 3rd prop — a board of reusable block patterns
+// (a tidy 3x2 catalogue), replacing the abstract block fountain.
+function createPatternsBoard(color, secondary) {
+	const g = new THREE.Group();
+	const board = new THREE.Mesh(
+		new THREE.BoxGeometry(1.04, 0.82, 0.06),
+		new THREE.MeshStandardMaterial({ color: 0x2a2f3a, roughness: 0.5 })
+	);
+	board.position.y = 0.86;
+	g.add(board);
+	const palette = [0x21759b, secondary, color, 0x46b450, 0xf0a830, 0xe1577d];
+	const cols = 3, rows = 2, tileW = 0.27, tileH = 0.33, gapX = 0.04, gapY = 0.06;
+	const startX = -((cols - 1) / 2) * (tileW + gapX);
+	const startY = board.position.y + ((rows - 1) / 2) * (tileH + gapY);
+	let k = 0;
+	for (let r = 0; r < rows; r++) {
+		for (let c = 0; c < cols; c++) {
+			const tx = startX + c * (tileW + gapX);
+			const ty = startY - r * (tileH + gapY);
+			const tile = new THREE.Mesh(
+				new THREE.PlaneGeometry(tileW, tileH),
+				new THREE.MeshBasicMaterial({ map: createMiniPatternTexture(palette[k % palette.length], k), side: THREE.DoubleSide })
+			);
+			tile.position.set(tx, ty, -0.035);
+			g.add(tile);
+			k++;
+		}
+	}
+	return g;
+}
+
+function createMiniPatternTexture(accent, seed) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 120; canvas.height = 148;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#f6efe0'; ctx.fillRect(0, 0, 120, 148);
+	const hex = '#' + new THREE.Color(accent).getHexString();
+	// A few varied mini-layouts so each pattern tile reads differently.
+	const kind = seed % 3;
+	if (kind === 0) {
+		ctx.fillStyle = hex; ctx.fillRect(10, 10, 100, 40);
+		ctx.fillStyle = '#cfd8e0'; ctx.fillRect(10, 60, 100, 12); ctx.fillRect(10, 80, 72, 12);
+	} else if (kind === 1) {
+		ctx.fillStyle = hex; ctx.fillRect(10, 10, 46, 128);
+		ctx.fillStyle = '#cfd8e0'; ctx.fillRect(64, 16, 46, 12); ctx.fillRect(64, 36, 46, 12); ctx.fillRect(64, 56, 36, 12);
+	} else {
+		ctx.fillStyle = '#cfd8e0'; ctx.fillRect(10, 10, 46, 60); ctx.fillRect(64, 10, 46, 60);
+		ctx.fillStyle = hex; ctx.fillRect(10, 80, 100, 56);
+	}
+	const tex = createCanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	return tex;
+}
+
 function createBlockFountain(color, scale = 1) {
 	const group = new THREE.Group();
 	group.add(createPedestal(1.1, 0.24, color));
@@ -14677,58 +14799,6 @@ function createIPhoneExhibit(color) {
 // with its one shelf slab topping out at y≈0.28 and its flat top at y≈0.86, so the
 // lower compartment opens 0–0.22 and the upper 0.28–0.73. Books rest on each shelf
 // and on the top. Modelled facing local +z (the open shelf side) like other exhibits.
-function createThemeLibraryShelf(color, secondary) {
-	const group = new THREE.Group();
-	group.add(createLoadedModel('bookcaseOpenLow', { targetHeight: 0.86, fallback: 'bookcase' }));
-
-	const accents = [color, secondary, 0xf4ead0, 0x2b2f3a, 0xb07a3c, 0x9aa3b2];
-	const spineMaterial = (index) =>
-		new THREE.MeshStandardMaterial({ color: accents[index % accents.length], roughness: 0.62 });
-
-	// A row of upright books resting on a shelf, spanning the ≈0.68 m open width and
-	// fitting under the next slab (maxHeight). The seed varies colour/lean/size.
-	const shelfBooks = (baseY, maxHeight, seed) => {
-		const row = new THREE.Group();
-		row.position.set(0, baseY, 0.02);
-		let x = -0.32;
-		let index = 0;
-		while (x < 0.3) {
-			const w = 0.04 + pseudoRandom(index * 1.7 + seed) * 0.028;
-			const h = maxHeight - 0.04 - pseudoRandom(index * 2.3 + seed) * (maxHeight * 0.28);
-			const book = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.17), spineMaterial(index + seed));
-			book.position.set(x + w / 2, h / 2, 0);
-			book.rotation.z = (pseudoRandom(index * 3.1 + seed) - 0.5) * 0.12;
-			row.add(book);
-			x += w + 0.005;
-			index += 1;
-		}
-		group.add(row);
-	};
-	shelfBooks(0, 0.21, 0); // lower compartment, on the base
-	shelfBooks(0.28, 0.42, 4); // upper compartment, on the shelf slab
-
-	// A small flat stack and a leaning pair resting on the flat top (y≈0.86).
-	const stack = new THREE.Group();
-	stack.position.set(-0.13, 0.86, 0);
-	for (let index = 0; index < 3; index++) {
-		const book = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.034, 0.23), spineMaterial(index + 1));
-		book.position.set(0, 0.017 + index * 0.036, 0);
-		book.rotation.y = (pseudoRandom(index * 4.2) - 0.5) * 0.18;
-		stack.add(book);
-	}
-	group.add(stack);
-	for (let index = 0; index < 2; index++) {
-		const h = 0.2;
-		const upright = new THREE.Mesh(new THREE.BoxGeometry(0.045, h, 0.16), spineMaterial(index + 3));
-		upright.position.set(0.16 + index * 0.055, 0.86 + h / 2, 0);
-		upright.rotation.z = index ? 0.1 : -0.04;
-		group.add(upright);
-	}
-
-	group.add(createPropLabel('THEMES', color, 1.16));
-	return group;
-}
-
 function createIPadEaselExhibit(color) {
 	const group = new THREE.Group();
 	const standH = 0.5;
