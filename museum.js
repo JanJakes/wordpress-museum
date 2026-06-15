@@ -9996,11 +9996,6 @@ function addEraVignette(group, room, roomIndex) {
 	if (isCurrentVariant) {
 		addEraModelProps(group, room, roomIndex, color, secondary);
 		group.add(createEraCatchphraseSign(room, color, secondary));
-		const fact = getEraHistoryFact(room.era);
-		if (fact) {
-			const flyer = createFloorFlyer(fact, color);
-			addLocal(group, flyer, -1.7, -roomDepth / 2 + 2.1, 0.5 + roomIndex * 0.3);
-		}
 		group.add(createWebEraPoster(room));
 		const frontWallZ = -roomDepth / 2 + wallThickness / 2 + 0.05;
 		if (room.era === eras[0]) {
@@ -13691,119 +13686,6 @@ function drawDayNightToggle(ctx, x, y, w, h) {
 	ctx.font = '15px system-ui, "Segoe UI Symbol", sans-serif';
 	ctx.fillText('☾', kx + (h - 6) / 2, y + h / 2 + 1);
 	ctx.textBaseline = 'alphabetic';
-}
-
-function getEraHistoryFact(era) {
-	return {
-		'Blogging Roots': {
-			tag: 'FROM THE ARCHIVE',
-			title: 'Forked from b2/cafelog',
-			lines: ['27 May 2003 · released under the GPL', 'First post: “Hello world!”', '— Matt Mullenweg & Mike Little'],
-		},
-		'Dashboard Foundations': {
-			tag: 'COMMUNITY',
-			title: 'The first WordCamp',
-			lines: ['San Francisco · 5 August 2006', 'Plugin Directory 2007 · Themes 2008', 'Akismet keeps the spam out'],
-		},
-		'CMS Toolkit': {
-			tag: 'MASCOT',
-			title: 'Wapuu says hello',
-			lines: ['Unveiled at WordCamp Fukuoka, 2011', 'Twenty Ten: first yearly default theme', 'Now a full content-management toolkit'],
-		},
-		'Modern Admin': {
-			tag: 'DESIGN',
-			title: 'MP6 → the flat admin',
-			lines: ['Responsive dashboard · Open Sans · 2013', 'Background auto-updates since 3.7', 'Emoji land in 4.2 🎉'],
-		},
-		'API and Customizer': {
-			tag: 'OPEN PROJECT',
-			title: 'Five for the Future',
-			lines: ['Pledge 5% of resources back · 2014', 'The REST API opens the side door', 'Customize, preview, then publish'],
-		},
-		'Block Editor': {
-			tag: 'MILESTONE',
-			title: 'Gutenberg ships',
-			lines: ['WordPress 5.0 · 6 December 2018', 'Content becomes movable blocks', 'Type “/” to add a block'],
-		},
-		'Blocks Everywhere': {
-			tag: 'TODAY',
-			title: 'Full Site Editing',
-			lines: ['WP 5.9 “Joséphine” · 2022', 'Block themes & the Style Book', 'The whole site is blocks now'],
-		},
-	}[era];
-}
-
-function createFloorFlyer(fact, color) {
-	const group = new THREE.Group();
-	const width = 0.66;
-	const height = 0.88;
-	const shadow = new THREE.Mesh(
-		new THREE.PlaneGeometry(width * 1.12, height * 1.1),
-		new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false })
-	);
-	shadow.rotation.x = -Math.PI / 2;
-	shadow.position.set(0.04, 0.012, 0.05);
-	group.add(shadow);
-	const card = new THREE.Mesh(
-		new THREE.PlaneGeometry(width, height),
-		new THREE.MeshBasicMaterial({ map: createFlyerTexture(fact, color), side: THREE.DoubleSide })
-	);
-	card.rotation.x = -Math.PI / 2;
-	card.position.y = 0.022;
-	group.add(card);
-	return group;
-}
-
-function createFlyerTexture(fact, color) {
-	const canvas = document.createElement('canvas');
-	canvas.width = 512;
-	canvas.height = 680;
-	const ctx = canvas.getContext('2d');
-	// Aged paper.
-	ctx.fillStyle = '#f4ead0';
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	ctx.fillStyle = 'rgba(120, 95, 50, 0.06)';
-	for (let i = 0; i < 60; i++) {
-		const x = pseudoRandom(i * 2.1) * canvas.width;
-		const y = pseudoRandom(i * 3.7) * canvas.height;
-		ctx.fillRect(x, y, 2 + pseudoRandom(i) * 5, 2);
-	}
-	const accent = '#' + new THREE.Color(color).getHexString();
-	ctx.fillStyle = accent;
-	ctx.fillRect(0, 0, canvas.width, 18);
-	ctx.fillRect(0, canvas.height - 18, canvas.width, 18);
-
-	ctx.fillStyle = accent;
-	ctx.font = '700 30px ui-monospace, Menlo, monospace';
-	ctx.textAlign = 'center';
-	ctx.fillText(fact.tag, canvas.width / 2, 78);
-
-	ctx.fillStyle = '#241a0c';
-	ctx.font = '900 50px Georgia, "Times New Roman", serif';
-	wrapText(ctx, fact.title, canvas.width / 2, 150, canvas.width - 60, 54, 2);
-
-	ctx.fillStyle = '#3a2c14';
-	ctx.font = '400 30px Georgia, serif';
-	let y = 300;
-	for (const line of fact.lines) {
-		wrapText(ctx, line, canvas.width / 2, y, canvas.width - 70, 36, 2);
-		y += 64;
-	}
-
-	// WP stamp.
-	ctx.strokeStyle = accent;
-	ctx.lineWidth = 5;
-	ctx.beginPath();
-	ctx.arc(canvas.width / 2, 580, 52, 0, Math.PI * 2);
-	ctx.stroke();
-	ctx.fillStyle = accent;
-	ctx.font = '900 60px Georgia, serif';
-	ctx.fillText('W', canvas.width / 2, 602);
-
-	const tex = createCanvasTexture(canvas);
-	tex.colorSpace = THREE.SRGBColorSpace;
-	tex.anisotropy = 4;
-	return tex;
 }
 
 function createEraCatchphraseSign(room, color, secondary) {
