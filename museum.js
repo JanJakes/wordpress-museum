@@ -13899,22 +13899,20 @@ function getEraVignetteItems(room, color, secondary) {
 			{ label: 'AKISMET', object: createAkismetTrap(color, secondary), width: 1.5, at: at4, objectScale: 1 },
 		],
 		'CMS Toolkit': [
-			{ label: 'MENUS', object: createMenuShelf(color, secondary), width: 1.6 },
-			{ label: 'POST TYPES', object: createDisplayCase(secondary, 'CPT', { showLabel: false }), width: 1.5 },
-			{ label: 'CUSTOMIZER', object: createKnobConsole(color), width: 1.55 },
+			// MENUS and POST TYPES (front-of-room, by the side doorway) removed.
+			// CUSTOMIZER stays, pinned to the back station so it doesn't slide forward.
+			{ label: 'CUSTOMIZER', object: createKnobConsole(color), width: 1.55, station: 2 },
 			{ label: 'THEMES', object: createThemeStackProp(color, secondary), width: 1.6, at: at3, objectScale: 1 },
 			{ label: 'WAPUU', object: createWapuuProp(color, secondary), width: 1.5, at: at4, objectScale: 1 },
 		],
 		'Modern Admin': [
-			{ label: 'AUTOSAVE', object: createDisplayCase(secondary, 'SAVE', { showLabel: false }), width: 1.5 },
-			{ label: 'RESPONSIVE', object: createResponsivePreview(color, secondary), width: 1.6 },
+			// AUTOSAVE and RESPONSIVE (front-of-room, by the side doorway) removed.
 			{ label: 'MP6 DESK', object: createTerminalDesk(color), width: 1.7, at: at3, objectScale: 1 },
 			{ label: 'AUTO-UPDATE', object: createAutoUpdateProp(color, secondary), width: 1.5, at: at4, objectScale: 1 },
 		],
 		'API and Customizer': [
-			// The Customizer palette is the room's prominent prop; JSON stays on
-			// the wall, MEDIA is the 3rd prop and LIVE PREVIEW the 4th.
-			{ label: 'JSON', object: createOrbitalSculpture(secondary), width: 1.45 },
+			// JSON (front-of-room, by the side doorway) removed. The Customizer
+			// palette is the prominent prop; MEDIA is 3rd and LIVE PREVIEW 4th.
 			{ label: 'MEDIA', object: createCommentAquarium(secondary, color, 0.54), width: 1.65, at: at3, objectScale: 0.72 },
 			{ label: 'LIVE PREVIEW', object: createLivePreviewProp(color, secondary), width: 1.55, at: at4, objectScale: 1 },
 		],
@@ -13926,8 +13924,7 @@ function getEraVignetteItems(room, color, secondary) {
 			{ label: 'INSERTER', object: createInserterProp(color, secondary), width: 1.5, at: at4, objectScale: 1 },
 		],
 		'Blocks Everywhere': [
-			{ label: 'SITE EDITOR', object: createDisplayCase(secondary, 'FSE', { showLabel: false }), width: 1.55 },
-			{ label: 'STYLE BOOK', object: createStyleBookDisplay(color, secondary), width: 1.7 },
+			// SITE EDITOR and STYLE BOOK (front-of-room, by the side doorway) removed.
 			{ label: 'PATTERNS', object: createPatternsBoard(color, secondary), width: 1.6, at: at3, objectScale: 1 },
 			{ label: 'DUOTONE', object: createDuotoneProp(color, secondary), width: 1.5, at: at4, objectScale: 1 },
 		],
@@ -13972,29 +13969,6 @@ function createVignetteStation(color, labelText, object, options = {}) {
 	return group;
 }
 
-function createMenuShelf(color, secondary) {
-	const group = new THREE.Group();
-	group.add(createPedestal(1.06, 0.18, color));
-	const frameMaterial = new THREE.MeshStandardMaterial({ color: 0xf8efd9, roughness: 0.6 });
-	const accentMaterial = new THREE.MeshBasicMaterial({ color: secondary });
-	for (const x of [-0.42, 0.42]) {
-		const side = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.72, 0.08), frameMaterial);
-		side.position.set(x, 0.64, 0);
-		group.add(side);
-	}
-	for (let index = 0; index < 4; index++) {
-		const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.055, 0.18), frameMaterial);
-		shelf.position.set(0, 0.34 + index * 0.16, 0);
-		group.add(shelf);
-	}
-	['POSTS', 'PAGES', 'TAGS'].forEach((_, index) => {
-		const tab = new THREE.Mesh(new THREE.BoxGeometry(0.52 - index * 0.06, 0.055, 0.08), accentMaterial);
-		tab.position.set(-0.12 + index * 0.08, 0.42 + index * 0.16, -0.12);
-		group.add(tab);
-	});
-	return group;
-}
-
 function addRoomVignetteLights(group, color) {
 	const leftLamp = createMuseumLamp(color);
 	leftLamp.scale.setScalar(0.72);
@@ -14002,62 +13976,6 @@ function addRoomVignetteLights(group, color) {
 	const rightLamp = createMuseumLamp(color);
 	rightLamp.scale.setScalar(0.72);
 	addLocal(group, rightLamp, roomWidth / 2 - 0.75, -roomDepth / 2 + 1.2, 0);
-}
-
-function createResponsivePreview(color, secondary) {
-	const group = new THREE.Group();
-	group.add(createPedestal(1.05, 0.2, color));
-	const material = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.42, metalness: 0.14 });
-	const screenMaterial = new THREE.MeshBasicMaterial({ color: 0xdceeff });
-	[
-		{ x: -0.33, y: 0.67, width: 0.26, height: 0.46 },
-		{ x: 0.02, y: 0.72, width: 0.44, height: 0.32 },
-		{ x: 0.43, y: 0.62, width: 0.18, height: 0.28 },
-	].forEach(({ x, y, width, height }) => {
-		const screen = new THREE.Mesh(new THREE.BoxGeometry(width, height, 0.06), material);
-		screen.position.set(x, y, 0);
-		group.add(screen);
-		const face = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.78, height * 0.68), screenMaterial);
-		face.position.set(x, y, -0.034);
-		group.add(face);
-	});
-	const dot = new THREE.Mesh(
-		new THREE.SphereGeometry(0.045, 12, 8),
-		new THREE.MeshBasicMaterial({ color: secondary })
-	);
-	dot.position.set(0.43, 0.82, -0.05);
-	group.add(dot);
-	return group;
-}
-
-function createStyleBookDisplay(color, secondary) {
-	const group = new THREE.Group();
-	group.add(createPedestal(1.1, 0.2, color));
-	for (let index = 0; index < 6; index++) {
-		const swatch = new THREE.Mesh(
-			new THREE.BoxGeometry(0.24, 0.045, 0.34),
-			new THREE.MeshStandardMaterial({
-				color: activeVariant.eraColors[index % activeVariant.eraColors.length],
-				roughness: 0.46,
-			})
-		);
-		swatch.position.set(-0.42 + (index % 3) * 0.42, 0.42 + Math.floor(index / 3) * 0.13, -0.1);
-		swatch.rotation.y = -0.22 + index * 0.08;
-		group.add(swatch);
-	}
-	const book = new THREE.Mesh(
-		new THREE.BoxGeometry(0.76, 0.08, 0.48),
-		new THREE.MeshStandardMaterial({ color: 0xf8efd9, roughness: 0.56 })
-	);
-	book.position.set(0, 0.34, 0.08);
-	group.add(book);
-	const stripe = new THREE.Mesh(
-		new THREE.BoxGeometry(0.08, 0.085, 0.5),
-		new THREE.MeshBasicMaterial({ color: secondary })
-	);
-	stripe.position.set(0, 0.35, 0.08);
-	group.add(stripe);
-	return group;
 }
 
 function createMuseumProp(type, color) {
