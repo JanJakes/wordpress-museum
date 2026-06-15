@@ -10442,15 +10442,16 @@ function createMultisiteVillage() {
 		g.add(home);
 		return new THREE.Vector3(x, ground + h * 0.75, z);
 	};
-	// The big mother house (the install) and its three satellite sites.
-	const mother = house(-0.08, -0.2, 0.46, 0.52, 0xf4ead0, 0xb23b32, 0.25);
-	const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.08), propStdMat(0x8e6a4a, 0.8));
-	chimney.position.set(-0.24, ground + 0.66, -0.3);
+	// The big mother house (the install) and its three satellite sites. Built
+	// tall so they rise clear above the MULTISITE plate in front.
+	const mother = house(-0.08, -0.2, 0.48, 1.04, 0xf4ead0, 0xb23b32, 0.25);
+	const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.26, 0.09), propStdMat(0x8e6a4a, 0.8));
+	chimney.position.set(-0.26, ground + 1.18, -0.3);
 	g.add(chimney);
 	const sats = [
-		house(0.42, 0.18, 0.24, 0.26, 0xd9b08c, 0x3a6ea5, -0.3),
-		house(-0.5, 0.3, 0.22, 0.24, 0xbcd4c4, 0x7a5a1c, 0.5),
-		house(0.34, -0.46, 0.22, 0.3, 0xe8d8b8, 0x5a7a52, 0.9),
+		house(0.42, 0.18, 0.26, 0.64, 0xd9b08c, 0x3a6ea5, -0.3),
+		house(-0.5, 0.3, 0.24, 0.58, 0xbcd4c4, 0x7a5a1c, 0.5),
+		house(0.34, -0.46, 0.24, 0.74, 0xe8d8b8, 0x5a7a52, 0.9),
 	];
 	const link = propStdMat(0xffd166, 0.4, 0.3);
 	for (const sat of sats) {
