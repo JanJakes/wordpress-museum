@@ -13884,44 +13884,52 @@ function getEraVignetteStations(roomIndex = 0) {
 }
 
 function getEraVignetteItems(room, color, secondary) {
-	// The standardized "3rd prop" spot: beside the central carpet, forward
-	// toward the entrance, turned to face the carpet — same in every room.
+	// The standardized 3rd/4th prop spots flank the central carpet, forward
+	// toward the entrance, each turned to face the carpet — same in every room.
+	// 3rd = screen-left (+x), 4th = screen-right (-x).
 	const at3 = { x: 3.4, z: -4.85, rotation: Math.PI / 2 };
+	const at4 = { x: -3.4, z: -4.85, rotation: -Math.PI / 2 };
 	return {
 		'Blogging Roots': [
-			{ label: 'HELLO DOLLY', object: createHelloDollyExhibit(color), width: 1.6 },
 			{ label: 'COMMENTS', object: createCommentSculpture(secondary), width: 1.5, at: at3, objectScale: 1 },
+			{ label: 'HELLO DOLLY', object: createHelloDollyExhibit(color), width: 1.6, at: at4, objectScale: 1 },
 		],
 		'Dashboard Foundations': [
 			{ label: 'PLUGINS', object: createPluginCrates(color), width: 1.55, at: at3, objectScale: 1 },
+			{ label: 'AKISMET', object: createAkismetTrap(color, secondary), width: 1.5, at: at4, objectScale: 1 },
 		],
 		'CMS Toolkit': [
 			{ label: 'MENUS', object: createMenuShelf(color, secondary), width: 1.6 },
 			{ label: 'POST TYPES', object: createDisplayCase(secondary, 'CPT', { showLabel: false }), width: 1.5 },
 			{ label: 'CUSTOMIZER', object: createKnobConsole(color), width: 1.55 },
 			{ label: 'THEMES', object: createThemeStackProp(color, secondary), width: 1.6, at: at3, objectScale: 1 },
+			{ label: 'WAPUU', object: createWapuuProp(color, secondary), width: 1.5, at: at4, objectScale: 1 },
 		],
 		'Modern Admin': [
 			{ label: 'AUTOSAVE', object: createDisplayCase(secondary, 'SAVE', { showLabel: false }), width: 1.5 },
 			{ label: 'RESPONSIVE', object: createResponsivePreview(color, secondary), width: 1.6 },
 			{ label: 'MP6 DESK', object: createTerminalDesk(color), width: 1.7, at: at3, objectScale: 1 },
+			{ label: 'AUTO-UPDATE', object: createAutoUpdateProp(color, secondary), width: 1.5, at: at4, objectScale: 1 },
 		],
 		'API and Customizer': [
 			// The Customizer palette is the room's prominent prop; JSON stays on
-			// the wall and MEDIA becomes the 3rd prop.
+			// the wall, MEDIA is the 3rd prop and LIVE PREVIEW the 4th.
 			{ label: 'JSON', object: createOrbitalSculpture(secondary), width: 1.45 },
 			{ label: 'MEDIA', object: createCommentAquarium(secondary, color, 0.54), width: 1.65, at: at3, objectScale: 0.72 },
+			{ label: 'LIVE PREVIEW', object: createLivePreviewProp(color, secondary), width: 1.55, at: at4, objectScale: 1 },
 		],
 		'Block Editor': [
 			// The Gutenberg press is the main prop; BLOCKS fountain stands out in
-			// the open floor, and the BLOCK STACK is the 3rd prop.
+			// the open floor, BLOCK STACK is the 3rd prop and INSERTER the 4th.
 			{ label: 'BLOCKS', object: createBlockFountain(color, 0.62), width: 1.55, at: { x: -3.75, z: 1.3, rotation: -0.38 } },
 			{ label: 'BLOCK STACK', object: createContentBlockStack(color, secondary), width: 1.55, at: at3, objectScale: 1 },
+			{ label: 'INSERTER', object: createInserterProp(color, secondary), width: 1.5, at: at4, objectScale: 1 },
 		],
 		'Blocks Everywhere': [
 			{ label: 'SITE EDITOR', object: createDisplayCase(secondary, 'FSE', { showLabel: false }), width: 1.55 },
 			{ label: 'STYLE BOOK', object: createStyleBookDisplay(color, secondary), width: 1.7 },
 			{ label: 'PATTERNS', object: createPatternsBoard(color, secondary), width: 1.6, at: at3, objectScale: 1 },
+			{ label: 'DUOTONE', object: createDuotoneProp(color, secondary), width: 1.5, at: at4, objectScale: 1 },
 		],
 	}[room.era];
 }
@@ -14580,6 +14588,253 @@ function createMiniPatternTexture(accent, seed) {
 	const tex = createCanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	return tex;
+}
+
+// ── 4th props (right of the carpet, mirroring the 3rd prop) ──────────────────
+// All built facing local -z so they read toward the carpet at the 4th-prop
+// rotation (-PI/2), matching the vignette label.
+
+// II · Dashboard Foundations 4th prop — Akismet: a spam tin catching junk mail,
+// with a few cartoon flies buzzing around it.
+function createAkismetTrap(color, secondary) {
+	const g = new THREE.Group();
+	const tinMat = new THREE.MeshStandardMaterial({ color: 0xcf3b2e, roughness: 0.5, metalness: 0.25 });
+	const tin = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.62, 28), tinMat);
+	tin.position.y = 0.5;
+	g.add(tin);
+	const band = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.345, 0.345, 0.26, 28),
+		new THREE.MeshBasicMaterial({ map: createCanBandTexture('SPAM') })
+	);
+	band.position.y = 0.52;
+	g.add(band);
+	const rim = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.03, 10, 28), new THREE.MeshStandardMaterial({ color: 0x9aa3ad, roughness: 0.4, metalness: 0.5 }));
+	rim.rotation.x = Math.PI / 2;
+	rim.position.y = 0.81;
+	g.add(rim);
+	// Crumpled spam envelopes poking out of the tin.
+	const envMat = new THREE.MeshStandardMaterial({ color: 0xf4ead0, roughness: 0.8 });
+	for (let i = 0; i < 4; i++) {
+		const env = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.17, 0.02), envMat);
+		const a = i * 1.6;
+		env.position.set(Math.cos(a) * 0.12, 0.86 + (i % 2) * 0.07, Math.sin(a) * 0.12);
+		env.rotation.set(0.5, a, 0.35);
+		g.add(env);
+	}
+	// Buzzing flies.
+	for (let i = 0; i < 3; i++) {
+		const fly = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), new THREE.MeshStandardMaterial({ color: 0x14181f }));
+		fly.userData.base = { x: Math.cos(i * 2.1) * 0.42, y: 1.0 + i * 0.12, z: Math.sin(i * 2.1) * 0.42, p: i };
+		fly.position.set(fly.userData.base.x, fly.userData.base.y, fly.userData.base.z);
+		registerAnimation(fly, (o, e) => {
+			const b = o.userData.base;
+			o.position.x = b.x + Math.sin(e * 3 + b.p) * 0.1;
+			o.position.z = b.z + Math.cos(e * 2.4 + b.p) * 0.1;
+			o.position.y = b.y + Math.sin(e * 4 + b.p) * 0.05;
+		});
+		g.add(fly);
+	}
+	return g;
+}
+
+function createCanBandTexture(text) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 256; canvas.height = 96;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#f4ead0'; ctx.fillRect(0, 0, 256, 96);
+	ctx.fillStyle = '#cf3b2e';
+	ctx.font = '900 56px Arial Black, Impact, sans-serif';
+	ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+	ctx.fillText(text, 128, 50);
+	const tex = createCanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	return tex;
+}
+
+// IV · Modern Admin 4th prop — auto background updates: a WordPress shield with
+// two update-arrow rings spinning around it (3.7's automatic updates).
+function createAutoUpdateProp(color, secondary) {
+	const g = new THREE.Group();
+	const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.92, 12), new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.5, metalness: 0.5 }));
+	post.position.y = 0.5;
+	g.add(post);
+	const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.1, 32), new THREE.MeshStandardMaterial({ color: 0x21759b, roughness: 0.4, metalness: 0.2 }));
+	disc.rotation.x = Math.PI / 2;
+	disc.position.set(0, 1.0, 0);
+	g.add(disc);
+	const glyph = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.4, 0.4),
+		new THREE.MeshBasicMaterial({ map: createUpdateArrowsTexture(), transparent: true })
+	);
+	glyph.position.set(0, 1.0, -0.052);
+	glyph.rotation.y = Math.PI; // face -z (carpet)
+	g.add(glyph);
+	[1, -1].forEach((dir, i) => {
+		const ring = new THREE.Mesh(
+			new THREE.TorusGeometry(0.44 + i * 0.06, 0.028, 8, 40, Math.PI * 1.55),
+			new THREE.MeshStandardMaterial({ color: i ? 0x46b450 : secondary, roughness: 0.4, metalness: 0.3 })
+		);
+		ring.position.set(0, 1.0, 0);
+		ring.userData.dir = dir;
+		registerAnimation(ring, (o, e) => { o.rotation.z = e * 0.9 * o.userData.dir; });
+		g.add(ring);
+	});
+	return g;
+}
+
+function createUpdateArrowsTexture() {
+	const canvas = document.createElement('canvas');
+	canvas.width = 128; canvas.height = 128;
+	const ctx = canvas.getContext('2d');
+	ctx.strokeStyle = '#ffffff'; ctx.fillStyle = '#ffffff';
+	ctx.lineWidth = 12;
+	for (const dir of [0, Math.PI]) {
+		ctx.beginPath();
+		ctx.arc(64, 64, 34, dir + 0.4, dir + Math.PI - 0.2);
+		ctx.stroke();
+		// arrowhead at the arc end
+		const a = dir + Math.PI - 0.2;
+		const ex = 64 + Math.cos(a) * 34, ey = 64 + Math.sin(a) * 34;
+		ctx.beginPath();
+		ctx.moveTo(ex, ey);
+		ctx.lineTo(ex - Math.cos(a - 0.5) * 16, ey - Math.sin(a - 0.5) * 16);
+		ctx.lineTo(ex - Math.cos(a + 0.5) * 16, ey - Math.sin(a + 0.5) * 16);
+		ctx.closePath(); ctx.fill();
+	}
+	const tex = createCanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	return tex;
+}
+
+// V · API & Customizer 4th prop — the Customizer's live preview: a mini site on
+// an easel being repainted, with a paint roller resting against it.
+function createLivePreviewProp(color, secondary) {
+	const g = new THREE.Group();
+	const post = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, 0.7, 10), new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.5, metalness: 0.4 }));
+	post.position.y = 0.45;
+	g.add(post);
+	const frame = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.6, 0.05), new THREE.MeshStandardMaterial({ color: 0x2a2f3a, roughness: 0.5 }));
+	frame.position.set(0, 0.98, -0.04);
+	g.add(frame);
+	const screen = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.72, 0.5),
+		new THREE.MeshBasicMaterial({ map: createMiniSiteTexture(color, secondary), side: THREE.DoubleSide })
+	);
+	screen.position.set(0, 0.98, -0.072);
+	g.add(screen);
+	// Paint roller leaning against the easel, tipped in the era colour.
+	const roller = new THREE.Group();
+	const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.2, 14), new THREE.MeshStandardMaterial({ color: '#' + new THREE.Color(color).getHexString(), roughness: 0.7 }));
+	drum.rotation.z = Math.PI / 2;
+	drum.position.y = 0.78;
+	roller.add(drum);
+	const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.5, 8), new THREE.MeshStandardMaterial({ color: 0x8a6a3a, roughness: 0.6 }));
+	handle.position.set(0.0, 0.5, 0.0);
+	handle.rotation.z = 0.28;
+	roller.add(handle);
+	roller.position.set(0.42, 0, -0.05);
+	roller.rotation.z = -0.18;
+	g.add(roller);
+	return g;
+}
+
+function createMiniSiteTexture(color, secondary) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 200; canvas.height = 140;
+	const ctx = canvas.getContext('2d');
+	ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 200, 140);
+	ctx.fillStyle = '#' + new THREE.Color(color).getHexString();
+	ctx.fillRect(0, 0, 200, 34); // header (the live-recolored bit)
+	ctx.fillStyle = '#' + new THREE.Color(secondary).getHexString();
+	ctx.fillRect(14, 48, 78, 52); // hero block
+	ctx.fillStyle = '#d3dae1';
+	ctx.fillRect(102, 48, 84, 10); ctx.fillRect(102, 66, 84, 10); ctx.fillRect(102, 84, 60, 10);
+	ctx.fillRect(14, 110, 172, 8); ctx.fillRect(14, 124, 130, 8);
+	const tex = createCanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	return tex;
+}
+
+// VI · Block Editor 4th prop — the block inserter: a big round "+" add-block
+// button, the most iconic Gutenberg gesture.
+function createInserterProp(color, secondary) {
+	const g = new THREE.Group();
+	const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.92, 12), new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.5, metalness: 0.5 }));
+	post.position.y = 0.5;
+	g.add(post);
+	const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.16, 40), new THREE.MeshStandardMaterial({ color: 0x1e1e1e, roughness: 0.4 }));
+	btn.rotation.x = Math.PI / 2;
+	btn.position.set(0, 1.02, 0);
+	g.add(btn);
+	const rim = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.035, 14, 44), new THREE.MeshStandardMaterial({ color: 0x21759b, roughness: 0.4, metalness: 0.25 }));
+	rim.position.set(0, 1.02, -0.04);
+	g.add(rim);
+	const plusMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+	const barV = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.44), plusMat);
+	barV.position.set(0, 1.02, -0.085); barV.rotation.y = Math.PI;
+	g.add(barV);
+	const barH = new THREE.Mesh(new THREE.PlaneGeometry(0.44, 0.1), plusMat);
+	barH.position.set(0, 1.02, -0.085); barH.rotation.y = Math.PI;
+	g.add(barH);
+	return g;
+}
+
+// VII · Blocks Everywhere 4th prop — a duotone-filtered portrait in a frame
+// (the 5.8 duotone image treatment), rendered in two bold colours.
+function createDuotoneProp(color, secondary) {
+	const g = new THREE.Group();
+	const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.78, 12), new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.5, metalness: 0.4 }));
+	post.position.y = 0.5;
+	g.add(post);
+	const frame = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.88, 0.05), new THREE.MeshStandardMaterial({ color: 0x111114, roughness: 0.4 }));
+	frame.position.set(0, 1.05, -0.04);
+	g.add(frame);
+	const pic = new THREE.Mesh(
+		new THREE.PlaneGeometry(0.62, 0.78),
+		new THREE.MeshBasicMaterial({ map: createDuotoneTexture(color, secondary), side: THREE.DoubleSide })
+	);
+	pic.position.set(0, 1.05, -0.072);
+	g.add(pic);
+	return g;
+}
+
+function createDuotoneTexture(color, secondary) {
+	const canvas = document.createElement('canvas');
+	canvas.width = 200; canvas.height = 250;
+	const ctx = canvas.getContext('2d');
+	const dark = '#' + new THREE.Color(color).getHexString();
+	const light = '#' + new THREE.Color(secondary).getHexString();
+	ctx.fillStyle = light; ctx.fillRect(0, 0, 200, 250);
+	// A simple duotone scene: sun + rolling hills, all in the dark tone.
+	ctx.fillStyle = dark;
+	ctx.beginPath(); ctx.arc(140, 70, 34, 0, Math.PI * 2); ctx.fill(); // sun
+	ctx.beginPath();
+	ctx.moveTo(0, 250); ctx.lineTo(0, 170);
+	ctx.quadraticCurveTo(60, 120, 120, 165);
+	ctx.quadraticCurveTo(170, 195, 200, 160); ctx.lineTo(200, 250); ctx.closePath(); ctx.fill();
+	ctx.fillStyle = light;
+	ctx.beginPath();
+	ctx.moveTo(0, 250); ctx.lineTo(0, 210);
+	ctx.quadraticCurveTo(80, 175, 140, 210);
+	ctx.quadraticCurveTo(180, 230, 200, 212); ctx.lineTo(200, 250); ctx.closePath(); ctx.fill();
+	// Halftone dots along the horizon for that duotone print feel.
+	ctx.fillStyle = dark;
+	for (let i = 0; i < 16; i++) {
+		ctx.beginPath(); ctx.arc(8 + i * 12, 150, 1.5 + (i % 3), 0, Math.PI * 2); ctx.fill();
+	}
+	const tex = createCanvasTexture(canvas);
+	tex.colorSpace = THREE.SRGBColorSpace;
+	return tex;
+}
+
+// III · CMS Toolkit 4th prop — Wapuu, the mascot unveiled in this era (2011),
+// flipped to face the carpet.
+function createWapuuProp(color, secondary) {
+	const g = new THREE.Group();
+	const wapuu = createWapuu3D({ height: 1.0, accent: secondary });
+	wapuu.rotation.y = Math.PI; // front (+z) -> -z, toward the carpet after the slot rotation
+	g.add(wapuu);
+	return g;
 }
 
 function createBlockFountain(color, scale = 1) {
