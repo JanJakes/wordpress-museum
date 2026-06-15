@@ -13899,9 +13899,8 @@ function getEraVignetteItems(room, color, secondary) {
 			{ label: 'AKISMET', object: createAkismetTrap(color, secondary), width: 1.5, at: at4, objectScale: 1 },
 		],
 		'CMS Toolkit': [
-			// MENUS and POST TYPES (front-of-room, by the side doorway) removed.
-			// CUSTOMIZER stays, pinned to the back station so it doesn't slide forward.
-			{ label: 'CUSTOMIZER', object: createKnobConsole(color), width: 1.55, station: 2 },
+			// MENUS, POST TYPES and CUSTOMIZER wall vignettes all removed; only
+			// the 3rd/4th props remain.
 			{ label: 'THEMES', object: createThemeStackProp(color, secondary), width: 1.6, at: at3, objectScale: 1 },
 			{ label: 'WAPUU', object: createWapuuProp(color, secondary), width: 1.5, at: at4, objectScale: 1 },
 		],
