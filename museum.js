@@ -10000,7 +10000,10 @@ function addEraVignette(group, room, roomIndex) {
 		const frontWallZ = -roomDepth / 2 + wallThickness / 2 + 0.05;
 		if (room.era === eras[0]) {
 			addLocal(group, createUnderConstructionPlaque(), 3.88, frontWallZ);
-			addLocal(group, createWebSafePalettePanel(), -4.2, frontWallZ);
+			// The Link Buttons board and Web-Safe Palette hang on the left side
+			// wall above the radio (placed by propSets at z≈-5.5), centred on it.
+			group.add(placeOnSideWall(createLinkButtonBoard(), 'left', -6.6, 0.2, 0.2));
+			group.add(placeOnSideWall(createWebSafePalettePanel(), 'left', -4.4, -0.1, 0.2));
 			addWebOf2004Display(group);
 			addGuestbookLectern(group);
 			addRetroHomepageStation(group);
@@ -10862,7 +10865,8 @@ function addWebOf2004Display(group) {
 	// Outer boards sit at ±5.78 and the inner panels at ±3.88 so each pair keeps a
 	// ~0.12m gap (their gold frames previously touched / z-fought at the seam)
 	// while the outer frames still clear the side-wall corner.
-	addLocal(group, createLinkButtonBoard(), -6.7, frontWallZ);
+	// The Link Buttons board moved to the left side wall (see the Blogging Roots
+	// block); only the Browser Wars panel remains on the front wall here.
 	addLocal(group, createBrowserWarsPanel(), 5.78, frontWallZ);
 }
 
