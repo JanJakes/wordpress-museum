@@ -14002,7 +14002,8 @@ function getEraVignetteItems(room, color, secondary) {
 			{ label: 'COMMENTS', object: createCommentSculpture(secondary), width: 1.45 },
 		],
 		'Dashboard Foundations': [
-			{ label: 'DASHBOARD', object: createDashboardDisplay(color, secondary), width: 1.55 },
+			// The DASHBOARD vignette was redundant with the prominent
+			// "THE DASHBOARD" cockpit prop in the same room, so it's dropped.
 			{ label: '/WP-ADMIN', object: createKnobConsole(color), width: 1.55 },
 			{ label: 'PLUGINS', object: createPluginCrates(color), width: 1.55 },
 		],
@@ -14071,21 +14072,6 @@ function createVignetteStation(color, labelText, object, options = {}) {
 	const label = createReadableLabel(createSmallSignTexture(labelText, color), Math.min(width * 0.82, 1.14), 0.23);
 	label.position.set(0, baseHeight + 0.16, -depth / 2 - 0.14);
 	group.add(label);
-	return group;
-}
-
-function createDashboardDisplay(color, secondary) {
-	const group = new THREE.Group();
-	group.add(createPedestal(1.08, 0.18, color));
-	const screen = createAdminScreenPanel(color, secondary, 0.88, 0.5);
-	screen.position.y = 0.74;
-	group.add(screen);
-	const stand = new THREE.Mesh(
-		new THREE.BoxGeometry(0.16, 0.3, 0.1),
-		new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.5 })
-	);
-	stand.position.y = 0.46;
-	group.add(stand);
 	return group;
 }
 
