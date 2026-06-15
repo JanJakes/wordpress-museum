@@ -9999,7 +9999,9 @@ function addEraVignette(group, room, roomIndex) {
 		group.add(createWebEraPoster(room));
 		const frontWallZ = -roomDepth / 2 + wallThickness / 2 + 0.05;
 		if (room.era === eras[0]) {
-			addLocal(group, createUnderConstructionPlaque(), 3.88, frontWallZ);
+			// Under Construction sits on the freed-up wall left of the portal,
+			// centred on that segment.
+			addLocal(group, createUnderConstructionPlaque(), -4.87, frontWallZ);
 			// The Link Buttons board and Web-Safe Palette hang on the left side
 			// wall above the radio (placed by propSets at z≈-5.5), centred on it.
 			group.add(placeOnSideWall(createLinkButtonBoard(), 'left', -6.6, 0.2, 0.2));
@@ -10866,8 +10868,8 @@ function addWebOf2004Display(group) {
 	// ~0.12m gap (their gold frames previously touched / z-fought at the seam)
 	// while the outer frames still clear the side-wall corner.
 	// The Link Buttons board moved to the left side wall (see the Blogging Roots
-	// block); only the Browser Wars panel remains on the front wall here.
-	addLocal(group, createBrowserWarsPanel(), 5.78, frontWallZ);
+	// block); the Browser Wars panel is now centred on the wall right of the portal.
+	addLocal(group, createBrowserWarsPanel(), 4.87, frontWallZ);
 }
 
 // (A) A framed board of period 88x31 web "badge" buttons in a tidy grid, drawn
