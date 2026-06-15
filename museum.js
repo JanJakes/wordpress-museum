@@ -10772,8 +10772,9 @@ function createWebEraPoster(room) {
 	const inner = createWebEraPosterPanel(room.era);
 	// Inset 0.15 stands the frame proud of the angled wall (the 0.08-deep frame
 	// tucks into the 0.26-thick wall while the picture clears its inner face by
-	// ~0.05); a shallower inset buries the flat art inside the wall.
-	placeOnSideWall(inner, side, -2.5, 2.35, 0.15);
+	// ~0.05); a shallower inset buries the flat art inside the wall. Centred at
+	// eraPanelY so it aligns with the other framed pictures (it stays portrait).
+	placeOnSideWall(inner, side, -2.5, eraPanelY, 0.15);
 	group.add(inner);
 	return group;
 }
@@ -11584,20 +11585,17 @@ function drawHomepageBadge(ctx, x, y, w, h, bg, fg, text) {
 // bay beside the era panel (both CMS Toolkit side walls carry doorways).
 function createIE6RetirementCard() {
 	const group = new THREE.Group();
-	const w = 1.18;
-	const h = 0.86;
 	const frame = new THREE.Mesh(
-		new THREE.BoxGeometry(w + 0.12, h + 0.12, 0.07),
+		new THREE.BoxGeometry(eraPanelArtW + 0.16, eraPanelArtH + 0.16, 0.08),
 		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
 	);
-	const cardY = 1.46;
-	frame.position.set(0, cardY, 0);
+	frame.position.set(0, eraPanelY, 0);
 	group.add(frame);
 	const art = new THREE.Mesh(
-		new THREE.PlaneGeometry(w, h),
+		new THREE.PlaneGeometry(eraPanelArtW, eraPanelArtH),
 		new THREE.MeshBasicMaterial({ map: createIE6RetirementTexture() })
 	);
-	art.position.set(0, cardY, 0.045);
+	art.position.set(0, eraPanelY, 0.05);
 	group.add(art);
 	const frontWallZ = -roomDepth / 2 + wallThickness / 2 + 0.05;
 	group.position.set(-5.55, 0, frontWallZ);
@@ -11884,16 +11882,16 @@ function createWebSafePaletteTexture() {
 function createFramedPlaque(texture) {
 	const group = new THREE.Group();
 	const frame = new THREE.Mesh(
-		new THREE.BoxGeometry(1.62, 1.22, 0.08),
+		new THREE.BoxGeometry(eraPanelArtW + 0.16, eraPanelArtH + 0.16, 0.08),
 		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
 	);
-	frame.position.set(0, 2.35, 0);
+	frame.position.set(0, eraPanelY, 0);
 	group.add(frame);
 	const panel = new THREE.Mesh(
-		new THREE.PlaneGeometry(1.46, 1.06),
+		new THREE.PlaneGeometry(eraPanelArtW, eraPanelArtH),
 		new THREE.MeshBasicMaterial({ map: texture })
 	);
-	panel.position.set(0, 2.35, 0.05);
+	panel.position.set(0, eraPanelY, 0.05);
 	group.add(panel);
 	return group;
 }
@@ -12464,10 +12462,12 @@ function drawWeb2Button(ctx, x, y, w, h, label, top, bottom) {
 // as front-wall plaques (art faces +z, into the room) at the picture-rail height.
 function addDashboardScreenshots(group) {
 	const frontWallZ = -roomDepth / 2 + wallThickness / 2 + 0.05;
+	// Spaced wider so the now-larger uniform frames don't overlap (left segment
+	// holds two, right segment one beside the Web 2.0 design panel at x=3.95).
 	const shots = [
-		{ x: -5.62, draw: drawSiteYouTube2005, url: 'http://www.youtube.com', caption: 'YouTube · 2005' },
+		{ x: -5.85, draw: drawSiteYouTube2005, url: 'http://www.youtube.com', caption: 'YouTube · 2005' },
 		{ x: -3.92, draw: drawSiteTwitter2006, url: 'http://twitter.com', caption: 'Twitter · 2006' },
-		{ x: 5.62, draw: drawSiteFacebook2007, url: 'http://www.facebook.com', caption: 'Facebook · 2007' },
+		{ x: 5.85, draw: drawSiteFacebook2007, url: 'http://www.facebook.com', caption: 'Facebook · 2007' },
 	];
 	shots.forEach((shot) => {
 		addLocal(group, createBrowserScreenshotPlaque(shot), shot.x, frontWallZ);
@@ -12842,20 +12842,17 @@ function createSideWallScreenshot(spec, side, z) {
 // Sized to slot between the entrance jambs and the corner without crowding.
 function createBrowserScreenshotPlaque(spec) {
 	const group = new THREE.Group();
-	const frameW = 1.42;
-	const frameH = 1.18;
-	const y = 2.42;
 	const frame = new THREE.Mesh(
-		new THREE.BoxGeometry(frameW + 0.14, frameH + 0.14, 0.08),
+		new THREE.BoxGeometry(eraPanelArtW + 0.16, eraPanelArtH + 0.16, 0.08),
 		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
 	);
-	frame.position.set(0, y, 0);
+	frame.position.set(0, eraPanelY, 0);
 	group.add(frame);
 	const art = new THREE.Mesh(
-		new THREE.PlaneGeometry(frameW, frameH),
+		new THREE.PlaneGeometry(eraPanelArtW, eraPanelArtH),
 		new THREE.MeshBasicMaterial({ map: createBrowserScreenshotTexture(spec) })
 	);
-	art.position.set(0, y, 0.05);
+	art.position.set(0, eraPanelY, 0.05);
 	group.add(art);
 	return group;
 }
