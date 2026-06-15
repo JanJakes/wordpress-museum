@@ -10032,7 +10032,6 @@ function addEraVignette(group, room, roomIndex) {
 			addScatteredFloorBlocks(group, roomIndex);
 		}
 	}
-	addRoomVignetteLights(group, color);
 }
 
 // Stands the Gutenberg-pun printing press out in the open floor bay between the
@@ -13836,11 +13835,6 @@ function addEraModelProps(group, room, roomIndex, color, secondary) {
 		],
 	};
 	(propSets[room.era] || []).forEach((prop) => placeEraProp(group, prop));
-	const floorLight = createMuseumLamp(roomIndex % 2 ? color : secondary);
-	floorLight.scale.setScalar(0.8);
-	const lightSide = roomIndex % 2 ? 'left' : 'right';
-	const lightSpot = sideWallFloorSpot(lightSide, -4.7, 0.4);
-	addLocal(group, floorLight, lightSpot.x, lightSpot.z, 0);
 }
 
 // Places one era prop by role. Exhibits hug the side wall facing inward; benches
@@ -13966,15 +13960,6 @@ function createVignetteStation(color, labelText, object, options = {}) {
 	label.position.set(0, baseHeight + 0.16, -depth / 2 - 0.14);
 	group.add(label);
 	return group;
-}
-
-function addRoomVignetteLights(group, color) {
-	const leftLamp = createMuseumLamp(color);
-	leftLamp.scale.setScalar(0.72);
-	addLocal(group, leftLamp, -roomWidth / 2 + 0.75, -roomDepth / 2 + 1.2, 0);
-	const rightLamp = createMuseumLamp(color);
-	rightLamp.scale.setScalar(0.72);
-	addLocal(group, rightLamp, roomWidth / 2 - 0.75, -roomDepth / 2 + 1.2, 0);
 }
 
 function createMuseumProp(type, color) {
