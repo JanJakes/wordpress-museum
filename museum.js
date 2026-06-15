@@ -14012,7 +14012,7 @@ function getEraVignetteItems(room, color, secondary) {
 			// already has the prominent "THE DASHBOARD" cockpit. The lone
 			// remaining PLUGINS vignette stands out in the open floor (off the
 			// side wall, forward toward the entrance), facing arriving visitors.
-			{ label: 'PLUGINS', object: createPluginCrates(color), width: 1.55, at: { x: 3.1, z: -4.5, rotation: Math.PI / 2 } },
+			{ label: 'PLUGINS', object: createPluginCrates(color), width: 1.55, at: { x: 3.4, z: -4.85, rotation: Math.PI / 2 } },
 		],
 		'CMS Toolkit': [
 			{ label: 'MENUS', object: createMenuShelf(color, secondary), width: 1.6 },
