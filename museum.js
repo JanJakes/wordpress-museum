@@ -245,6 +245,13 @@ const exhibitOuterWidth = 2.72;
 const exhibitOuterHeight = 2.2;
 const exhibitPlaqueWidth = 2.42;
 const exhibitPlaqueHeight = 1.9;
+// Shared size + mount height for the Blogging Roots era-decoration panels
+// (web-safe palette, link buttons, under construction, browser wars and the
+// Google/Yahoo screenshots) so they read as one uniform set, vertically
+// aligned with the release plaques (which mount at y=2.05).
+const eraPanelArtW = 1.6;
+const eraPanelArtH = 1.2;
+const eraPanelY = 2.05;
 const exhibitWallMargin = 0.7;
 const entryDistanceFromCenter = 5.2;
 const shellPadding = 1.4;
@@ -10004,8 +10011,8 @@ function addEraVignette(group, room, roomIndex) {
 			addLocal(group, createUnderConstructionPlaque(), -4.87, frontWallZ);
 			// The Link Buttons board and Web-Safe Palette hang on the left side
 			// wall above the radio (placed by propSets at z≈-5.5), centred on it.
-			group.add(placeOnSideWall(createLinkButtonBoard(), 'left', -6.6, 0.2, 0.2));
-			group.add(placeOnSideWall(createWebSafePalettePanel(), 'left', -4.4, -0.1, 0.2));
+			group.add(placeOnSideWall(createLinkButtonBoard(), 'left', -6.6, eraPanelY, 0.2));
+			group.add(placeOnSideWall(createWebSafePalettePanel(), 'left', -4.4, eraPanelY, 0.2));
 			addWebOf2004Display(group);
 			addGuestbookLectern(group);
 			addRetroHomepageStation(group);
@@ -10877,19 +10884,16 @@ function addWebOf2004Display(group) {
 // as a front-wall plaque (art faces +z, into the room) sized for the corner bay.
 function createLinkButtonBoard() {
 	const group = new THREE.Group();
-	const boardW = 1.78;
-	const boardH = 1.32;
 	const frame = new THREE.Mesh(
-		new THREE.BoxGeometry(boardW + 0.16, boardH + 0.16, 0.08),
+		new THREE.BoxGeometry(eraPanelArtW + 0.16, eraPanelArtH + 0.16, 0.08),
 		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
 	);
-	frame.position.set(0, 2.05, 0);
 	group.add(frame);
 	const art = new THREE.Mesh(
-		new THREE.PlaneGeometry(boardW, boardH),
+		new THREE.PlaneGeometry(eraPanelArtW, eraPanelArtH),
 		new THREE.MeshBasicMaterial({ map: createLinkButtonBoardTexture() })
 	);
-	art.position.set(0, 2.05, 0.05);
+	art.position.z = 0.05;
 	group.add(art);
 	return group;
 }
@@ -11035,19 +11039,17 @@ function draw88x31Button(ctx, x, y, w, h, btn) {
 // (art faces +z, into the room) sized for the opposite corner bay.
 function createBrowserWarsPanel() {
 	const group = new THREE.Group();
-	const w = 1.78;
-	const h = 1.2;
 	const frame = new THREE.Mesh(
-		new THREE.BoxGeometry(w + 0.16, h + 0.16, 0.08),
+		new THREE.BoxGeometry(eraPanelArtW + 0.16, eraPanelArtH + 0.16, 0.08),
 		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
 	);
-	frame.position.set(0, 2.05, 0);
+	frame.position.set(0, eraPanelY, 0);
 	group.add(frame);
 	const art = new THREE.Mesh(
-		new THREE.PlaneGeometry(w, h),
+		new THREE.PlaneGeometry(eraPanelArtW, eraPanelArtH),
 		new THREE.MeshBasicMaterial({ map: createBrowserWarsTexture() })
 	);
-	art.position.set(0, 2.05, 0.05);
+	art.position.set(0, eraPanelY, 0.05);
 	group.add(art);
 	return group;
 }
@@ -11649,40 +11651,41 @@ function createUnderConstructionPlaque() {
 	const group = new THREE.Group();
 
 	const frame = new THREE.Mesh(
-		new THREE.BoxGeometry(1.62, 1.22, 0.08),
+		new THREE.BoxGeometry(eraPanelArtW + 0.16, eraPanelArtH + 0.16, 0.08),
 		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
 	);
-	frame.position.set(0, 2.35, 0);
+	frame.position.set(0, eraPanelY, 0);
 	group.add(frame);
 
 	const plaque = new THREE.Mesh(
-		new THREE.PlaneGeometry(1.46, 1.06),
+		new THREE.PlaneGeometry(eraPanelArtW, eraPanelArtH),
 		new THREE.MeshBasicMaterial({ map: createUnderConstructionTexture() })
 	);
-	plaque.position.set(0, 2.35, 0.05);
+	plaque.position.set(0, eraPanelY, 0.05);
 	group.add(plaque);
 
 	// Scrolling marquee strip beneath the plaque.
 	const marqueeTexture = createMarqueeTexture();
 	const marquee = new THREE.Mesh(
-		new THREE.PlaneGeometry(1.46, 0.18),
+		new THREE.PlaneGeometry(eraPanelArtW, 0.18),
 		new THREE.MeshBasicMaterial({ map: marqueeTexture })
 	);
-	marquee.position.set(0, 1.56, 0.05);
+	marquee.position.set(0, eraPanelY - eraPanelArtH / 2 - 0.12, 0.05);
 	group.add(marquee);
 	registerAnimation(marquee, (object, elapsed) => {
 		marqueeTexture.offset.x = (elapsed * 0.16) % 1;
 	});
 
 	// Amber warning beacon perched on top, blinking.
+	const beaconY = eraPanelY + eraPanelArtH / 2 + 0.18;
 	const beacon = new THREE.Mesh(
 		new THREE.SphereGeometry(0.07, 14, 10),
 		new THREE.MeshBasicMaterial({ color: 0xffb020 })
 	);
-	beacon.position.set(0, 3.04, 0.05);
+	beacon.position.set(0, beaconY, 0.05);
 	group.add(beacon);
 	const beaconGlow = new THREE.PointLight(0xffb020, 0.0, 2.4);
-	beaconGlow.position.set(0, 3.04, 0.2);
+	beaconGlow.position.set(0, beaconY, 0.2);
 	group.add(beaconGlow);
 	registerAnimation(beacon, (object, elapsed) => {
 		const blink = (Math.sin(elapsed * 3.4) + 1) / 2;
@@ -11818,17 +11821,16 @@ function createWebSafePalettePanel() {
 	const group = new THREE.Group();
 
 	const frame = new THREE.Mesh(
-		new THREE.BoxGeometry(1.62, 1.22, 0.08),
+		new THREE.BoxGeometry(eraPanelArtW + 0.16, eraPanelArtH + 0.16, 0.08),
 		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
 	);
-	frame.position.set(0, 2.35, 0);
 	group.add(frame);
 
 	const panel = new THREE.Mesh(
-		new THREE.PlaneGeometry(1.46, 1.06),
+		new THREE.PlaneGeometry(eraPanelArtW, eraPanelArtH),
 		new THREE.MeshBasicMaterial({ map: createWebSafePaletteTexture() })
 	);
-	panel.position.set(0, 2.35, 0.05);
+	panel.position.z = 0.05;
 	group.add(panel);
 
 	return group;
@@ -12537,8 +12539,9 @@ function createHowdyAdminBarTexture(width, height) {
 // WebEraPoster at z≈−2.5, leaving the front segment free for two framed shots.
 function addBloggingRootsScreenshots(group) {
 	const shots = [
-		{ z: -6.2, draw: drawSiteGoogle1998, url: 'http://www.google.com', caption: 'Google · 1998' },
-		{ z: -4.6, draw: drawSiteYahoo, url: 'http://www.yahoo.com', caption: 'Yahoo! · 2003' },
+		// Spaced 2.2m apart so the now-larger uniform frames don't overlap.
+		{ z: -6.5, draw: drawSiteGoogle1998, url: 'http://www.google.com', caption: 'Google · 1998' },
+		{ z: -4.3, draw: drawSiteYahoo, url: 'http://www.yahoo.com', caption: 'Yahoo! · 2003' },
 	];
 	shots.forEach((shot) => {
 		group.add(createSideWallScreenshot(shot, 'right', shot.z));
@@ -12815,17 +12818,15 @@ function createWpHooksLabelTexture() {
 // at local y=0 so it can be flush-mounted on an angled side wall via
 // placeOnSideWall (height set there) instead of the front wall.
 function createSideWallScreenshot(spec, side, z) {
-	const frameW = 1.42;
-	const frameH = 1.18;
 	const inner = new THREE.Group();
 	const frame = new THREE.Mesh(
-		new THREE.BoxGeometry(frameW + 0.14, frameH + 0.14, 0.08),
+		new THREE.BoxGeometry(eraPanelArtW + 0.16, eraPanelArtH + 0.16, 0.08),
 		new THREE.MeshStandardMaterial({ color: 0xc79b43, roughness: 0.34, metalness: 0.5 })
 	);
 	frame.position.z = -0.02;
 	inner.add(frame);
 	const art = new THREE.Mesh(
-		new THREE.PlaneGeometry(frameW, frameH),
+		new THREE.PlaneGeometry(eraPanelArtW, eraPanelArtH),
 		new THREE.MeshBasicMaterial({ map: createBrowserScreenshotTexture(spec) })
 	);
 	art.position.z = 0.05;
@@ -12833,7 +12834,7 @@ function createSideWallScreenshot(spec, side, z) {
 	// Stand the frame proud of the angled wall: the 0.08-deep frame's back face
 	// tucks into the 0.26-thick wall while the picture clears its inner surface by
 	// ~0.05, so it reads as hung art without z-fighting.
-	placeOnSideWall(inner, side, z, 2.3, 0.15);
+	placeOnSideWall(inner, side, z, eraPanelY, 0.15);
 	return inner;
 }
 
