@@ -14007,11 +14007,10 @@ function getEraVignetteItems(room, color, secondary) {
 		],
 		'Dashboard Foundations': [
 			// The DASHBOARD and /WP-ADMIN vignettes were dropped: the room
-			// already has the prominent "THE DASHBOARD" cockpit, and they
-			// cluttered the front-of-entrance corner. The lone remaining
-			// PLUGINS vignette is pinned to the back station so it never slides
-			// into that vacated front spot.
-			{ label: 'PLUGINS', object: createPluginCrates(color), width: 1.55, station: 2 },
+			// already has the prominent "THE DASHBOARD" cockpit. The lone
+			// remaining PLUGINS vignette stands out in the open floor (off the
+			// side wall, forward toward the entrance), facing arriving visitors.
+			{ label: 'PLUGINS', object: createPluginCrates(color), width: 1.55, at: { x: -4.6, z: -3, rotation: 0 } },
 		],
 		'CMS Toolkit': [
 			{ label: 'MENUS', object: createMenuShelf(color, secondary), width: 1.6 },
