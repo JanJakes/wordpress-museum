@@ -10182,7 +10182,9 @@ function createDashboardCockpit() {
 	const dark = propStdMat(0x14181f, 0.55);
 	const wheelGroup = new THREE.Group();
 	wheelGroup.position.set(0, 0.98, 0.38);
-	wheelGroup.rotation.x = 0.52;
+	// Negative tilt rakes the top back toward the panel so the face angles UP
+	// toward the viewer, like a real car wheel (positive would tip it face-down).
+	wheelGroup.rotation.x = -0.5;
 	g.add(wheelGroup);
 	const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.045, 16, 32), dark);
 	wheelGroup.add(wheel);
