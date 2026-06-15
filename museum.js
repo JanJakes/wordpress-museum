@@ -10020,8 +10020,10 @@ function addEraVignette(group, room, roomIndex) {
 			addWebStand(group);
 			addWpHooksRail(group);
 		} else if (room.era === 'CMS Toolkit') {
-			addLocal(group, createSkeuomorphicPanel(), 3.95, frontWallZ);
-			addLocal(group, createFauxMaterialsPanel(), -3.95, frontWallZ);
+			// Skeuomorphism centred on the right segment; faux materials + IE6
+			// card share the left segment, spaced so they don't overlap.
+			addLocal(group, createSkeuomorphicPanel(), 4.87, frontWallZ);
+			addLocal(group, createFauxMaterialsPanel(), -3.92, frontWallZ);
 			group.add(createIE6RetirementCard());
 			addProminentPair(group, createToolboxStand(), createMultisiteVillage());
 		} else if (room.era === 'Dashboard Foundations') {
@@ -10030,16 +10032,16 @@ function addEraVignette(group, room, roomIndex) {
 			addLocal(group, createHowdyAdminBar(), -4.7, frontWallZ);
 			addProminentPair(group, createDashboardCockpit(), createUndoLever());
 		} else if (room.era === 'Modern Admin') {
-			addLocal(group, createFlatDesignPanel(), 3.95, frontWallZ);
+			addLocal(group, createFlatDesignPanel(), 4.87, frontWallZ);
 			addProminentPair(group, createEmojiStatue(), createResponsiveTotem());
 		} else if (room.era === 'API and Customizer') {
-			addLocal(group, createMaterialDesignPanel(), 3.95, frontWallZ);
+			addLocal(group, createMaterialDesignPanel(), 4.87, frontWallZ);
 			addProminentPair(group, createCustomizerProminent(color, secondary), createRestBench());
 		} else if (room.era === 'Block Editor') {
-			addLocal(group, createBigTypePanel(), 3.95, frontWallZ);
+			addLocal(group, createBigTypePanel(), 4.87, frontWallZ);
 			addBlockEditorPrintingPress(group, color);
 		} else if (room.era === 'Blocks Everywhere') {
-			addLocal(group, createDarkModePanel(), 3.95, frontWallZ);
+			addLocal(group, createDarkModePanel(), 4.87, frontWallZ);
 			addProminentPair(group, createBlockHouse(), createSlashMonolith());
 			addScatteredFloorBlocks(group, roomIndex);
 		}
@@ -11068,8 +11070,7 @@ function createBrowserWarsTexture() {
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
 	ctx.fillStyle = '#241a0c';
-	ctx.font = '900 50px Arial Black, Impact, sans-serif';
-	ctx.fillText('THE BROWSER WARS · 2004', canvas.width / 2, 60);
+	fillFittedCanvasText(ctx, 'THE BROWSER WARS · 2004', canvas.width / 2, 60, canvas.width - 80, 48, '900', 'Arial Black, Impact, sans-serif');
 
 	const cells = [
 		{ logo: drawIELogo, name: 'Internet Explorer 6', note: '~90% share' },
@@ -11104,97 +11105,110 @@ function createBrowserWarsTexture() {
 	return tex;
 }
 
-// Classic blue "e" with a yellow orbit ring.
+// Internet Explorer: a deep-blue lowercase "e" with a tilted gold orbit band.
 function drawIELogo(ctx, cx, cy, r) {
-	ctx.lineWidth = r * 0.34;
-	ctx.strokeStyle = '#1f6fd6';
-	ctx.beginPath();
-	ctx.arc(cx, cy, r * 0.72, Math.PI * 0.18, Math.PI * 1.78);
-	ctx.stroke();
-	ctx.lineWidth = r * 0.22;
-	ctx.beginPath();
-	ctx.moveTo(cx - r * 0.55, cy);
-	ctx.lineTo(cx + r * 0.55, cy);
-	ctx.stroke();
-	// Yellow orbit ring (squashed ellipse).
 	ctx.save();
-	ctx.translate(cx, cy - r * 0.12);
-	ctx.rotate(-0.5);
+	ctx.fillStyle = '#0c63b8';
+	ctx.font = '900 ' + Math.round(r * 2.15) + 'px Georgia, "Times New Roman", serif';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('e', cx, cy + r * 0.06);
+	ctx.restore();
+	// Gold orbit band, tilted and squashed, crossing in front of the "e".
+	ctx.save();
+	ctx.translate(cx, cy - r * 0.06);
+	ctx.rotate(-0.42);
 	ctx.scale(1, 0.34);
-	ctx.lineWidth = r * 0.18;
-	ctx.strokeStyle = '#f4c20d';
+	ctx.lineWidth = r * 0.2;
+	ctx.strokeStyle = '#f3c111';
 	ctx.beginPath();
-	ctx.arc(0, 0, r * 1.05, 0, Math.PI * 2);
+	ctx.arc(0, 0, r * 1.18, 0, Math.PI * 2);
 	ctx.stroke();
 	ctx.restore();
 }
 
-// Netscape ship's-wheel "N" on a dark globe.
+// Netscape: the big green→blue "N" planted on a starry horizon, dark-sky disc.
 function drawNetscapeLogo(ctx, cx, cy, r) {
-	const g = ctx.createLinearGradient(cx, cy - r, cx, cy + r);
-	g.addColorStop(0, '#1b2a55');
-	g.addColorStop(1, '#04060f');
-	ctx.fillStyle = g;
+	const sky = ctx.createLinearGradient(cx, cy - r, cx, cy + r);
+	sky.addColorStop(0, '#0c2142');
+	sky.addColorStop(1, '#02060e');
+	ctx.fillStyle = sky;
 	ctx.beginPath();
 	ctx.arc(cx, cy, r, 0, Math.PI * 2);
 	ctx.fill();
-	ctx.fillStyle = '#00a8e8';
-	ctx.font = '900 ' + Math.round(r * 1.5) + 'px Georgia, serif';
+	// Scattered stars.
+	ctx.fillStyle = 'rgba(255,255,255,0.85)';
+	for (const [sx, sy, ss] of [[-0.52, -0.5, 1.7], [0.42, -0.58, 1.3], [0.6, -0.18, 1.0], [-0.64, -0.05, 1.0], [0.12, -0.66, 1.1]]) {
+		ctx.beginPath();
+		ctx.arc(cx + sx * r, cy + sy * r, ss, 0, Math.PI * 2);
+		ctx.fill();
+	}
+	// The "N" in the classic green-to-blue gradient.
+	const ng = ctx.createLinearGradient(cx - r * 0.5, cy - r * 0.6, cx + r * 0.5, cy + r * 0.6);
+	ng.addColorStop(0, '#86df57');
+	ng.addColorStop(0.5, '#27a5e6');
+	ng.addColorStop(1, '#0a52a6');
+	ctx.fillStyle = ng;
+	ctx.font = '900 ' + Math.round(r * 1.72) + 'px Arial Black, Impact, sans-serif';
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-	ctx.fillText('N', cx, cy + r * 0.04);
-	// Horizon arc sweeping across the lower globe.
-	ctx.strokeStyle = 'rgba(0,168,232,0.85)';
-	ctx.lineWidth = r * 0.12;
+	ctx.fillText('N', cx, cy + r * 0.12);
+	// Curved horizon the "N" stands on.
+	ctx.strokeStyle = 'rgba(120,200,255,0.7)';
+	ctx.lineWidth = r * 0.1;
 	ctx.beginPath();
-	ctx.arc(cx, cy + r * 1.1, r * 1.3, Math.PI * 1.25, Math.PI * 1.75);
+	ctx.arc(cx, cy + r * 1.4, r * 1.55, Math.PI * 1.22, Math.PI * 1.78);
 	ctx.stroke();
 }
 
-// Firefox: orange fox curled around a blue globe.
+// Firefox: an orange-to-red fox flame sweeping clockwise around a blue globe.
 function drawFirefoxLogo(ctx, cx, cy, r) {
-	const g = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.2, cx, cy, r);
-	g.addColorStop(0, '#7fd0ff');
-	g.addColorStop(1, '#16448c');
+	const g = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.2, cx, cy, r);
+	g.addColorStop(0, '#aae2ff');
+	g.addColorStop(1, '#1b4f9c');
 	ctx.fillStyle = g;
 	ctx.beginPath();
-	ctx.arc(cx, cy, r, 0, Math.PI * 2);
+	ctx.arc(cx, cy, r * 0.9, 0, Math.PI * 2);
 	ctx.fill();
-	// Meridians.
-	ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-	ctx.lineWidth = r * 0.05;
-	for (const k of [-0.5, 0, 0.5]) {
-		ctx.beginPath();
-		ctx.ellipse(cx, cy, r * Math.abs(0.85 - Math.abs(k) * 0.9 + 0.05), r, 0, 0, Math.PI * 2);
-		ctx.stroke();
-	}
-	// Fox sweeping around the right side.
-	const fg = ctx.createLinearGradient(cx, cy - r, cx + r, cy + r);
-	fg.addColorStop(0, '#ffb33b');
-	fg.addColorStop(1, '#e24a17');
+	// A couple of faint globe lines.
+	ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+	ctx.lineWidth = r * 0.04;
+	ctx.beginPath();
+	ctx.ellipse(cx, cy, r * 0.42, r * 0.9, 0, 0, Math.PI * 2);
+	ctx.stroke();
+	ctx.beginPath();
+	ctx.moveTo(cx - r * 0.88, cy);
+	ctx.lineTo(cx + r * 0.88, cy);
+	ctx.stroke();
+	// Fox: a flame tail curling around the top and right of the globe.
+	const fg = ctx.createLinearGradient(cx - r * 0.4, cy - r * 1.1, cx + r * 1.1, cy + r * 0.8);
+	fg.addColorStop(0, '#ffd23f');
+	fg.addColorStop(0.5, '#ff7a18');
+	fg.addColorStop(1, '#e23119');
 	ctx.fillStyle = fg;
 	ctx.beginPath();
-	ctx.moveTo(cx - r * 0.2, cy - r * 1.0);
-	ctx.quadraticCurveTo(cx + r * 1.25, cy - r * 0.95, cx + r * 1.05, cy + r * 0.35);
-	ctx.quadraticCurveTo(cx + r * 0.9, cy + r * 1.2, cx - r * 0.1, cy + r * 1.05);
-	ctx.quadraticCurveTo(cx + r * 0.55, cy + r * 0.35, cx + r * 0.2, cy - r * 0.55);
-	ctx.quadraticCurveTo(cx + r * 0.05, cy - r * 0.85, cx - r * 0.2, cy - r * 1.0);
+	ctx.moveTo(cx - r * 0.28, cy - r * 1.02);                                  // pointed snout, upper-left
+	ctx.quadraticCurveTo(cx + r * 1.18, cy - r * 1.05, cx + r * 1.22, cy + r * 0.12); // sweep over the top to the right
+	ctx.quadraticCurveTo(cx + r * 1.24, cy + r * 1.05, cx + r * 0.16, cy + r * 1.2);  // tail curling down
+	ctx.quadraticCurveTo(cx + r * 0.98, cy + r * 0.55, cx + r * 0.74, cy - r * 0.18); // inner edge back up
+	ctx.quadraticCurveTo(cx + r * 0.55, cy - r * 0.78, cx + r * 0.05, cy - r * 0.74); // inner toward the snout
+	ctx.quadraticCurveTo(cx - r * 0.05, cy - r * 1.0, cx - r * 0.28, cy - r * 1.02);  // close at the snout
 	ctx.closePath();
 	ctx.fill();
 }
 
-// Opera: bold red "O".
+// Opera: a clean bold red "O".
 function drawOperaLogo(ctx, cx, cy, r) {
 	const g = ctx.createLinearGradient(cx, cy - r, cx, cy + r);
-	g.addColorStop(0, '#e8443a');
-	g.addColorStop(1, '#a30f0f');
+	g.addColorStop(0, '#f23a2f');
+	g.addColorStop(1, '#b3120f');
 	ctx.fillStyle = g;
 	ctx.beginPath();
-	ctx.ellipse(cx, cy, r * 0.82, r, 0, 0, Math.PI * 2);
+	ctx.ellipse(cx, cy, r * 0.78, r * 0.98, 0, 0, Math.PI * 2);
 	ctx.fill();
 	ctx.fillStyle = '#f4ead0';
 	ctx.beginPath();
-	ctx.ellipse(cx, cy, r * 0.36, r * 0.56, 0, 0, Math.PI * 2);
+	ctx.ellipse(cx, cy, r * 0.33, r * 0.54, 0, 0, Math.PI * 2);
 	ctx.fill();
 }
 
@@ -11598,7 +11612,7 @@ function createIE6RetirementCard() {
 	art.position.set(0, eraPanelY, 0.05);
 	group.add(art);
 	const frontWallZ = -roomDepth / 2 + wallThickness / 2 + 0.05;
-	group.position.set(-5.55, 0, frontWallZ);
+	group.position.set(-5.82, 0, frontWallZ);
 	return group;
 }
 
