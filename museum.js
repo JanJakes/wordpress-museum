@@ -13890,7 +13890,7 @@ function getEraVignetteItems(room, color, secondary) {
 		],
 		'Dashboard Foundations': [
 			{ label: 'PLUGINS', object: createPluginCrates(color), width: 1.55, at: at3, objectScale: 1 },
-			{ label: 'AKISMET', object: createAkismetTrap(color, secondary), width: 1.5, at: at4, objectScale: 1 },
+			{ label: 'WIDGETS', object: createWidgetsProp(color, secondary), width: 1.5, at: at4, objectScale: 1 },
 		],
 		'CMS Toolkit': [
 			// MENUS, POST TYPES and CUSTOMIZER wall vignettes all removed; only
@@ -14496,61 +14496,53 @@ function createMiniPatternTexture(accent, seed) {
 // All built facing local -z so they read toward the carpet at the 4th-prop
 // rotation (-PI/2), matching the vignette label.
 
-// II · Dashboard Foundations 4th prop — Akismet: a spam tin catching junk mail,
-// with a few cartoon flies buzzing around it.
-function createAkismetTrap(color, secondary) {
+// II · Dashboard Foundations 4th prop — widgets: a sidebar with widget cards
+// docked in it and one floating above, mid-drag, about to drop in (WP 2.2/2.7
+// drag-and-drop widgets). Card faces are on local -z to read toward the carpet.
+function createWidgetsProp(color, secondary) {
 	const g = new THREE.Group();
-	const tinMat = new THREE.MeshStandardMaterial({ color: 0xcf3b2e, roughness: 0.5, metalness: 0.25 });
-	const tin = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.62, 28), tinMat);
-	tin.position.y = 0.5;
-	g.add(tin);
-	const band = new THREE.Mesh(
-		new THREE.CylinderGeometry(0.345, 0.345, 0.26, 28),
-		new THREE.MeshBasicMaterial({ map: createCanBandTexture('SPAM') })
+	const panel = new THREE.Mesh(
+		new THREE.BoxGeometry(0.62, 1.04, 0.12),
+		new THREE.MeshStandardMaterial({ color: 0xe9e3d4, roughness: 0.6 })
 	);
-	band.position.y = 0.52;
-	g.add(band);
-	const rim = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.03, 10, 28), new THREE.MeshStandardMaterial({ color: 0x9aa3ad, roughness: 0.4, metalness: 0.5 }));
-	rim.rotation.x = Math.PI / 2;
-	rim.position.y = 0.81;
-	g.add(rim);
-	// Crumpled spam envelopes poking out of the tin.
-	const envMat = new THREE.MeshStandardMaterial({ color: 0xf4ead0, roughness: 0.8 });
-	for (let i = 0; i < 4; i++) {
-		const env = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.17, 0.02), envMat);
-		const a = i * 1.6;
-		env.position.set(Math.cos(a) * 0.12, 0.86 + (i % 2) * 0.07, Math.sin(a) * 0.12);
-		env.rotation.set(0.5, a, 0.35);
-		g.add(env);
-	}
-	// Buzzing flies.
-	for (let i = 0; i < 3; i++) {
-		const fly = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), new THREE.MeshStandardMaterial({ color: 0x14181f }));
-		fly.userData.base = { x: Math.cos(i * 2.1) * 0.42, y: 1.0 + i * 0.12, z: Math.sin(i * 2.1) * 0.42, p: i };
-		fly.position.set(fly.userData.base.x, fly.userData.base.y, fly.userData.base.z);
-		registerAnimation(fly, (o, e) => {
-			const b = o.userData.base;
-			o.position.x = b.x + Math.sin(e * 3 + b.p) * 0.1;
-			o.position.z = b.z + Math.cos(e * 2.4 + b.p) * 0.1;
-			o.position.y = b.y + Math.sin(e * 4 + b.p) * 0.05;
-		});
-		g.add(fly);
-	}
+	panel.position.y = 0.62;
+	g.add(panel);
+	const widget = (y, accent, z, s) => {
+		const w = new THREE.Group();
+		const card = new THREE.Mesh(
+			new THREE.BoxGeometry(0.5 * s, 0.22 * s, 0.05),
+			new THREE.MeshStandardMaterial({ color: 0xfdfdfb, roughness: 0.5 })
+		);
+		w.add(card);
+		const bar = new THREE.Mesh(
+			new THREE.PlaneGeometry(0.5 * s, 0.07 * s),
+			new THREE.MeshBasicMaterial({ color: '#' + new THREE.Color(accent).getHexString(), side: THREE.DoubleSide })
+		);
+		bar.position.set(0, 0.065 * s, -0.027);
+		w.add(bar);
+		for (let i = 0; i < 2; i++) {
+			const line = new THREE.Mesh(
+				new THREE.PlaneGeometry(0.4 * s, 0.022),
+				new THREE.MeshBasicMaterial({ color: 0xc9d3dd, side: THREE.DoubleSide })
+			);
+			line.position.set(0, -0.01 - i * 0.05, -0.027);
+			w.add(line);
+		}
+		w.position.set(0, y, z);
+		return w;
+	};
+	const accents = [0x21759b, secondary, color];
+	g.add(widget(0.42, accents[0], -0.085, 1));
+	g.add(widget(0.7, accents[1], -0.085, 1));
+	// The widget being dragged in, hovering in front of the sidebar.
+	const dragging = widget(1.18, accents[2], 0.12, 1.06);
+	dragging.userData.baseY = 1.18;
+	registerAnimation(dragging, (o, e) => {
+		o.position.y = o.userData.baseY + Math.sin(e * 1.6) * 0.06;
+		o.rotation.z = Math.sin(e * 1.6) * 0.05;
+	});
+	g.add(dragging);
 	return g;
-}
-
-function createCanBandTexture(text) {
-	const canvas = document.createElement('canvas');
-	canvas.width = 256; canvas.height = 96;
-	const ctx = canvas.getContext('2d');
-	ctx.fillStyle = '#f4ead0'; ctx.fillRect(0, 0, 256, 96);
-	ctx.fillStyle = '#cf3b2e';
-	ctx.font = '900 56px Arial Black, Impact, sans-serif';
-	ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-	ctx.fillText(text, 128, 50);
-	const tex = createCanvasTexture(canvas);
-	tex.colorSpace = THREE.SRGBColorSpace;
-	return tex;
 }
 
 // IV · Modern Admin 4th prop — auto background updates: a WordPress shield with
