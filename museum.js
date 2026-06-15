@@ -9978,12 +9978,15 @@ function addEraVignette(group, room, roomIndex) {
 	const secondary = activeVariant.eraColors[(roomIndex + 2) % activeVariant.eraColors.length];
 	const stations = getEraVignetteStations(roomIndex);
 	getEraVignetteItems(room, color, secondary).forEach((item, index) => {
-		const station = item.at || stations[index];
+		// A vignette may pin itself to a specific station so removing earlier
+		// items doesn't slide it into a vacated (front-of-entrance) spot.
+		const stationIndex = item.station ?? index;
+		const station = item.at || stations[stationIndex];
 		addLocal(
 			group,
 			createVignetteStation(color, item.label, item.object, {
 				...item,
-				objectScale: item.objectScale ?? (index === 2 ? 0.72 : 1),
+				objectScale: item.objectScale ?? (stationIndex === 2 ? 0.72 : 1),
 			}),
 			station.x,
 			station.z,
@@ -14003,10 +14006,12 @@ function getEraVignetteItems(room, color, secondary) {
 			{ label: 'COMMENTS', object: createCommentSculpture(secondary), width: 1.45 },
 		],
 		'Dashboard Foundations': [
-			// The DASHBOARD vignette was redundant with the prominent
-			// "THE DASHBOARD" cockpit prop in the same room, so it's dropped.
-			{ label: '/WP-ADMIN', object: createKnobConsole(color), width: 1.55 },
-			{ label: 'PLUGINS', object: createPluginCrates(color), width: 1.55 },
+			// The DASHBOARD and /WP-ADMIN vignettes were dropped: the room
+			// already has the prominent "THE DASHBOARD" cockpit, and they
+			// cluttered the front-of-entrance corner. The lone remaining
+			// PLUGINS vignette is pinned to the back station so it never slides
+			// into that vacated front spot.
+			{ label: 'PLUGINS', object: createPluginCrates(color), width: 1.55, station: 2 },
 		],
 		'CMS Toolkit': [
 			{ label: 'MENUS', object: createMenuShelf(color, secondary), width: 1.6 },
