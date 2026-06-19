@@ -1,0 +1,22 @@
+{
+	"landingPage": "/",
+	"meta": {
+		"title": "WordPress Museum: 0.7",
+		"description": "A time-capsule post for WordPress 0.7, released May 27, 2003.",
+		"author": "wordpress-playground",
+		"categories": [
+			"wordpress-museum",
+			"legacy-wordpress"
+		]
+	},
+	"preferredVersions": {
+		"php": "5.2",
+		"wp": "0.7"
+	},
+	"steps": [
+		{
+			"step": "runPHP",
+			"code": "<?php\nif (!defined('ABSPATH')) {\n\trequire_once '/wordpress/wp-load.php';\n}\n\nglobal $wpdb;\n\nfunction wordpress_museum_sql_escape($value) {\n\treturn str_replace(\"'\", \"''\", $value);\n}\n\n$title = wordpress_museum_sql_escape(base64_decode('TXVzZXVtIERpc3BhdGNoOiBXb3JkUHJlc3MgMC43'));\n$content = wordpress_museum_sql_escape(base64_decode('PGgyPldlbGNvbWUgYmFjayB0byBNYXkgMjcsIDIwMDMuPC9oMj4KPHA+WW91IGFyZSBzdGFuZGluZyBpbiB0aGUgV29yZFByZXNzIDAuNyBnYWxsZXJ5IOKAlCB0aGUgdmVyeSBmaXJzdCBwdWJsaWMgcmVsZWFzZSwgZm9ya2VkIGZyb20gYjIvY2FmZWxvZyBieSBNYXR0IE11bGxlbndlZyBhbmQgTWlrZSBMaXR0bGUuPC9wPgo8cD5JdCBhcnJpdmVkIGJlZm9yZSB0aGUgamF6ei1jb2RlbmFtZSB0cmFkaXRpb24gYmVnYW4gYXQgMS4wLCBzbyB0aGlzIHJlbGVhc2Ugd2VhcnMgbm8gbXVzaWNpYW4mcnNxdW87cyBuYW1lLiBUaGUgTG9vcCwgYSB0ZW1wbGF0ZSBzeXN0ZW0sIGFuZCBhIGZyaWVuZGx5IGZpdmUtbWludXRlIHNldHVwIHdlcmUgYWxyZWFkeSB0YWtpbmcgc2hhcGUuPC9wPgo8cD48c3Ryb25nPk11c2V1bSBub3RlOjwvc3Ryb25nPiBQbGVhc2Ugc2lsZW5jZSB5b3VyIG1vZGVtLiBZb3UgYXJlIHdhdGNoaW5nIGEgYmxvZyBlbmdpbmUgdGFrZSBpdHMgdmVyeSBmaXJzdCBicmVhdGguPC9wPgo8cD48ZW0+VGhpcyBwb3N0IHdhcyBwbGFudGVkIGJ5IGEgQmx1ZXByaW50IHNvIHRoZSBwYXN0IGhhcyBzb21ldGhpbmcgdG8gc2F5IHdoZW4gdGhlIHNpdGUgb3BlbnMuPC9lbT48L3A+CjxwPjxhIGhyZWY9Imh0dHBzOi8vamFuamFrZXMuZ2l0aHViLmlvL3dvcmRwcmVzcy1tdXNldW0vP3JlbGVhc2U9MC43Ij7ihqkgRmluZCBXb3JkUHJlc3MgMC43IGluIHRoZSBXb3JkUHJlc3MgTXVzZXVtPC9hPjwvcD4='));\n$now = '2003-05-27 10:00:00';\n// WordPress 0.7 ships a far simpler posts schema than 1.0, so update the\n// default first post in place using only columns present in that release.\n$wpdb->query(\n\t\"UPDATE \" . $wpdb->posts . \" SET post_title = '$title', post_content = '$content', post_date = '$now' WHERE ID = 1\"\n);"
+		}
+	]
+}

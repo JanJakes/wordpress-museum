@@ -549,7 +549,7 @@ window.WP_MUSEUM_RELEASES = [
 		knownFor: 'The first WordPress',
 		detail: 'The very first public release, forked from b2/cafelog. It shipped before the jazz-codename tradition began at 1.0, so it carries no musician name.',
 		artifact: 'b2/cafelog fork stone',
-		blueprint: './blueprints/wordpress-museum/wp-1-0.json',
+		blueprint: './blueprints/wordpress-museum/wp-0-7.json',
 	},
 ];
 

@@ -360,6 +360,14 @@
 			"php": "5.2",
 			"file": "wp-1-0.json",
 			"title": "Museum Dispatch: WordPress 1.0 (Miles)"
+		},
+		{
+			"version": "0.7",
+			"name": "",
+			"released": "May 27, 2003",
+			"php": "5.2",
+			"file": "wp-0-7.json",
+			"title": "Museum Dispatch: WordPress 0.7"
 		}
 	]
 }
