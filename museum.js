@@ -17992,7 +17992,16 @@ function openPlaygroundModal(index) {
 		document.exitPointerLock();
 	}
 	const iframe = document.querySelector('#playground-modal-iframe');
-	const playgroundUrl = playgroundUrlForRelease(release);
+	// Start loading the Blueprint immediately so the fetch overlaps the GPU
+	// reclaim below; apply it only while the modal is still open.
+	const playgroundUrlPromise = playgroundModalUrlForRelease(release);
+	const bootIframe = () => {
+		playgroundUrlPromise.then((src) => {
+			if (modal.classList.contains('is-open')) {
+				iframe.src = src;
+			}
+		});
+	};
 	if (loseContextExtension && !webglContextLost) {
 		// Free the scene's GPU memory BEFORE the embedded WordPress starts loading,
 		// so its PHP/WASM heap fills the reclaimed space instead of peaking on top of
@@ -18001,13 +18010,40 @@ function openPlaygroundModal(index) {
 		// before kicking off the iframe.
 		webglContextLost = true;
 		loseContextExtension.loseContext();
-		setTimeout(() => {
-			if (modal.classList.contains('is-open')) {
-				iframe.src = playgroundUrl;
-			}
-		}, 160);
+		setTimeout(bootIframe, 160);
 	} else {
-		iframe.src = playgroundUrl;
+		bootIframe();
+	}
+}
+
+// The modal enriches the bare version boot with the release's Museum Dispatch
+// Blueprint, inlined into the URL fragment. The fragment form carries the whole
+// Blueprint in the link, so it works from any origin — including the local dev
+// server, which playground.wordpress.net cannot fetch a blueprint-url back from.
+// Falls back to a bare version boot if the Blueprint can't be loaded.
+async function playgroundModalUrlForRelease(release) {
+	if (!release.blueprint) {
+		return playgroundUrlForRelease(release);
+	}
+	try {
+		const response = await fetch(new URL(release.blueprint, window.location.href).href);
+		if (!response.ok) {
+			throw new Error(`HTTP ${response.status}`);
+		}
+		const blueprint = await response.json();
+		// Playground supports only PHP 7.4+, but the generated Blueprints pin the
+		// historical 5.2. Drop the pin so Playground auto-selects the compatible
+		// PHP it already uses for a bare ?wp= boot; keep the WordPress version.
+		if (blueprint.preferredVersions) {
+			delete blueprint.preferredVersions.php;
+		}
+		const url = new URL('https://playground.wordpress.net/');
+		url.searchParams.set('mode', 'seamless');
+		// Encode the minified Blueprint JSON once and append it after '#'.
+		return `${url.href}#${encodeURIComponent(JSON.stringify(blueprint))}`;
+	} catch (error) {
+		console.warn('Playground Blueprint load failed; booting bare version', error);
+		return playgroundUrlForRelease(release);
 	}
 }
 
