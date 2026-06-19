@@ -56,4 +56,4 @@ node packages/playground/website/scripts/generate-wordpress-museum-blueprints.mj
 | 1.5 | Strayhorn  | 5.2 | [wp-1-5.json](./wp-1-5.json) |
 | 1.2 | Mingus     | 5.2 | [wp-1-2.json](./wp-1-2.json) |
 | 1.0 | Miles      | 5.2 | [wp-1-0.json](./wp-1-0.json) |
-| 0.7 | —          | 5.2 | [wp-0-7.json](./wp-0-7.json) |
+| 0.7 | —          | auto | [wp-0-7.json](./wp-0-7.json) |
